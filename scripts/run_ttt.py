@@ -1,8 +1,9 @@
-"""Phase 2: per-task test-time training plus augmented voting, scored on the eval set.
+"""Phase 2: per-task test-time training plus batched augmented voting, scored on eval.
 
-For each task: fit a fresh LoRA adapter (TTT), generate one candidate per augmentation
-(inverting each back to the original frame), then take the two most common grids as the
-attempts. Uses the official Kaggle consolidated files (challenges plus solutions).
+For each task: fit a fresh LoRA adapter (TTT), generate one candidate per augmentation in a
+single batched call, invert each back to the original frame, then select the two best
+distinct grids by consensus and model confidence. Uses the official Kaggle consolidated
+files (challenges plus solutions).
 
 Run on the rig, e.g.:
   python scripts/run_ttt.py --model-dir <dir> --challenges <eval_challenges.json> \
@@ -12,7 +13,6 @@ import argparse
 import os
 import sys
 import time
-from collections import Counter
 
 import numpy as np
 
@@ -21,32 +21,30 @@ from arc import augment as A   # noqa: E402
 from arc import data as D      # noqa: E402
 from arc import eval as E      # noqa: E402
 from arc import model as M     # noqa: E402
+from arc import select as S    # noqa: E402
 from arc import ttt as T       # noqa: E402
 
 
-def _key(g):
-    return tuple(tuple(int(v) for v in r) for r in g) if g else ()
+def aug_set(n_train, n_aug, rng):
+    base = [A.Augmentation(d4=name) for name in A.D4_NAMES]   # 8 geometric views
+    if n_aug <= len(base):
+        return base[:n_aug]
+    extra = [A.random_augmentation(rng, n_examples=n_train) for _ in range(n_aug - len(base))]
+    return base + extra
 
 
-def predict(peft_model, task, test_input, rng, n_aug, max_new_tokens):
-    augs = [A.Augmentation()] + [A.random_augmentation(rng, n_examples=len(task["train"]))
-                                 for _ in range(n_aug - 1)]
-    cands = []
+def predict(peft_model, task, test_input, augs, max_new_tokens, do_sample, temperature):
+    prompts = []
     for aug in augs:
         ta = A.apply_task(aug, {"train": task["train"], "test": [{"input": test_input}]})
-        prompt = M.build_prompt_ids(ta["train"], ta["test"][0]["input"])
-        g = M.ids_to_grid(M.greedy_generate(peft_model, prompt, max_new_tokens))
-        cands.append(A.invert_grid(aug, g) if g else g)
+        prompts.append(M.build_prompt_ids(ta["train"], ta["test"][0]["input"]))
+    gens = M.batched_generate(peft_model, prompts, max_new_tokens,
+                              do_sample=do_sample, temperature=temperature)
+    cands = []
+    for aug, (gen, lp) in zip(augs, gens):
+        g = M.ids_to_grid(gen)
+        cands.append((A.invert_grid(aug, g) if g else g, lp))
     return cands
-
-
-def top2(cands):
-    counts = Counter(_key(g) for g in cands if g)
-    top = counts.most_common(2)
-    unkey = lambda k: [list(r) for r in k]
-    a1 = unkey(top[0][0]) if top else [[0]]
-    a2 = unkey(top[1][0]) if len(top) > 1 else a1
-    return a1, a2
 
 
 def main():
@@ -60,6 +58,8 @@ def main():
     ap.add_argument("--lr", type=float, default=1e-4)
     ap.add_argument("--rank", type=int, default=32)
     ap.add_argument("--max-new-tokens", type=int, default=1200)
+    ap.add_argument("--do-sample", action="store_true")
+    ap.add_argument("--temperature", type=float, default=1.0)
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--out", default=None)
     args = ap.parse_args()
@@ -78,14 +78,19 @@ def main():
         rng = np.random.default_rng(args.seed + i)
         tt = time.time()
         loss = T.test_time_train(peft_model, init, task, rng, steps=args.steps, lr=args.lr)
+        ttt_t = time.time() - tt
+        augs = aug_set(len(task["train"]), args.n_aug, rng)
+        gt = time.time()
         preds = []
         for tp in task["test"]:
-            a1, a2 = top2(predict(peft_model, task, tp["input"], rng,
-                                  args.n_aug, args.max_new_tokens))
+            cands = predict(peft_model, task, tp["input"], augs,
+                            args.max_new_tokens, args.do_sample, args.temperature)
+            a1, a2 = S.select_top2(cands)
             preds.append({"attempt_1": a1, "attempt_2": a2})
+        gen_t = time.time() - gt
         submission[tid] = preds
         ok = sol.get(tid) and E.grids_equal(preds[0]["attempt_1"], sol[tid][0])
-        print(f"[{i} {tid}] loss={loss:.3f} t={time.time() - tt:.0f}s correct1={bool(ok)}",
+        print(f"[{i} {tid}] loss={loss:.3f} ttt={ttt_t:.0f}s gen={gen_t:.0f}s correct1={bool(ok)}",
               flush=True)
     print(f"[infer] {time.time() - t1:.1f}s", flush=True)
 

@@ -70,5 +70,46 @@ def greedy_generate(model, prompt_ids: List[int], max_new_tokens: int = 1200,
                     device: str = "cuda") -> List[int]:
     inp = torch.tensor([prompt_ids], device=device)
     out = model.generate(inp, max_new_tokens=max_new_tokens, do_sample=False,
-                         eos_token_id=IM_END, pad_token_id=PAD)
+                         use_cache=True, eos_token_id=IM_END, pad_token_id=PAD)
     return out[0, inp.shape[1]:].tolist()
+
+
+@torch.inference_mode()
+def batched_generate(model, prompts, max_new_tokens=1200, do_sample=False,
+                     temperature=1.0, top_p=1.0, chunk=4, device="cuda"):
+    """Generate many prompt id-lists at once (left-padded, chunked for VRAM).
+    Returns a list of (generated_ids, sequence_logprob), one per prompt."""
+    results = []
+    for s in range(0, len(prompts), chunk):
+        results.extend(_gen_chunk(model, prompts[s:s + chunk], max_new_tokens,
+                                  do_sample, temperature, top_p, device))
+    return results
+
+
+def _gen_chunk(model, prompts, max_new_tokens, do_sample, temperature, top_p, device):
+    B = len(prompts)
+    maxlen = max(len(p) for p in prompts)
+    input_ids = torch.full((B, maxlen), PAD, dtype=torch.long, device=device)
+    attn = torch.zeros((B, maxlen), dtype=torch.long, device=device)
+    for i, p in enumerate(prompts):
+        input_ids[i, maxlen - len(p):] = torch.tensor(p, dtype=torch.long, device=device)
+        attn[i, maxlen - len(p):] = 1
+    kw = dict(max_new_tokens=max_new_tokens, do_sample=do_sample, use_cache=True,
+              eos_token_id=IM_END, pad_token_id=PAD,
+              return_dict_in_generate=True, output_scores=True)
+    if do_sample:
+        kw["temperature"] = temperature
+        kw["top_p"] = top_p
+    out = model.generate(input_ids, attention_mask=attn, **kw)
+    seqs = out.sequences[:, maxlen:]
+    logp = torch.log_softmax(torch.stack(out.scores, dim=1), dim=-1)
+    res = []
+    for i in range(B):
+        gen, lp = [], 0.0
+        for t, tok in enumerate(seqs[i].tolist()):
+            lp += float(logp[i, t, tok])
+            if tok == IM_END:
+                break
+            gen.append(tok)
+        res.append((gen, lp))
+    return res
