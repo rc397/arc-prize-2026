@@ -15,6 +15,7 @@ import sys
 import time
 
 import numpy as np
+import torch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from arc import augment as A   # noqa: E402
@@ -92,6 +93,7 @@ def main():
         ok = sol.get(tid) and E.grids_equal(preds[0]["attempt_1"], sol[tid][0])
         print(f"[{i} {tid}] loss={loss:.3f} ttt={ttt_t:.0f}s gen={gen_t:.0f}s correct1={bool(ok)}",
               flush=True)
+        torch.cuda.empty_cache()
     print(f"[infer] {time.time() - t1:.1f}s", flush=True)
 
     if sol:
