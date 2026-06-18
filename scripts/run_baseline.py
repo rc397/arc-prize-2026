@@ -45,27 +45,38 @@ def main():
     challenges, solutions = load_eval(args.data_dir, args.n)
     print(f"[data] {len(challenges)} tasks, {len(solutions)} with solutions", flush=True)
 
+    def dims(g):
+        if not g:
+            return (0, 0)
+        w = len(g[0])
+        return (-1, -1) if any(len(r) != w for r in g) else (len(g), w)
+
     submission = {}
+    shape_ok = shape_tot = 0
     t1 = time.time()
     for i, (tid, task) in enumerate(challenges.items()):
         preds = []
-        for tp in task["test"]:
+        for j, tp in enumerate(task["test"]):
             ids = M.build_prompt_ids(task["train"], tp["input"])
             gen = M.greedy_generate(model, ids, args.max_new_tokens)
             g = M.ids_to_grid(gen)
             preds.append({"attempt_1": g, "attempt_2": g})
+            if tid in solutions:
+                shape_tot += 1
+                shape_ok += int(dims(g) == dims(solutions[tid][j]))
         submission[tid] = preds
         if i < 5:
             a = preds[0]["attempt_1"]
-            dims = f"{len(a)}x{len(a[0]) if a else 0}"
-            ok = solutions.get(tid) and E.grids_equal(a, solutions[tid][0])
-            print(f"[{i} {tid}] out={dims} correct={bool(ok)}", flush=True)
+            gt0 = solutions[tid][0] if tid in solutions else []
+            print(f"[{i} {tid}] pred={dims(a)} gt={dims(gt0)} "
+                  f"exact={bool(tid in solutions and E.grids_equal(a, gt0))}", flush=True)
     dt = time.time() - t1
     print(f"[infer] {dt:.1f}s total, {dt / max(1, len(challenges)):.2f}s/task", flush=True)
 
     if solutions:
         acc, c, t = E.score_submission(submission, solutions)
-        print(f"[score] {c}/{t} = {acc:.4f}")
+        sr = shape_ok / max(1, shape_tot)
+        print(f"[score] exact {c}/{t} = {acc:.4f} | shape {shape_ok}/{shape_tot} = {sr:.4f}")
 
     out_path = os.path.join(os.path.dirname(__file__), "..", "experiments",
                             f"baseline_n{len(challenges)}.json")

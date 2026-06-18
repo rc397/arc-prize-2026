@@ -57,5 +57,29 @@ assistant opener so the model generates the output grid followed by im_end.
 ### Phase 1: baseline
 
 Implemented the model IO layer (`src/arc/model.py`) and a greedy no-TTT baseline runner
-(`scripts/run_baseline.py`). Validating the format on a small subset of the evaluation
-set, then running the full 120-task baseline. Numbers to be recorded here once available.
+(`scripts/run_baseline.py`).
+
+The first run crashed with a cuBLAS internal error during prefill because other GPU
+processes left only about 357 MiB free. This was VRAM contention, not a logic bug. After
+the rig GPU was freed (about 15.5 GB available), a 3-task smoke test produced correctly
+structured output grids of varied shapes (9x3, 29x29, 19x7) at about 29 seconds per task,
+with 0 of 3 exact matches. Zero exact matches on a tiny sample is expected for the base
+model without test-time training, and the well-formed, task-appropriate shapes confirm the
+prompt format is correct. Added a shape-match diagnostic (predicted output dimensions
+versus ground truth) and started the full 120-task baseline. Results to be recorded here.
+
+### Model size question
+
+Checked whether a larger ARC-specialized model exists from the same author. Ivan Sorokin
+published 2B and 4B grids models (qwen3_2b_grids15 and qwen3_4b_grids15) but nothing larger
+in that line, so the 4B we are using is the largest specialized variant. Going beyond 4B
+would mean fine-tuning a generic base on ARC ourselves, which is a later research option
+rather than a drop-in upgrade. Decision: keep the 4B base, and revisit a larger model only
+as an ensemble member or a custom fine-tune after the 4B pipeline plateaus.
+
+### Phase 2: test-time training (code written)
+
+Wrote `src/arc/ttt.py` (per-task LoRA adapter with reset between tasks, leave-one-out
+targets, a random augmentation per step, gradient checkpointing to fit 16 GB) and
+`scripts/run_ttt.py` (TTT followed by augmented voting for the two attempts). To be tested
+on the rig once the baseline run frees the GPU.
