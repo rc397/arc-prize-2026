@@ -1,0 +1,19 @@
+# Large / generated artifacts live on the rig, not versioned
+/data/
+/models/
+/experiments/
+*.safetensors
+*.bin
+*.pt
+*.gguf
+*.npz
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.ipynb_checkpoints/
+
+# Secrets
+kaggle.json
+*.env

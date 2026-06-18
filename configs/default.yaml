@@ -1,0 +1,35 @@
+# Default hyperparameters. Override per-experiment under experiments/.
+model:
+  # Path on the rig to the NVARC Qwen-4B grids model (set after download)
+  path: "models/qwen3_4b_grids15_sft139"
+  dtype: bfloat16
+  max_seq_len: 8192
+
+serialize:
+  cell_sep: ""        # empty: one digit per cell, matches the NVARC grid format
+  row_sep: "\n"
+
+augment:
+  n_train_aug: 24     # augmentations per task at inference (AIRV)
+  use_d4: true
+  recolor: true
+  keep_background: false   # whether color 0 stays fixed
+  reorder_examples: true
+
+ttt:
+  enabled: true
+  lora_rank: 32
+  lora_alpha: 32
+  lr: 1.0e-4
+  steps: 128
+  batch_size: 1
+
+generate:
+  num_candidates: 32
+  temperature: 0.8
+  top_p: 0.95
+  max_new_tokens: 1024
+
+select:
+  method: product_of_experts   # or: vote
+  top_k_attempts: 2
