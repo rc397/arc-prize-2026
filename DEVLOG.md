@@ -93,3 +93,30 @@ and a 240-task placeholder test set that is swapped for the real tasks at rerun.
 entries in the challenges files carry only the input; outputs live in the separate
 solutions files. Added `load_consolidated` and `write_submission` to `src/arc/data.py` and
 pointed `run_ttt.py` at the official files. Data copied to the rig at `D:\arc\data\kaggle`.
+
+### Performance bug: quadratic decode after TTT (fixed)
+
+The first TTT runs were about 50x slower than the no-TTT baseline (roughly 25 minutes on a
+single small task). Root cause: test-time training enables gradient checkpointing, which
+forces use_cache=False, and resetting that flag on the PEFT wrapper did not reach the base
+model that generate() uses. Without the KV cache, decoding is quadratic. Fixed by passing
+use_cache=True explicitly in greedy_generate and batched_generate, plus a TTT-versus-gen
+timing split in run_ttt.py to confirm, plus clearing the CUDA cache between tasks (Windows
+does not support expandable_segments) to bound memory over long runs.
+
+### Running jobs detached on the rig (survives the laptop closing)
+
+The rig is always-on and headless; the laptop is only a remote running ssh. A job launched
+as a child of the ssh session dies when the laptop closes (the link drops and the child gets
+the hang-up). To run overnight, launch detached:
+`Start-Process -FilePath python -ArgumentList <args> -WindowStyle Hidden -WorkingDirectory D:\arc -RedirectStandardOutput <log> -RedirectStandardError <log>.err -PassThru`.
+That process is independent of the ssh session, so it keeps running after disconnect; read
+the log file on the rig when reconnecting.
+
+### Overnight run, 2026-06-18
+
+Launched the full 120-task TTT eval detached (pid 4340 at launch) with the use_cache fix,
+writing to `D:\arc\experiments\ttt_eval_overnight.log` and the submission to
+`ttt_eval_overnight.json`. On reconnect, read the log: the per-task `ttt=Xs gen=Ys` split
+confirms the fix, and the final `[score]` line is the first real TTT accuracy on the public
+eval.
