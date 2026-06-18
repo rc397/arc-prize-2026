@@ -44,3 +44,30 @@ class GridSerializer:
             cells = list(r) if self.cell_sep == "" else r.split(self.cell_sep)
             out.append([int(c) for c in cells if str(c).strip() != ""])
         return out
+
+
+def load_consolidated(challenges_path, solutions_path=None, n=None):
+    """Official Kaggle format: challenges[tid] = {train, test}, solutions[tid] = [grid]."""
+    ch = load_json(challenges_path)
+    sol = load_json(solutions_path) if solutions_path else {}
+    if n:
+        ids = list(ch)[:n]
+        ch = {k: ch[k] for k in ids}
+        sol = {k: sol[k] for k in ids if k in sol}
+    return ch, sol
+
+
+def write_submission(submission, challenges, path):
+    """Emit submission.json with every task_id and both attempts present per test input."""
+    out = {}
+    for tid, task in challenges.items():
+        preds = submission.get(tid, [])
+        entry = []
+        for i in range(len(task["test"])):
+            p = preds[i] if i < len(preds) else {}
+            a1 = p.get("attempt_1") or [[0]]
+            a2 = p.get("attempt_2") or a1
+            entry.append({"attempt_1": a1, "attempt_2": a2})
+        out[tid] = entry
+    Path(path).write_text(json.dumps(out))
+    return out

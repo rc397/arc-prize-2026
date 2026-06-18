@@ -2,14 +2,13 @@
 
 For each task: fit a fresh LoRA adapter (TTT), generate one candidate per augmentation
 (inverting each back to the original frame), then take the two most common grids as the
-attempts.
+attempts. Uses the official Kaggle consolidated files (challenges plus solutions).
 
 Run on the rig, e.g.:
-  python scripts/run_ttt.py --model-dir <dir> --data-dir <eval_dir> --n 5 --steps 150 --n-aug 8
+  python scripts/run_ttt.py --model-dir <dir> --challenges <eval_challenges.json> \
+      --solutions <eval_solutions.json> --n 5
 """
 import argparse
-import glob
-import json
 import os
 import sys
 import time
@@ -19,23 +18,10 @@ import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 from arc import augment as A   # noqa: E402
+from arc import data as D      # noqa: E402
 from arc import eval as E      # noqa: E402
 from arc import model as M     # noqa: E402
 from arc import ttt as T       # noqa: E402
-
-
-def load_eval(data_dir, n=None):
-    files = sorted(glob.glob(os.path.join(data_dir, "*.json")))
-    if n:
-        files = files[:n]
-    ch, sol = {}, {}
-    for f in files:
-        tid = os.path.splitext(os.path.basename(f))[0]
-        d = json.load(open(f, encoding="utf-8"))
-        ch[tid] = d
-        if all("output" in t and t["output"] for t in d["test"]):
-            sol[tid] = [t["output"] for t in d["test"]]
-    return ch, sol
 
 
 def _key(g):
@@ -58,7 +44,7 @@ def top2(cands):
     counts = Counter(_key(g) for g in cands if g)
     top = counts.most_common(2)
     unkey = lambda k: [list(r) for r in k]
-    a1 = unkey(top[0][0]) if top else []
+    a1 = unkey(top[0][0]) if top else [[0]]
     a2 = unkey(top[1][0]) if len(top) > 1 else a1
     return a1, a2
 
@@ -66,7 +52,8 @@ def top2(cands):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--model-dir", required=True)
-    ap.add_argument("--data-dir", required=True)
+    ap.add_argument("--challenges", required=True)
+    ap.add_argument("--solutions", default=None)
     ap.add_argument("--n", type=int, default=None)
     ap.add_argument("--steps", type=int, default=150)
     ap.add_argument("--n-aug", type=int, default=8)
@@ -74,6 +61,7 @@ def main():
     ap.add_argument("--rank", type=int, default=32)
     ap.add_argument("--max-new-tokens", type=int, default=1200)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--out", default=None)
     args = ap.parse_args()
 
     t0 = time.time()
@@ -81,7 +69,7 @@ def main():
     peft_model, init = T.make_adapter(model, rank=args.rank, alpha=args.rank)
     print(f"[load] {time.time() - t0:.1f}s", flush=True)
 
-    ch, sol = load_eval(args.data_dir, args.n)
+    ch, sol = D.load_consolidated(args.challenges, args.solutions, n=args.n)
     print(f"[data] {len(ch)} tasks, {len(sol)} with solutions", flush=True)
 
     submission = {}
@@ -104,9 +92,11 @@ def main():
     if sol:
         acc, c, t = E.score_submission(submission, sol)
         print(f"[score] exact {c}/{t} = {acc:.4f}")
-    out = os.path.join(os.path.dirname(__file__), "..", "experiments", f"ttt_n{len(ch)}.json")
+
+    out = args.out or os.path.join(os.path.dirname(__file__), "..", "experiments",
+                                   f"ttt_n{len(ch)}.json")
     os.makedirs(os.path.dirname(out), exist_ok=True)
-    json.dump(submission, open(out, "w"))
+    D.write_submission(submission, ch, out)
     print(f"[saved] {out}")
 
 

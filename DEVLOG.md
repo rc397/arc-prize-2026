@@ -83,3 +83,13 @@ Wrote `src/arc/ttt.py` (per-task LoRA adapter with reset between tasks, leave-on
 targets, a random augmentation per step, gradient checkpointing to fit 16 GB) and
 `scripts/run_ttt.py` (TTT followed by augmented voting for the two attempts). To be tested
 on the rig once the baseline run frees the GPU.
+
+### Official competition data
+
+Switched to the official Kaggle dataset (consolidated challenges and solutions files plus
+sample_submission.json). Confirmed the submission format: each task id maps to a list of
+{attempt_1, attempt_2}, one per test input. Counts: 1000 training tasks, 120 evaluation,
+and a 240-task placeholder test set that is swapped for the real tasks at rerun. Test
+entries in the challenges files carry only the input; outputs live in the separate
+solutions files. Added `load_consolidated` and `write_submission` to `src/arc/data.py` and
+pointed `run_ttt.py` at the official files. Data copied to the rig at `D:\arc\data\kaggle`.
