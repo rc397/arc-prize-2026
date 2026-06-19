@@ -120,3 +120,59 @@ writing to `D:\arc\experiments\ttt_eval_overnight.log` and the submission to
 `ttt_eval_overnight.json`. On reconnect, read the log: the per-task `ttt=Xs gen=Ys` split
 confirms the fix, and the final `[score]` line is the first real TTT accuracy on the public
 eval.
+
+## 2026-06-19
+
+### The real problem: decode was the bottleneck all along
+
+The overnight runs were still catastrophically slow end to end. Stepping back from reactive
+debugging, the actual diagnosis: HuggingFace eager decode on this model runs at about 13
+tokens per second, roughly 10 percent of the card's memory-bandwidth ceiling, caused by
+per-token Python dispatch with no CUDA graphs (the classic slow generate path). Prefill was
+always fine at about 3400 tokens per second; only decode was slow. The standard fix
+(StaticCache plus torch.compile) cannot work here because torch.compile needs Triton and
+Triton has no native Windows support (the TritonMissing error). Full sourced analysis in
+`docs/inference-stack-research.md`. Decision: run generation through llama.cpp on native
+Windows, not HF eager and not a WSL2/vLLM build.
+
+### Rig lockout and recovery
+
+Enabling the WSL and Virtual Machine Platform features (to explore vLLM) created a Hyper-V
+virtual switch; on reboot Windows reclassified the network as Public, and the firewall then
+blocked all inbound connections including SSH. The machine stayed up and answered ping, but
+every TCP port was filtered. Recovered by running, on the rig console, a block that re-opens
+SSH on all firewall profiles, sets the active network back to Private, and ensures sshd is
+running and automatic (`RECOVER_RIG.md`). Durable fix: the OpenSSH rule now applies on any
+profile, so a future reboot cannot repeat this.
+
+### Stage 0: llama.cpp engine, validated
+
+Installed the prebuilt llama.cpp Windows CUDA 12.4 build (release b9724). The CUDA 12.4
+binary loads and runs on the Blackwell sm_120 card via PTX JIT on driver 591.86, so no
+from-source build was needed.
+
+Converting the model to GGUF needed two converter patches, because the model uses a custom
+16-token WordLevel tokenizer (digits 0-9, newline, user, assistant, plus three special
+tokens), not standard BPE:
+1. Its pre-tokenizer regex is exactly the qwen2 regex, but its tokenizer hash is unknown to
+   llama.cpp, so the converter refused to guess. Mapped the hash to the qwen2 pre-tokenizer
+   in `conversion/base.py` `get_vocab_base_pre`.
+2. WordLevel has zero BPE merges, and the loader requires a non-empty merges list. Added a
+   fallback in `_set_vocab_gpt2` that writes two throwaway merges among the user/assistant
+   tokens when none exist. This never affects digit or newline tokenization, and we drive the
+   model at the token-ID level regardless. Reproducible recipe in `docs/gguf-conversion.md`.
+
+Decode benchmarks on the RTX 5070 Ti (llama-bench, all layers on GPU):
+- bf16, 6.77 GB: 102 tok/s decode, 2344 prefill.
+- Q8_0, 3.60 GB: 170 tok/s decode, near-lossless. Chosen operating point.
+- Q4_K_M, 2.02 GB: 244 tok/s decode, held in reserve pending an accuracy check.
+
+Against the 13 tok/s HF baseline this is 13x at Q8_0, and the small footprint leaves about
+12 GB for KV cache and parallel candidate batching.
+
+Correctness gate: drove the model at the token-ID level through llama-server (token-array
+prompt) on 15 training tasks, greedy, no TTT, scoring exact match against known solutions
+(`scripts/stage0_check.py`). Result: 14/15 correct, output dimensions correct on all 15,
+output lengths 12 to 930 tokens with clean stopping and no runaway, prompts up to 6541 tokens
+and grids up to 30x30. This confirms the conversion is faithful and the token-ID pipeline is
+correct end to end. Stage 0 decision: GO. Build the pipeline on llama.cpp.
