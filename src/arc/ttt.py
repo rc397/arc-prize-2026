@@ -44,10 +44,11 @@ def _example(task, rng):
 
 def test_time_train(peft_model, init, task, rng, steps=150, lr=1e-4,
                     grad_clip=1.0, device="cuda"):
+    base = peft_model.get_base_model() if hasattr(peft_model, "get_base_model") else peft_model
     reset_adapter(peft_model, init)
-    peft_model.config.use_cache = False
-    peft_model.gradient_checkpointing_enable()
-    peft_model.enable_input_require_grads()
+    base.config.use_cache = False
+    base.gradient_checkpointing_enable()
+    base.enable_input_require_grads()
     peft_model.train()
     params = [p for p in peft_model.parameters() if p.requires_grad]
     opt = torch.optim.AdamW(params, lr=lr)
@@ -62,7 +63,7 @@ def test_time_train(peft_model, init, task, rng, steps=150, lr=1e-4,
         opt.step()
         opt.zero_grad()
         loss_val = float(loss.detach())
-    peft_model.gradient_checkpointing_disable()
+    base.gradient_checkpointing_disable()
+    base.config.use_cache = True
     peft_model.eval()
-    peft_model.config.use_cache = True
     return loss_val
