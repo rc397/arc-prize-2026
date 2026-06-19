@@ -176,3 +176,40 @@ prompt) on 15 training tasks, greedy, no TTT, scoring exact match against known 
 output lengths 12 to 930 tokens with clean stopping and no runaway, prompts up to 6541 tokens
 and grids up to 30x30. This confirms the conversion is faithful and the token-ID pipeline is
 correct end to end. Stage 0 decision: GO. Build the pipeline on llama.cpp.
+
+## 2026-06-20
+
+### Stage 1: stabilizing the no-TTT AIRV pipeline (a debugging saga)
+
+Built the no-TTT AIRV pipeline (`scripts/run_airv_llamacpp.py`): for each test input, generate
+across the 8 D4 augmentations through llama-server at the token-ID level, reverse each
+augmentation, and vote to top-2 (`src/arc/select.py`). It validated on 2 then 10 tasks.
+Getting the full 120-task run to complete reliably took several iterations, recorded here
+because the failure modes were instructive and cost real time.
+
+1. The first overnight attempt produced a 0.0 score: the server had died early and the eval
+   churned out empty candidates (cands=0) for all 120 tasks with nothing watching. Lesson: a
+   long unattended run needs both a server watchdog and an in-eval abort, or a dead dependency
+   silently wastes the whole night.
+
+2. Added an abort-after-3-zero-candidate-tasks safety to the eval, and a watchdog
+   (`scripts/server_watchdog.ps1`) that restarts the server within ~15s if its process dies.
+
+3. The server kept crashing under load. The cause was in the server's own log: a prompt cache
+   enabled by default (`--cache-prompt`, `--cache-idle-slots`) was saving ~680 MiB of state
+   per request into an 8 GB cache. Every ARC prompt is unique, so the cache gave zero reuse
+   and was pure overhead plus a crash source. A per-request `cache_prompt=false` does not
+   disable the server-side idle-slot caching; the flags `--no-cache-prompt
+   --no-cache-idle-slots` do. With caching off, a 10-task run completed cleanly.
+
+4. The full run still hit intermittent crashes on the heaviest tasks (two test inputs, 30x30
+   outputs). They are non-deterministic, the same task passes in one run and crashes in
+   another, which points to an instability of the prebuilt CUDA 12.4 build on Blackwell sm_120
+   under sustained generation rather than a logic bug. Single stream (`-np 1`) reduced but did
+   not eliminate them.
+
+5. Settled on resilience over prevention: the eval now retries a failed request for ~48s while
+   the watchdog revives the server, so a transient crash costs one augmentation's latency
+   rather than the run. Operating config: `-np 1`, `-c 16384`, caching disabled, watchdog
+   supervising. Revisit the CUDA 13.x build or flash attention later as a speed/stability
+   optimization.
