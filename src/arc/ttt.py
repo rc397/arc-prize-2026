@@ -31,13 +31,22 @@ def reset_adapter(peft_model, init):
                 v.copy_(init[k])
 
 
-def _example(task, rng):
+def _example(task, rng, max_ctx_tokens=1600):
+    """Leave-one-out training example. The few-shot context is capped to a token budget
+    (at least one example) so the step cost stays bounded: full context can run 3800+ tokens
+    and ~13s/step under eager training, while a ~1600-token cap runs ~2s/step."""
     n = len(task["train"])
     aug = A.random_augmentation(rng, n_examples=n)
     pairs = A.apply_task(aug, task)["train"]
     t = int(rng.integers(0, n))
-    context = [pairs[i] for i in range(n) if i != t]
-    prompt = build_prompt_ids(context, pairs[t]["input"])
+    ctx_idx = [i for i in range(n) if i != t]
+    rng.shuffle(ctx_idx)
+    chosen = []
+    for i in ctx_idx:
+        if chosen and len(build_prompt_ids([pairs[j] for j in chosen + [i]], pairs[t]["input"])) > max_ctx_tokens:
+            break
+        chosen.append(i)
+    prompt = build_prompt_ids([pairs[i] for i in chosen], pairs[t]["input"])
     target = grid_to_ids(pairs[t]["output"]) + [IM_END]
     return prompt + target, [-100] * len(prompt) + target
 
