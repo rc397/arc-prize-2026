@@ -247,3 +247,19 @@ TTT is feasible on the rig but slow. The pipeline (`scripts/run_ttt_airv.py`, la
 `scripts/launch_ttt_overnight.ps1`) is built, fixed, and crash-safe (incremental writes,
 per-task error handling). The generation-speed ceiling on a single consumer GPU is itself a
 result worth documenting for the paper.
+
+### Stage 2 lift test: no measurable lift, and the generation regression returns
+
+To decide whether to commit a night to the full TTT run, a controlled single-shot test (TTT
+vs no-TTT, identity augmentation, same tasks) was run first. It cleared 5 of 20 tasks, then
+task 6 hung: the quadratic-decode regression came back on the no-TTT/reset path, pinning the
+GPU at 100 percent for ~45 minutes on one task, far past the 1024-token cap's ~80s/generation.
+Partial score over those 5 tasks: no_ttt 1/7, ttt 1/7, no measurable TTT lift. TTT training
+itself is fine (it fits each task); the wall is generation, which is both too slow and too
+unreliable to make TTT pay off here, and it prevented a clean lift measurement.
+
+Decision: bank the 12.79 percent no-TTT baseline as the result for now. TTT is not viable on
+this rig as wired, it needs the fast-generation bridge we set aside (serve each per-task LoRA
+in llama.cpp, or move to a Linux toolchain where torch.compile and vLLM dynamic LoRA work).
+That is a focused future effort, not an overnight grind. The strongest near-term deliverable is
+the baseline plus the honest single-GPU engineering account, which is itself paper material.
