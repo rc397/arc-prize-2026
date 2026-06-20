@@ -20,6 +20,8 @@ TAG = sys.argv[6] if len(sys.argv) > 6 else "base"
 ADAPTER_TMP = r"D:\arc\experiments\loras_%s" % TAG
 LIST = r"D:\arc\experiments\adapter_list_%s.json" % TAG
 MAXPAIR_THR = int(sys.argv[7]) if len(sys.argv) > 7 else 10**9
+MINPAIR_THR = int(sys.argv[8]) if len(sys.argv) > 8 else 0
+MAX_CTX = int(sys.argv[9]) if len(sys.argv) > 9 else 1600
 
 
 def maxpair(t):
@@ -30,7 +32,7 @@ peft, init = make_adapter(model, rank=RANK, alpha=RANK, dropout=DROPOUT)
 allt, sols = load_consolidated(CH, SOL, n=None)
 order = sorted(allt.keys(),
                key=lambda t: len(build_prompt_ids(allt[t]["train"], allt[t]["test"][0]["input"])))
-order = [tid for tid in order if maxpair(allt[tid]) <= MAXPAIR_THR]
+order = [tid for tid in order if MINPAIR_THR < maxpair(allt[tid]) <= MAXPAIR_THR]
 chosen = order[:N] if N else order
 saved = []
 t0 = time.time()
@@ -41,9 +43,15 @@ for i, tid in enumerate(chosen):
     if os.path.exists(os.path.join(adir, "adapter_model.safetensors")):
         loss = -1.0
     else:
-        loss = test_time_train(peft, init, allt[tid], rng, steps=STEPS, lr=LR, time_budget=150)
-        os.makedirs(adir, exist_ok=True)
-        peft.save_pretrained(adir)
+        try:
+            loss = test_time_train(peft, init, allt[tid], rng, steps=STEPS, lr=LR, time_budget=150,
+                                   max_ctx_tokens=MAX_CTX)
+            os.makedirs(adir, exist_ok=True)
+            peft.save_pretrained(adir)
+        except Exception as e:
+            torch.cuda.empty_cache()
+            print("[%d/%d] %s TTT_ERROR %r" % (i + 1, len(chosen), tid, str(e)[:80]), flush=True)
+            continue
     torch.cuda.empty_cache()
     saved.append(tid)
     json.dump(saved, open(LIST, "w"))

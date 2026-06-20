@@ -54,7 +54,7 @@ def _example(task, rng, max_ctx_tokens=1600):
 
 
 def test_time_train(peft_model, init, task, rng, steps=150, lr=1e-4,
-                    grad_clip=1.0, device="cuda", time_budget=None):
+                    grad_clip=1.0, device="cuda", time_budget=None, max_ctx_tokens=1600):
     base = peft_model.get_base_model() if hasattr(peft_model, "get_base_model") else peft_model
     reset_adapter(peft_model, init)
     base.config.use_cache = False
@@ -66,7 +66,7 @@ def test_time_train(peft_model, init, task, rng, steps=150, lr=1e-4,
     loss_val = 0.0
     t0 = time.time()
     for _ in range(steps):
-        ids, labels = _example(task, rng)
+        ids, labels = _example(task, rng, max_ctx_tokens=max_ctx_tokens)
         ii = torch.tensor([ids], device=device)
         ll = torch.tensor([labels], device=device)
         loss = peft_model(input_ids=ii, labels=ll).loss
