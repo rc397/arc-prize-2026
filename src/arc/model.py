@@ -47,7 +47,14 @@ def ids_to_grid(ids: Sequence[int]) -> Grid:
         # ignore specials (roles / im_start / im_end / pad)
     if row:
         grid.append(row)
-    return grid
+    grid = [r for r in grid if r]
+    if not grid:
+        return [[0]]
+    # rectangularize: a malformed generation can emit ragged rows, which break the array ops
+    # downstream (invert_grid). Keep only rows matching the first row's width.
+    w = len(grid[0])
+    grid = [r for r in grid if len(r) == w]
+    return grid or [[0]]
 
 
 def _turn(role_id: int, content_ids: List[int]) -> List[int]:
