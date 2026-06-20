@@ -213,3 +213,18 @@ because the failure modes were instructive and cost real time.
    rather than the run. Operating config: `-np 1`, `-c 16384`, caching disabled, watchdog
    supervising. Revisit the CUDA 13.x build or flash attention later as a speed/stability
    optimization.
+
+### Stage 1 result: no-TTT baseline
+
+The full 120-task run completed cleanly: all 120 tasks at full 8/8 candidates, zero degraded,
+no manual intervention. First real baseline, no TTT, AIRV over the 8 D4 augmentations with
+greedy decoding on the Q8_0 model:
+
+**12.79 percent (22 of 172 test outputs) on the ARC-AGI-2 public eval.**
+
+For reference the 2025 winner reached 24 percent with test-time training, and the literature
+puts TTT's lift at roughly 2x or more, so a ~13 percent no-TTT floor is encouraging. TTT is
+the main score lever from here (Stage 2). Submission at `experiments/airv_nottt_eval.json`;
+run wall-clock about 78 minutes at single stream (~39s/task), the obvious speed target for
+later. Dead HF-era logs and Stage 0 scratch were archived to `experiments/archive/` with a
+manifest.
