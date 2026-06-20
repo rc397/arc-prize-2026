@@ -1,7 +1,7 @@
 import sys, time
 sys.path.insert(0, r"D:\arc")
 import numpy as np, torch
-from src.arc.model import load_model, build_prompt_ids, ids_to_grid, batched_generate
+from src.arc.model import load_model, build_prompt_ids, grid_to_ids, ids_to_grid, batched_generate
 from src.arc.data import load_consolidated, write_submission
 from src.arc.augment import Augmentation, apply_task, invert_grid, D4_NAMES
 from src.arc.select import select_top2
@@ -18,13 +18,17 @@ AUGS = [Augmentation(d4=n) for n in D4_NAMES]
 
 
 def airv_attempts(task):
+    # Bound generation by the task's own train-output size so a single runaway augmented view
+    # cannot drag the whole batch to max_new_tokens.
+    out_lens = [len(grid_to_ids(p["output"])) for p in task["train"]]
+    cap = min(1024, max(96, 2 * max(out_lens) + 8))
     attempts = []
     for ti in range(len(task["test"])):
         prompts = []
         for aug in AUGS:
             at = apply_task(aug, task)
             prompts.append(build_prompt_ids(at["train"], at["test"][ti]["input"]))
-        gens = batched_generate(peft, prompts, max_new_tokens=1024, chunk=4)
+        gens = batched_generate(peft, prompts, max_new_tokens=cap, chunk=4)
         cands = [(invert_grid(aug, ids_to_grid(gen)), lp) for aug, (gen, lp) in zip(AUGS, gens)]
         a1, a2 = select_top2(cands)
         attempts.append({"attempt_1": a1, "attempt_2": a2})
@@ -36,6 +40,11 @@ peft, init = make_adapter(model, rank=32)
 tasks, sols = load_consolidated(CH, SOL, n=(N_LIMIT or None))
 submission = {}
 tids = list(tasks.keys())
+# Warm up the generate path once (Blackwell kernel JIT costs ~35s on the first call) so the
+# first real task is not penalized.
+_wt = tasks[tids[0]]
+batched_generate(peft, [build_prompt_ids(_wt["train"], _wt["test"][0]["input"])], max_new_tokens=8, chunk=1)
+print("warmup done", flush=True)
 t0 = time.time()
 for i, tid in enumerate(tids):
     task = tasks[tid]

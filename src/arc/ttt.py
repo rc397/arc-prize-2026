@@ -72,7 +72,15 @@ def test_time_train(peft_model, init, task, rng, steps=150, lr=1e-4,
         opt.step()
         opt.zero_grad()
         loss_val = float(loss.detach())
+    # Restore fast cached generation: checkpointing forces use_cache=False during the forward,
+    # and a single disable call does not always clear it from every wrapped module, which leaves
+    # decode quadratic (reprocessing the whole prompt each step). Force it off everywhere.
     base.gradient_checkpointing_disable()
+    for module in peft_model.modules():
+        if getattr(module, "gradient_checkpointing", False):
+            module.gradient_checkpointing = False
     base.config.use_cache = True
+    if hasattr(peft_model, "config"):
+        peft_model.config.use_cache = True
     peft_model.eval()
     return loss_val

@@ -228,3 +228,22 @@ the main score lever from here (Stage 2). Submission at `experiments/airv_nottt_
 run wall-clock about 78 minutes at single stream (~39s/task), the obvious speed target for
 later. Dead HF-era logs and Stage 0 scratch were archived to `experiments/archive/` with a
 manifest.
+
+### Stage 2: TTT trains fast, but generation is the wall
+
+Per-task TTT in PyTorch is fast once the few-shot context is capped to ~1600 tokens (~2s/step
+versus ~13s/step at full ~3800-token context, so ~50-90s/task). A cache-after-TTT regression
+was fixed: gradient checkpointing left decode quadratic even after the disable call, so the
+cleanup now forces `gradient_checkpointing=False` on every module and restores `use_cache`, and
+the pipeline does one warmup generation to absorb the ~35s Blackwell kernel JIT. A per-task
+generation cap (from the train-output sizes) bounds post-TTT runaway.
+
+The wall is generation, not training. AIRV needs 8 augmented generations per task, and PyTorch
+decode is ~13 tok/s with no fast compile on Windows/Blackwell. Large-output tasks run
+~250-675s of generation alone, so a full 120-task TTT run is ~7-10 hours, a long overnight
+rather than a quick pass. The fast fix (serve each per-task LoRA in llama.cpp) carries the GGUF
+conversion plus model-swap complexity we set aside; cloud is off the table (no funding). Net:
+TTT is feasible on the rig but slow. The pipeline (`scripts/run_ttt_airv.py`, launcher
+`scripts/launch_ttt_overnight.ps1`) is built, fixed, and crash-safe (incremental writes,
+per-task error handling). The generation-speed ceiling on a single consumer GPU is itself a
+result worth documenting for the paper.
