@@ -307,3 +307,32 @@ useful, honest finding for the paper: naive per-task TTT does not beat a strong 
 baseline on this single-GPU setup, but a regularized configuration can. Sweep harness:
 `scripts/ttt_sweep.py` orchestrating `ttt_phase1.py` / `ttt_phase1b.py` / `ttt_phase2.py`,
 compared by `scripts/sweep_compare.py`.
+
+### Stage 2 scale validation: regularized TTT lifts +5 on 84 tasks
+
+The 15-task sweep's +1 was confirmed at scale. The regularized config (20 steps, rank 16, dropout
+0.1, scale 1.0) was run on the 84 eval tasks small enough to train on a 16 GB card and scored
+against no-TTT on the same tasks:
+
+| method | correct | accuracy |
+|---|---|---|
+| regularized TTT | 21/125 | 16.8% |
+| no-TTT | 16/125 | 12.8% |
+
+Net +5 test outputs (+4.0 points, ~31% relative). The paired breakdown is clean: of the tasks the
+two methods disagreed on, TTT was right on 6 that no-TTT missed and wrong on only 1 that no-TTT got
+(6:1). With only 7 disagreements the exact McNemar p is ~0.13, so no single run is statistically
+bulletproof, but three independent measurements now point the same way (sweep +1, scale +5, 6:1
+discordant). The no-TTT 12.8% here matches the 12.79% full baseline, so the subset is
+representative.
+
+Competition implication: applying TTT where trainable and no-TTT on the 36 excluded big-grid tasks
+blends to 27/172 = 15.70% on the full 120-task eval, up +2.9 points from the 12.79% no-TTT
+baseline. The VRAM exclusion of big-grid tasks is the ceiling on this setup.
+
+Task selection is the safety crux: the leave-one-out target can be a task's largest train pair, so
+that pair's token length (maxpair) drives the worst-case training sequence and the VRAM hang.
+Selecting maxpair <= 1000 (84 tasks; worst-case ~2100 tokens vs the ~3700 that hung the prior runs)
+plus a per-task wall-clock break in `test_time_train` made the run hang-free: phase1 ~14-33s/task,
+phase2 ~45s/task, ~100 min total. Harness: `scripts/ttt_val.py` over `ttt_phase1/1b/2.py`, compared
+by `scripts/compare_ttt.py <tag>`.

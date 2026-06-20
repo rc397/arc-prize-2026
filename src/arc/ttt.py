@@ -6,6 +6,8 @@ reset to its initial state before each task so tasks do not leak into each other
 """
 from __future__ import annotations
 
+import time
+
 import numpy as np
 import torch
 from peft import LoraConfig, get_peft_model
@@ -52,7 +54,7 @@ def _example(task, rng, max_ctx_tokens=1600):
 
 
 def test_time_train(peft_model, init, task, rng, steps=150, lr=1e-4,
-                    grad_clip=1.0, device="cuda"):
+                    grad_clip=1.0, device="cuda", time_budget=None):
     base = peft_model.get_base_model() if hasattr(peft_model, "get_base_model") else peft_model
     reset_adapter(peft_model, init)
     base.config.use_cache = False
@@ -62,6 +64,7 @@ def test_time_train(peft_model, init, task, rng, steps=150, lr=1e-4,
     params = [p for p in peft_model.parameters() if p.requires_grad]
     opt = torch.optim.AdamW(params, lr=lr)
     loss_val = 0.0
+    t0 = time.time()
     for _ in range(steps):
         ids, labels = _example(task, rng)
         ii = torch.tensor([ids], device=device)
@@ -72,6 +75,8 @@ def test_time_train(peft_model, init, task, rng, steps=150, lr=1e-4,
         opt.step()
         opt.zero_grad()
         loss_val = float(loss.detach())
+        if time_budget and time.time() - t0 > time_budget:   # VRAM-thrash safety net
+            break
     # Restore fast cached generation: checkpointing forces use_cache=False during the forward,
     # and a single disable call does not always clear it from every wrapped module, which leaves
     # decode quadratic (reprocessing the whole prompt each step). Force it off everywhere.

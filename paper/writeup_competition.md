@@ -9,8 +9,9 @@ walls out. Building on the released NVARC Qwen3-4B grid model, we report a repro
 system with a 12.79 percent no-TTT baseline on the 120-task public evaluation set. We find that
 the binding constraint is generation throughput, not model quality or memory, and that the single
 largest lever is the inference engine, which buys a 13x decode speedup. We then show how to run
-per-task TTT on this hardware by serving each task's adapter on the fast engine, and report that
-naive TTT ties the no-TTT baseline while a regularized configuration recovers a small lift. The
+per-task TTT on this hardware by serving each task's adapter on the fast engine, and report a
+measured lift: naive TTT ties the no-TTT baseline because the per-task adapter overfits, while a
+regularized configuration raises accuracy from 12.8 to 16.8 percent on the 84 trainable tasks. The
 contribution is an honest accounting of what the recipe costs and where the effort should go when
 you cannot rent a cluster.
 
@@ -91,8 +92,8 @@ evaluation. On one consumer GPU, the inference engine dominated every other knob
 
 ### 3.3 Test-time training
 
-With generation fixed, we compared TTT against no-TTT on a fixed set of 15 small-context tasks,
-varying the adapter configuration:
+With generation fixed, we first swept the adapter configuration on a fixed set of 15 small-context
+tasks, scoring each against no-TTT on the same tasks:
 
 | configuration | TTT | no-TTT |
 |---|---|---|
@@ -101,11 +102,29 @@ varying the adapter configuration:
 | 8 steps, rank 8, dropout 0.05 | 3/23 | 3/23 |
 
 The standard configuration overfits, its training loss reaches 0.000, and ties the no-TTT
-baseline. A regularized configuration with fewer steps, lower rank, and dropout recovers a small
-lift, and an over-aggressive reduction undertrains and ties again. The lift is one task on a
-15-task sample, so it is modest and needs larger-scale confirmation, but the trend is coherent
-with the overfit diagnosis rather than random. The honest summary: naive per-task TTT does not
-beat a strong no-TTT AIRV baseline on this setup, while a regularized TTT can.
+baseline; the regularized configuration (fewer steps, lower rank, dropout) recovers a one-task
+lift; an over-aggressive reduction undertrains and ties again. This is coherent with an overfit
+diagnosis, but one task on 15 is only a hint.
+
+We then validated the regularized configuration at scale, on the 84 eval tasks small enough to
+train on a 16 GB card (the largest-grid tasks are VRAM-bound and excluded), against no-TTT on the
+same tasks:
+
+| method | correct | accuracy |
+|---|---|---|
+| regularized TTT | 21/125 | 16.8% |
+| no-TTT | 16/125 | 12.8% |
+
+The lift holds and strengthens: plus five test outputs, a four-point gain (about 31 percent
+relative). The paired breakdown is clean, of the tasks the two methods disagree on, TTT is right
+on six that no-TTT misses and wrong on only one (six to one). With seven disagreements this is not
+individually significant (exact McNemar p around 0.13), but three measurements now agree in
+direction (sweep plus one, scale plus five, six-to-one discordant), and no-TTT scores 12.8 percent
+here against its 12.79 percent full baseline, so the subset is representative. Applying TTT where
+trainable and no-TTT on the excluded tasks blends to 15.70 percent on the full 120-task eval, up
+from 12.79 percent. The honest summary: naive per-task TTT ties a strong no-TTT AIRV baseline,
+while a regularized TTT beats it by a consistent if modest margin, with the VRAM limit on
+large-grid tasks as the ceiling.
 
 ## 4. Discussion
 

@@ -4,7 +4,7 @@ crawl on a 16 GB card), and frees the CUDA cache between tasks so memory cannot 
 import sys, os, json, time
 sys.path.insert(0, r"D:\arc")
 import numpy as np, torch
-from src.arc.model import load_model, build_prompt_ids
+from src.arc.model import load_model, build_prompt_ids, grid_to_ids
 from src.arc.data import load_consolidated
 from src.arc.ttt import make_adapter, test_time_train
 
@@ -19,12 +19,18 @@ LR = float(sys.argv[5]) if len(sys.argv) > 5 else 1e-4
 TAG = sys.argv[6] if len(sys.argv) > 6 else "base"
 ADAPTER_TMP = r"D:\arc\experiments\loras_%s" % TAG
 LIST = r"D:\arc\experiments\adapter_list_%s.json" % TAG
+MAXPAIR_THR = int(sys.argv[7]) if len(sys.argv) > 7 else 10**9
+
+
+def maxpair(t):
+    return max(len(grid_to_ids(p["input"])) + len(grid_to_ids(p["output"])) for p in t["train"])
 
 model, tok = load_model(MODEL)
 peft, init = make_adapter(model, rank=RANK, alpha=RANK, dropout=DROPOUT)
 allt, sols = load_consolidated(CH, SOL, n=None)
 order = sorted(allt.keys(),
                key=lambda t: len(build_prompt_ids(allt[t]["train"], allt[t]["test"][0]["input"])))
+order = [tid for tid in order if maxpair(allt[tid]) <= MAXPAIR_THR]
 chosen = order[:N] if N else order
 saved = []
 t0 = time.time()
@@ -35,7 +41,7 @@ for i, tid in enumerate(chosen):
     if os.path.exists(os.path.join(adir, "adapter_model.safetensors")):
         loss = -1.0
     else:
-        loss = test_time_train(peft, init, allt[tid], rng, steps=STEPS, lr=LR)
+        loss = test_time_train(peft, init, allt[tid], rng, steps=STEPS, lr=LR, time_budget=150)
         os.makedirs(adir, exist_ok=True)
         peft.save_pretrained(adir)
     torch.cuda.empty_cache()
