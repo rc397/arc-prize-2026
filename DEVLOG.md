@@ -285,3 +285,25 @@ So the honest two-part answer to "why does TTT not work here" is: the generation
 fixed), and the method as configured does not lift, which is a tuning problem (step count, rank,
 adapter scale). Next levers: lower the step count or the applied adapter scale to curb
 overfitting, or run all 120 to see whether a lift emerges at scale.
+
+### Stage 2 method sweep: regularized TTT recovers a small lift
+
+With the bridge working, a sweep on 15 small-context eval tasks (big-grid tasks are VRAM-bound
+and degrade TTT to a crawl, so they were excluded; the sweep selects the smallest-context tasks
+and frees the CUDA cache between tasks) tested the overfit hypothesis by varying
+steps/rank/dropout, each scored against no-TTT on the same tasks:
+
+| config | TTT | no-TTT |
+|---|---|---|
+| 40 steps, rank 32, no dropout (standard) | 3/23 | 3/23 (tied) |
+| 20 steps, rank 16, dropout 0.1 | 4/23 | 3/23 (+1, a lift) |
+| 8 steps, rank 8, dropout 0.05 | 3/23 | 3/23 (tied) |
+
+The pattern is coherent with the overfit diagnosis: the standard config overfits (loss 0.000)
+and ties; moderate regularization (fewer steps, lower rank, dropout) recovers a small lift; too
+aggressive a reduction undertrains and ties again. The lift is one task on a 15-task sample, so
+it is a weak but hypothesis-consistent signal that warrants larger-scale confirmation. The
+useful, honest finding for the paper: naive per-task TTT does not beat a strong no-TTT AIRV
+baseline on this single-GPU setup, but a regularized configuration can. Sweep harness:
+`scripts/ttt_sweep.py` orchestrating `ttt_phase1.py` / `ttt_phase1b.py` / `ttt_phase2.py`,
+compared by `scripts/sweep_compare.py`.

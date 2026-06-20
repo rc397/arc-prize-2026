@@ -6,7 +6,7 @@ from src.arc.eval import score_submission
 CH = r"D:\arc\data\kaggle\arc-agi_evaluation_challenges.json"
 SOL = r"D:\arc\data\kaggle\arc-agi_evaluation_solutions.json"
 tasks, sols = load_consolidated(CH, SOL, n=None)
-ttt = json.load(open(r"D:\arc\experiments\airv_ttt_eval.json"))
+ttt = json.load(open(sys.argv[1] if len(sys.argv) > 1 else r"D:\arc\experiments\airv_ttt_eval.json"))
 nottt = json.load(open(r"D:\arc\experiments\airv_nottt_eval.json"))
 manifest = json.load(open(r"D:\arc\experiments\ttt_manifest.json"))
 

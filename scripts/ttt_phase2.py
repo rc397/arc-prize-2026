@@ -13,9 +13,11 @@ MODEL_GGUF = r"D:\arc\models\arc-qwen4b-q8_0.gguf"
 SERVER = r"D:\arc\llamacpp\llama-server.exe"
 CH = r"D:\arc\data\kaggle\arc-agi_evaluation_challenges.json"
 SOL = r"D:\arc\data\kaggle\arc-agi_evaluation_solutions.json"
-MANIFEST = r"D:\arc\experiments\ttt_manifest.json"
-OUT = r"D:\arc\experiments\airv_ttt_eval.json"
 BATCH = int(sys.argv[1]) if len(sys.argv) > 1 else 30
+SCALE = float(sys.argv[2]) if len(sys.argv) > 2 else 1.0     # applied adapter scale
+TAG = sys.argv[3] if len(sys.argv) > 3 else "base"
+MANIFEST = r"D:\arc\experiments\ttt_manifest_%s.json" % TAG
+OUT = r"D:\arc\experiments\airv_ttt_%s_s%d_eval.json" % (TAG, int(round(SCALE * 100)))
 AUGS = [Augmentation(d4=n) for n in D4_NAMES]
 
 
@@ -47,7 +49,7 @@ def start_server(lora_paths):
 
 
 def set_adapter(idx, n_loaded):
-    body = json.dumps([{"id": j, "scale": (1.0 if j == idx else 0.0)} for j in range(n_loaded)]).encode()
+    body = json.dumps([{"id": j, "scale": (SCALE if j == idx else 0.0)} for j in range(n_loaded)]).encode()
     req = urllib.request.Request("http://127.0.0.1:8080/lora-adapters", data=body,
                                  headers={"Content-Type": "application/json"}, method="POST")
     urllib.request.urlopen(req, timeout=10).read()

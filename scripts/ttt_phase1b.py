@@ -1,14 +1,14 @@
-"""Phase 1b: convert each saved PEFT adapter to a GGUF adapter. Runs as its own process after
-phase 1 has exited and freed all VRAM, so the convert (which imports torch) cannot collide with
-a loaded model. Writes the task-id to GGUF-path manifest used by phase 2."""
+"""Phase 1b: convert each saved adapter to GGUF, from a clean process (no model holds VRAM).
+Config tag selects the adapter set and output manifest."""
 import sys, os, json, subprocess
 
 MODEL = r"D:\arc\models\kagglehub\models\sorokin\qwen3_4b_grids15_sft139\transformers\bfloat16\1"
 CONVERT = r"D:\arc\llama.cpp\convert_lora_to_gguf.py"
-ADAPTER_TMP = r"D:\arc\experiments\loras"
-GGUF_DIR = r"D:\arc\models\loras"
-LIST = r"D:\arc\experiments\adapter_list.json"
-MANIFEST = r"D:\arc\experiments\ttt_manifest.json"
+TAG = sys.argv[1] if len(sys.argv) > 1 else "base"
+ADAPTER_TMP = r"D:\arc\experiments\loras_%s" % TAG
+GGUF_DIR = r"D:\arc\models\loras_%s" % TAG
+LIST = r"D:\arc\experiments\adapter_list_%s.json" % TAG
+MANIFEST = r"D:\arc\experiments\ttt_manifest_%s.json" % TAG
 
 os.makedirs(GGUF_DIR, exist_ok=True)
 saved = json.load(open(LIST))
@@ -26,4 +26,4 @@ for i, tid in enumerate(saved):
         manifest[tid] = gguf
     json.dump(manifest, open(MANIFEST, "w"))
     print("[%d/%d] %s conv_ok=%s" % (i + 1, len(saved), tid, ok), flush=True)
-print("MANIFEST %d adapters -> %s" % (len(manifest), MANIFEST), flush=True)
+print("MANIFEST %d adapters tag=%s" % (len(manifest), TAG), flush=True)
