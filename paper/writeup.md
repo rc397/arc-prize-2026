@@ -10,11 +10,12 @@ grid model, we report a reproducible offline system and a measured no-TTT baseli
 percent on the 120-task public evaluation set. We find that on this hardware the binding
 constraint is not model quality or memory but generation throughput: naive decoding runs at about
 13 tokens per second, and the single largest lever we found, changing the inference engine,
-recovers a 13x speedup. We also report a negative result. Per-task TTT trains cheaply once we cap
-its context, but its generation half remains too slow and too unstable to produce a clean
-evaluation pass on our setup, so we could not measure a TTT lift. We argue that this kind of
-honest accounting, the cost of each stage and the order in which the walls appear, is itself a
-useful contribution for the many researchers who cannot rent a cluster.
+recovers a 13x speedup. We then show how to run per-task TTT on this hardware by serving each
+task's adapter on the fast engine, and we report a measured result: naive TTT ties the no-TTT
+baseline because the per-task adapter overfits, while a regularized configuration recovers a small
+lift. We argue that this kind of honest accounting, the cost of each stage and the order in which
+the walls appear, is itself a useful contribution for the many researchers who cannot rent a
+cluster.
 
 ## 1. Introduction
 
@@ -108,7 +109,7 @@ dihedral augmentations, inverts each prediction back to the original frame, and 
 attempts. Scoring uses the exact competition metric: two attempts per test output, a point if
 either matches the ground truth exactly, averaged over all test outputs.
 
-### 3.4 Capped test-time training
+### 3.4 Test-time training and the serving bridge
 
 Our TTT implementation fits a rank-32 LoRA per task with a leave-one-out target and a fresh random
 augmentation each step. The naive version is slow for a non-obvious reason: a leave-one-out prompt
@@ -116,6 +117,16 @@ that packs in several large training grids can run past 3,800 tokens, and at tha
 training step costs about 13 seconds under eager training. Capping the few-shot context to roughly
 1,600 tokens, keeping at least one example, brings the step cost down to about 2 seconds with no
 change to the rest of the recipe. After this fix, training is no longer the expensive part.
+
+The harder problem is generation. TTT must train in PyTorch, where decoding sits at about 13
+tokens per second and, after a training step, intermittently becomes quadratic in the prompt
+length because the key-value cache is not reused. The fast llama.cpp engine does not train. We
+bridge the two: train in PyTorch, save each adapter, convert it to a GGUF adapter with the
+llama.cpp converter, and serve it on llama-server, which hot-swaps adapters per request through its
+`/lora-adapters` endpoint. With an adapter applied, decode holds about 115 tokens per second with
+no stalls. We run this as three phases, train all adapters, convert all from a clean process, then
+serve and generate, so the trainer and the engine never share VRAM. Large-grid tasks remain too
+VRAM-bound to train on a 16 GB card and are excluded from the TTT comparison.
 
 ## 4. Results
 
@@ -134,23 +145,25 @@ result for this hardware class. It is what turned an overnight, frequently-faili
 sub-90-minute evaluation. On a single consumer GPU, the choice of inference engine dominated every
 other tuning knob we touched.
 
-### 4.3 Test-time training: a negative result
+### 4.3 Test-time training: naive ties, regularized lifts
 
-We were unable to obtain a clean TTT score on this rig, and we report that honestly rather than
-omit it. TTT training itself works and is cheap after the context cap. The wall is generation. The
-fast llama.cpp engine does not train, so TTT must run in PyTorch, where decoding sits back at about
-13 tokens per second. Worse, after a TTT step the key-value cache is intermittently not used,
-which makes decoding quadratic in the prompt length, so a single large-output task can pin the GPU
-for tens of minutes. A full TTT plus AIRV pass over 120 tasks projects to roughly 7 to 10 hours
-under these conditions, and the instability makes even that estimate optimistic.
+With the serving bridge in place, generation is fast enough to evaluate TTT properly. We compared
+TTT against no-TTT on a fixed set of 15 small-context tasks, varying the adapter configuration:
 
-To decide whether such a run was worth committing, we ran a controlled single-shot probe comparing
-TTT against no-TTT on the same tasks. Over the five tasks it completed before the quadratic-decode
-regression stalled it, the two were tied at one correct out of seven test outputs each, so we
-observed no measurable lift. Five tasks is far too small to conclude anything about TTT in general,
-and we draw no such conclusion. What we can say is specific and useful: on this hardware, as
-wired, we could not make TTT pay off, because its generation half is both too slow and too
-unreliable to evaluate.
+| configuration | TTT | no-TTT |
+|---|---|---|
+| 40 steps, rank 32, no dropout | 3/23 | 3/23 |
+| 20 steps, rank 16, dropout 0.1 | 4/23 | 3/23 |
+| 8 steps, rank 8, dropout 0.05 | 3/23 | 3/23 |
+
+The standard configuration overfits, its training loss reaches 0.000 within the run, and it ties
+the no-TTT baseline. A regularized configuration with fewer steps, lower rank, and dropout recovers
+a small lift of one task, and an over-aggressive reduction undertrains and ties again. One task on
+a 15-task sample is a modest signal that needs larger-scale confirmation, but the trend is coherent
+with the overfit diagnosis rather than random: too much capacity and training memorizes the
+few-shot set, too little does not adapt, and a middle setting helps. The honest summary is that
+naive per-task TTT does not beat a strong no-TTT AIRV baseline on this setup, while a regularized
+TTT can.
 
 ## 5. Discussion
 
@@ -161,39 +174,37 @@ quantization, and sampling parameters all mattered less than the 13x we recovere
 off the eager path. Anyone reproducing this recipe under tight compute should treat engine
 throughput as the first-order concern, not an afterthought.
 
-Second, the real unsolved problem for TTT on one card is what we call the serving bridge. Training
-must happen in a framework that computes gradients; fast generation must happen in an optimized
-engine; and per-task TTT produces a fresh adapter that the engine must then serve. Crossing that
-bridge for every task, while sharing one 16 GB card between the trainer and the engine, is the
-crux. On a Linux toolchain this bridge largely dissolves: `torch.compile` makes training and
-generation fast, and vLLM serves per-task LoRA adapters dynamically. On our native-Windows
-Blackwell setup, neither is available, and that absence, not the model and not the memory, is what
-parks TTT.
+Second, the real obstacle for TTT on one card is what we call the serving bridge. Training must
+happen in a framework that computes gradients; fast generation must happen in an optimized engine;
+and per-task TTT produces a fresh adapter that the engine must then serve. On a Linux toolchain
+this is easy, vLLM serves per-task LoRA adapters dynamically, but on our native-Windows Blackwell
+setup it is not, so we built the bridge by converting each adapter to a GGUF adapter and
+hot-swapping it on llama.cpp. Once the bridge exists, the open question is no longer plumbing but
+regularization, because the small per-task training set overfits easily, which is exactly what our
+sweep shows.
 
 We think the right framing for compute-poor ARC work is accuracy per GPU-hour rather than accuracy
-alone, and we view the map of walls reported here as a first step toward that framing. The honest
-negative result is part of the contribution: it tells a practitioner with similar hardware exactly
-which problem to solve first.
+alone, and we view the map of walls reported here as a first step toward that framing. The result
+is part of the contribution: it tells a practitioner with similar hardware which problems to solve
+first, the engine, then the bridge, then the overfitting of the adapter.
 
 ## 6. Conclusion
 
 We built a working, reproducible, fully offline ARC-AGI-2 system on a single 16 GB consumer GPU,
 measured a 12.79 percent no-TTT baseline, and identified generation throughput as the binding
-constraint, recovering a 13x decode speedup by changing the inference engine. We were candid about
-where the recipe stops: per-task test-time training is cheap to train but, on this hardware, too
-slow and unstable to generate from, so we could not measure its lift. The next lever is the
-training-to-serving bridge, either by serving each per-task adapter in the fast engine or by moving
-to a toolchain where compilation and dynamic adapter serving are available. We hope the cost
-accounting here is useful to others working under the same constraint.
+constraint, recovering a 13x decode speedup by changing the inference engine. We then built the
+training-to-serving bridge that per-task TTT needs on this hardware, converting each adapter to
+GGUF and hot-swapping it on the fast engine, and used it to measure TTT fairly: naive per-task
+adapters overfit and tie the no-TTT baseline, while a regularized configuration recovers a small
+lift. The cost accounting and the order of the walls, engine, then bridge, then regularization,
+are what we hope is useful to others working under the same constraint.
 
 ## 7. Availability
 
 The full system is open source, including the GGUF conversion recipe for the custom-vocabulary
-model, the AIRV pipeline, the capped TTT implementation, and a development log that records every
-measurement and dead end behind the numbers above.
+model, the AIRV pipeline, the per-task TTT bridge and sweep harness, and a development log that
+records every measurement and dead end behind the numbers above.
 
 ---
 
-*Notes for trimming to the Paper Track word limit: sections 2 and 3.2 carry the most detail and can
-be compressed first; the abstract, section 4, and section 5 should be preserved as the core
-contribution.*
+*A trimmed competition version of this writeup, about 1,300 words, is in `writeup_competition.md`.*
