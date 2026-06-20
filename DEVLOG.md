@@ -263,3 +263,25 @@ this rig as wired, it needs the fast-generation bridge we set aside (serve each 
 in llama.cpp, or move to a Linux toolchain where torch.compile and vLLM dynamic LoRA work).
 That is a focused future effort, not an overnight grind. The strongest near-term deliverable is
 the baseline plus the honest single-GPU engineering account, which is itself paper material.
+
+### Stage 2 fixed: the TTT generation bridge works, but the method shows no lift yet
+
+The generation wall is solved. Keep TTT training in PyTorch, but serve each per-task LoRA on
+llama.cpp: `convert_lora_to_gguf.py` converts the PEFT adapter to GGUF (the Qwen3 conversion bug
+did not bite this build), and llama-server hot-swaps adapters via `--lora-init-without-apply`
+plus `POST /lora-adapters`. With the adapter applied, decode holds ~115 tok/s (versus ~13 in
+PyTorch) with no quadratic stall. Architecture: phase 1 trains and saves all adapters in PyTorch
+(`scripts/ttt_phase1.py`); phase 1b converts them from a clean process so the convert cannot
+collide with a loaded model's VRAM, which had been failing conversions silently
+(`scripts/ttt_phase1b.py`); phase 2 serves in VRAM-sized batches and runs AIRV with single-stream
+stability and per-task recovery (`scripts/ttt_phase2.py`). Two integration bugs found and fixed:
+the converter crashed a cp1252 capture thread on its progress bars, and the Microsoft Store
+Python's `sys.executable` alias plus a maxed GPU broke the in-process convert.
+
+A clean 6-task run (full 8/8 candidates, no crashes) gives the first fair TTT-versus-no-TTT
+number: 1/8 versus 1/8, tied, no measurable lift. The adapters overfit (training loss reaches
+0.000 in 40 steps), which likely explains the lack of generalization to the held-out test input.
+So the honest two-part answer to "why does TTT not work here" is: the generation was broken (now
+fixed), and the method as configured does not lift, which is a tuning problem (step count, rank,
+adapter scale). Next levers: lower the step count or the applied adapter scale to curb
+overfitting, or run all 120 to see whether a lift emerges at scale.
