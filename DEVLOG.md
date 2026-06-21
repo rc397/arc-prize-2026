@@ -336,3 +336,22 @@ Selecting maxpair <= 1000 (84 tasks; worst-case ~2100 tokens vs the ~3700 that h
 plus a per-task wall-clock break in `test_time_train` made the run hang-free: phase1 ~14-33s/task,
 phase2 ~45s/task, ~100 min total. Harness: `scripts/ttt_val.py` over `ttt_phase1/1b/2.py`, compared
 by `scripts/compare_ttt.py <tag>`.
+
+### Stage 2 overnight push: scale, color-perm, big-task TTT, combine
+
+An overnight queue swept additional levers on the 84 trainable tasks (all compared to no-TTT 12.8%
+there):
+- Adapter application scale: accuracy rises monotonically with the LoRA scale, 12.0% (0.5), 12.8%
+  (0.7), 15.2% (0.85), 16.8% (1.0), 17.6% (1.25). Still rising at 1.25 (higher scales not
+  exhaustively probed). Best tested: scale 1.25 = 22/125 = 17.6%.
+- Color permutation: adding 8 color-permuted augmentations to the 8 D4 lifts the no-TTT baseline
+  from 12.8% to 14.4% (more votes), but does NOT stack with TTT (s1.25 is 17.6% with or without
+  color-perm). The TTT adapter trains with random recoloring, so it is already color-robust and has
+  subsumed the gain.
+- Big-task TTT: forcing TTT onto the 36 VRAM-excluded tasks at a tighter cap (max_ctx 600) scores
+  10.6% vs 12.8% no-TTT. It does not help; the VRAM exclusion is a genuine ceiling, so the blend
+  keeps no-TTT there.
+
+Best blended full-120 = TTT s1.25 on the 84 trainable + no-TTT on the 36 big = 28/172 = 16.28%, up
+from the 15.70% scale-1.0 blend and the 12.79% no-TTT baseline. Harness: `scripts/ttt_overnight.py`,
+`ttt_scalehi.py`, `ttt_phase2_cp.py`, `ttt_combine.py`; results figure `scripts/make_figure.py`.

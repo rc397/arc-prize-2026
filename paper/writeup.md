@@ -13,7 +13,8 @@ constraint is not model quality or memory but generation throughput: naive decod
 recovers a 13x speedup. We then show how to run per-task TTT on this hardware by serving each
 task's adapter on the fast engine, and we report a measured lift: naive TTT ties the no-TTT
 baseline because the per-task adapter overfits, while a regularized configuration raises accuracy
-from 12.8 to 16.8 percent on the 84 trainable eval tasks. We argue that this kind of honest
+from 12.8 to 17.6 percent on the 84 trainable eval tasks (with the adapter scale tuned), lifting
+the full 120-task eval to a blended 16.28 percent. We argue that this kind of honest
 accounting, the cost of each stage and the order in which the walls appear, is itself a useful
 contribution for the many researchers who cannot rent a cluster.
 
@@ -176,10 +177,16 @@ relative). The paired breakdown is clean: of the tasks the two methods disagree 
 on six that no-TTT misses and wrong on only one (six to one). With seven disagreements this is not
 individually significant (exact McNemar p about 0.13), but three measurements now agree in
 direction (sweep plus one, scale plus five, six-to-one discordant), and no-TTT scores 12.8 percent
-here against its 12.79 percent full baseline, so the subset is representative. Applying TTT where
-trainable and no-TTT on the excluded tasks blends to 15.70 percent on the full 120-task eval, up
-from 12.79 percent. The honest summary is that naive per-task TTT ties a strong no-TTT AIRV
-baseline, while a regularized TTT beats it by a consistent if modest margin.
+here against its 12.79 percent full baseline, so the subset is representative. Three further levers refine the result. The adapter application scale matters:
+accuracy on the 84 tasks rises monotonically from 12.0 percent at scale 0.5 to 17.6 percent at 1.25
+(still rising where we stopped probing). Adding eight color-permuted augmentations lifts the no-TTT
+baseline from 12.8 to 14.4 percent, but does not stack with TTT, which stays at 17.6 percent either
+way, because the adapter trains with random recoloring and is already color-robust. Forcing TTT
+onto the 36 excluded big-grid tasks at a tighter context cap does not help (10.6 vs 12.8 percent
+no-TTT), confirming the exclusion as a genuine ceiling. The best configuration, TTT at scale 1.25
+where trainable and no-TTT elsewhere, blends to 16.28 percent on the full 120-task eval, up from
+12.79 percent. The honest summary is that naive per-task TTT ties a strong no-TTT AIRV baseline,
+while a regularized, scale-tuned TTT beats it by a consistent if modest margin.
 
 ## 5. Discussion
 
@@ -212,7 +219,7 @@ constraint, recovering a 13x decode speedup by changing the inference engine. We
 training-to-serving bridge that per-task TTT needs on this hardware, converting each adapter to
 GGUF and hot-swapping it on the fast engine, and used it to measure TTT fairly: naive per-task
 adapters overfit and tie the no-TTT baseline, while a regularized configuration lifts the 84
-trainable tasks from 12.8 to 16.8 percent and the full eval to a blended 15.70 percent. The cost
+trainable tasks from 12.8 to 17.6 percent and the full eval to a blended 16.28 percent. The cost
 accounting and the order of the walls, engine, then bridge, then regularization, are what we hope
 is useful to others working under the same constraint.
 

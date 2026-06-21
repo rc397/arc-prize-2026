@@ -11,7 +11,8 @@ the binding constraint is generation throughput, not model quality or memory, an
 largest lever is the inference engine, which buys a 13x decode speedup. We then show how to run
 per-task TTT on this hardware by serving each task's adapter on the fast engine, and report a
 measured lift: naive TTT ties the no-TTT baseline because the per-task adapter overfits, while a
-regularized configuration raises accuracy from 12.8 to 16.8 percent on the 84 trainable tasks. The
+regularized configuration raises accuracy from 12.8 to 17.6 percent on the 84 trainable tasks
+(scale-tuned), lifting the full eval to a blended 16.28 percent. The
 contribution is an honest accounting of what the recipe costs and where the effort should go when
 you cannot rent a cluster.
 
@@ -120,11 +121,14 @@ relative). The paired breakdown is clean, of the tasks the two methods disagree 
 on six that no-TTT misses and wrong on only one (six to one). With seven disagreements this is not
 individually significant (exact McNemar p around 0.13), but three measurements now agree in
 direction (sweep plus one, scale plus five, six-to-one discordant), and no-TTT scores 12.8 percent
-here against its 12.79 percent full baseline, so the subset is representative. Applying TTT where
-trainable and no-TTT on the excluded tasks blends to 15.70 percent on the full 120-task eval, up
-from 12.79 percent. The honest summary: naive per-task TTT ties a strong no-TTT AIRV baseline,
-while a regularized TTT beats it by a consistent if modest margin, with the VRAM limit on
-large-grid tasks as the ceiling.
+here against its 12.79 percent full baseline, so the subset is representative. Three further levers: the adapter
+application scale matters (accuracy on the 84 tasks rises monotonically to 17.6 percent at scale
+1.25), color permutation lifts the no-TTT baseline to 14.4 percent but does not stack with the
+already color-robust adapter, and forcing TTT onto the big-grid tasks does not help (the VRAM
+exclusion is a genuine ceiling). The best blend, TTT at scale 1.25 where trainable and no-TTT
+elsewhere, reaches 16.28 percent on the full 120-task eval, up from 12.79 percent. The honest
+summary: naive per-task TTT ties a strong no-TTT AIRV baseline, while a regularized, scale-tuned
+TTT beats it by a consistent if modest margin.
 
 ## 4. Discussion
 

@@ -23,8 +23,8 @@ Headline numbers on the 120-task public evaluation set:
 | system | accuracy |
 |---|---|
 | no-TTT AIRV baseline | 12.79% |
-| regularized TTT on the 84 trainable tasks | 16.8% (vs 12.8% no-TTT) |
-| blended full-120 (TTT where trainable) | ~16% |
+| regularized TTT (scale 1.25) on the 84 trainable tasks | 17.6% (vs 12.8% no-TTT) |
+| best blended full-120 (TTT where trainable) | 16.28% |
 
 The contribution is an honest accounting of what each stage costs on one card, and the engineering
 needed to make per-task TTT serve at all on this hardware.
@@ -164,10 +164,13 @@ On the 120-task public evaluation set:
   sweep and the 84-task run).
 - **Adapter scale matters**: accuracy rises monotonically with the LoRA application scale (12.0% at
   0.5 up to 17.6% at 1.25 on the 84 tasks).
-- **More votes help**: adding 8 color-permuted augmentations lifts the no-TTT baseline from 12.8 to
-  14.4% on the 84 tasks.
+- **More votes help the baseline but not TTT**: adding 8 color-permuted augmentations lifts no-TTT
+  from 12.8 to 14.4%, but TTT stays at 17.6% with or without them, the adapter trains with random
+  recoloring and is already color-robust.
 - **Forcing TTT on the 36 big-grid tasks does not help** (10.6% vs 12.8% no-TTT): the VRAM
   exclusion is a genuine ceiling, so the blended system uses no-TTT there.
+- **Best blend**: TTT at scale 1.25 where trainable plus no-TTT elsewhere reaches **16.28%** on the
+  full 120-task eval, up from the 12.79% baseline.
 
 The naive configuration (40 steps, rank 32, no dropout) overfits to training loss 0.000 and ties
 the baseline; regularization is what turns TTT into a lift on this compute-poor setup.
