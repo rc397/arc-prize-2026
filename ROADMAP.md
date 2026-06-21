@@ -4,49 +4,63 @@ From today (2026-06-18) to the final submission, about 19 weeks. Entries are wee
 Key deadlines: entry and team-merge October 26, ARC-AGI-2 final submission November 2,
 Paper Track submission November 9.
 
-## Status and active plan (updated 2026-06-21)
+## Status and active plan (updated 2026-06-21, researched)
 
-We are far ahead of the original June phase schedule below. Done: the pipeline, the measured result
-(16.28% blended at adapter scale 1.25, vs the 12.79% no-TTT baseline), both paper drafts, the public
+We are far ahead of the original June schedule below. Done: the pipeline, the measured result
+(16.28% blended at adapter scale 1.25 vs the 12.79% no-TTT baseline), both paper drafts, the public
 notebook, the 560x280 card, the Kaggle prep and submission notebooks, and the repo cleanup. What
 remains is getting the offline notebook onto the ARC-AGI-2 main track (required so the Paper-Track
-team is eligible, since the rubric's Accuracy criterion reads the main-track leaderboard) and
-submitting the paper. With Nov 2 (main) and Nov 9 (paper) deadlines, the buffer is ~4.5 months, so
-the goal now is correctness, not speed. The next moves branch on results:
+team is eligible, since the rubric's Accuracy criterion reads the main-track score) and submitting
+the paper. With Nov 2 (main) and Nov 9 (paper) deadlines, the buffer is ~4.5 months.
 
-### A. Prep notebook (build the offline assets: Linux llama.cpp + Q8_0 GGUF)
-- A1. nvcc present on the CPU image: prep runs on no-accelerator (zero GPU quota). Go to B.
-- A2. nvcc absent: run prep once on any GPU (~0.25h quota, GPU idle, present only for nvcc), or attach
-  a public prebuilt llama.cpp CUDA dataset and skip the build cell. Go to B.
-- A3. Conversion patches fail (llama.cpp drift from release b9724): upload the rig's validated
-  `arc-qwen4b-q8_0.gguf` as a dataset and skip the convert cells; still build and stage `llama-server`.
-- A4. Build errors (cmake or CUDA): fix the flags, or fall back to a prebuilt binary dataset.
+Submission constraints (from the ARC-AGI-2 competition pages): the scored run is OFFLINE on the 2026
+"upgraded accelerators", reported as four NVIDIA L4 GPUs (24 GB each); P100 is the older default and
+a dev-dropdown option, so confirm on the Code Requirements tab. It must solve 240 tasks (120
+semi-private + 120 private) in under 12 hours, with about a $50 compute budget. The `submission.json`
+schema `{task_id: [{attempt_1, attempt_2}, ...]}` is already what `write_submission` produces, and
+solutions must be open-sourced (our repo is public, CC-BY 4.0). Implication: v1 (no-TTT) fits one L4
+(~7h for 240 tasks); v2 (TTT) on 240 tasks needs sharding across the four L4s or a TTT subset.
 
-### B. v1 submission notebook (no-TTT AIRV, offline) to the ARC-AGI-2 main track
-- B1. Runs offline, valid `submission.json`, under 12h: SUBMIT. Locks ~12.79% and satisfies the rule
-  that the Paper-Track team must have a main-track submission. This is the minimum viable entry.
-- B2. `llama-server` will not start on the Kaggle GPU: rebuild for the exact arch (P100 sm_60,
-  T4 sm_75, L4 sm_89) and confirm the CUDA runtime libs are staged in the assets.
-- B3. Projected over 12h: cut to 4 augmentations, use the P100 (fastest decode), or both.
-- B4. Submission rejected on format: match the exact ARC submission schema in `write_submission`.
+### A. Prep notebook (build the offline assets)
+- A1. nvcc on the CPU image: prep runs on no-accelerator (zero GPU quota). A2. nvcc absent: one
+  ~0.25h GPU run, or a prebuilt llama.cpp CUDA dataset. A3. Conversion patch fails (llama.cpp drift
+  from b9724): upload the rig's validated `arc-qwen4b-q8_0.gguf` and skip the convert, still stage
+  `llama-server`. A4. Build error: fix flags or use a prebuilt.
 
-### C. v2 submission (layer TTT) for a better main-track score
-- C1. TTT trains and serves in-notebook under 12h: ~16.28% blended, resubmit (main track allows
-  one submission per day).
-- C2. TTT too slow or OOM on the Kaggle GPU: shrink it (fewer steps or rank, the maxpair filter to
-  the smaller tasks), or cap TTT to the smallest tasks; if it cannot fit the budget, ship v1.
-- C3. The GGUF LoRA bridge fails on Kaggle: debug `convert_lora_to_gguf`; worst case ship v1.
+### B. v1 no-TTT submission, the eligibility floor
+- B1. Runs offline, valid `submission.json`, 240 tasks under 12h on one L4: SUBMIT. Locks ~12.79% and
+  satisfies the team-must-have-a-main-submission rule.
+- B2. `llama-server` will not start on L4: rebuild for sm_89 and stage the CUDA runtime libs.
+- B3. Over 12h: drop to 4 augmentations. B4. Format rejected: match the schema (already matched).
+
+### C. v2 TTT submission, the score lift
+- The 240-task TTT will not fit one L4 in 12h. 2a (best): shard the 240 across the four L4s, ~4x
+  throughput (new multi-GPU dispatcher around `ttt_phase1/1b/2`). 2b (fallback): TTT only on the
+  smaller tasks (maxpair filter) + no-TTT on the rest, single L4. Branch: still too slow -> 2b -> v1.
 
 ### D. Paper Track submission (the prize deliverable)
-- D1. Once v1 (or v2) is on the board: submit the paper, the writeup fields from
-  `paper/kaggle_writeup.md`, the 560x280 card, the notebook, and the public GitHub repo link.
-- D2. If time allows, strengthen for the rubric. We are weakest on Accuracy and Progress (raise via
-  v2) and strongest on Theory, Novelty, and Completeness (the single-consumer-GPU characterization).
+- Once v1 (or v2) is on the board: submit the paper (the `paper/kaggle_writeup.md` fields, the card,
+  the notebook, the public repo link). We are weak on Accuracy/Progress, strong on
+  Theory/Novelty/Completeness.
+
+### E. Novel score improvement (the 2-month-buffer research; lifts the score and the paper rubric)
+2025 grounding: top Kaggle ARC-AGI-2 was 24.03% (NVARC, whose model we use); the official analysis
+names the refinement loop with verification as the central advance and the top 2026 direction, and
+we do not have it (our AIRV is a one-shot vote). Staged, cheapest first:
+- E1. Verifier-guided selection (16 -> ~20%): score each candidate against the train pairs
+  (leave-one-out consistency) instead of plain voting. No training, the biggest lever we lack.
+- E2. Refinement loop (~20 -> ~24%, matches 2025 SOTA): generate -> verify -> re-prompt with the
+  discrepancy -> regenerate, keep the best-verified. The defining 2025 technique.
+- E3. Scale TTT toward the NVARC/MindsAI recipe (augmentation ensembles, tokenizer dropout).
+- E4. Stretch (~26 -> 38+, real research): evolutionary program synthesis with self-training on
+  traces (SOAR-style) or a TRM-style recursive module.
+Paper framing: "refinement loops, the 2025 frontier, on a single consumer GPU." Realistic target
+~24% from E1-E3; 38%+ needs E4 and is a genuine stretch (only frontier models reached it).
 
 ### Priority order
-1. Prep assets working (A). 2. v1 on the main-track board (B1), for eligibility. 3. Paper submitted
-(D1). Those three make a complete, eligible entry. 4. v2 for a better Accuracy score (C). 5. Extras
-only if quota and time allow: L4 x4 parallelization, more levers, a larger TTT confirmation.
+1. Prep working. 2. v1 on the board (eligibility). 3. Paper submitted. Those three are the complete,
+eligible floor. 4. E1 -> E2 -> E3, resubmitting as it climbs toward ~24%. 5. E4 as the stretch
+toward 30%+. 6. C (multi-GPU sharding) only once TTT plus the loop no longer fit one L4 in 12h.
 
 ---
 
