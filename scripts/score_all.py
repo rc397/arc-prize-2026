@@ -39,3 +39,13 @@ if os.path.exists(bm) and os.path.exists(bo):
     an2, cn2, nn2 = score_submission(nottt, sbig)
     print("--- C: big-task TTT on %d tasks: %d/%d = %.4f  vs no-TTT %d/%d = %.4f ---" % (
         len(bman), c, n, a, cn2, nn2, an2))
+
+cpb = r"D:\arc\experiments\airv_colorperm_big_eval.json"
+bmp = r"D:\arc\experiments\ttt_manifest_bigttt.json"
+if os.path.exists(cpb) and os.path.exists(bmp):
+    bman = json.load(open(bmp))
+    sbig = {t: sols[t] for t in bman if t in sols}
+    a, c, n = score_submission(json.load(open(cpb)), sbig)
+    an3 = score_submission(nottt, sbig)[0]
+    print("--- color-perm no-TTT on %d big tasks: %d/%d = %.4f  vs no-TTT 8aug %.4f ---" % (
+        len(bman), c, n, a, an3))

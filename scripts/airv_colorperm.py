@@ -15,8 +15,10 @@ HEALTH = "http://127.0.0.1:8080/health"
 N_LIMIT = int(sys.argv[1]) if len(sys.argv) > 1 else 0
 CH = r"D:\arc\data\kaggle\arc-agi_evaluation_challenges.json"
 SOL = r"D:\arc\data\kaggle\arc-agi_evaluation_solutions.json"
-MANIFEST = r"D:\arc\experiments\ttt_manifest_val.json"
-OUT = r"D:\arc\experiments\airv_colorperm_eval.json"
+MANIFEST = sys.argv[2] if len(sys.argv) > 2 else r"D:\arc\experiments\ttt_manifest_val.json"
+TAG = sys.argv[3] if len(sys.argv) > 3 else ""
+OUT = (r"D:\arc\experiments\airv_colorperm_eval.json" if not TAG
+       else r"D:\arc\experiments\airv_colorperm_%s_eval.json" % TAG)
 SERVER_ARGS = [r"D:\arc\llamacpp\llama-server.exe", "-m", r"D:\arc\models\arc-qwen4b-q8_0.gguf",
                "-ngl", "99", "-c", "16384", "-np", "1", "--host", "127.0.0.1", "--port", "8080",
                "--no-webui", "--no-cache-prompt", "--no-cache-idle-slots"]
