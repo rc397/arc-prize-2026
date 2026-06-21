@@ -55,7 +55,8 @@ if not shutil.which("nvcc"):
                      "Re-run with any GPU accelerator (this build is ~10 min, about 0.25h quota, the "
                      "GPU is not otherwise used), or attach a prebuilt llama.cpp CUDA dataset.")
 subprocess.run(["cmake", "-B", os.path.join(LCPP, "build"), "-S", LCPP, "-DGGML_CUDA=ON",
-                "-DLLAMA_CURL=OFF", "-DCMAKE_CUDA_ARCHITECTURES=60;75;89", "-DCMAKE_BUILD_TYPE=Release"], check=True)
+                "-DLLAMA_CURL=OFF", "-DCMAKE_CUDA_ARCHITECTURES=60;75;89", "-DCMAKE_BUILD_TYPE=Release",
+                "-DCMAKE_LIBRARY_PATH=/usr/local/cuda/lib64/stubs"], check=True)
 subprocess.run(["cmake", "--build", os.path.join(LCPP, "build"), "--config", "Release", "-j",
                 "--target", "llama-server", "llama-quantize"], check=True)
 BIN = os.path.join(LCPP, "build", "bin")
