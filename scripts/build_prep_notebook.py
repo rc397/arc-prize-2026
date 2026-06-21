@@ -72,6 +72,11 @@ print('patches applied')
 md("## 2. Build llama.cpp (CUDA, multi-arch so the binary runs on P100 / T4 / L4)"),
 
 code(r"""
+if not shutil.which('nvcc'):
+    raise SystemExit(
+        'nvcc not found: this is a CPU-only session and the CUDA build needs it. Either re-run '
+        'with any GPU accelerator (this build is ~15 min, about 0.25h of the 30h quota, and the GPU '
+        'is not otherwise used), or attach a prebuilt llama.cpp CUDA dataset and skip this cell.')
 subprocess.run(['cmake', '-B', os.path.join(LCPP, 'build'), '-S', LCPP,
                 '-DGGML_CUDA=ON', '-DLLAMA_CURL=OFF',
                 '-DCMAKE_CUDA_ARCHITECTURES=60;75;89', '-DCMAKE_BUILD_TYPE=Release'], check=True)
