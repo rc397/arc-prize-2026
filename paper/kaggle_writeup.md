@@ -78,8 +78,8 @@ sharing VRAM. Large-grid tasks are too VRAM-bound to train and are excluded.
   sweep and the 84-task run (paired 6 to 1, exact McNemar p about 0.13).
 - The naive configuration (40 steps, rank 32, no dropout) overfits to training loss 0.000 and ties
   the baseline. Regularization is what turns TTT into a lift on this compute-poor setup.
-- Adapter scale matters: accuracy rises monotonically with the LoRA application scale, from 12.0
-  percent at 0.5 to 17.6 percent at 1.25 on the 84 tasks.
+- Adapter scale matters: accuracy climbs with the LoRA application scale to a peak of 17.6 percent
+  at scale 1.25 on the 84 tasks (12.0 at 0.5), then declines (16.0 at 1.4, 16.8 at 1.5).
 - More votes help the baseline but not TTT: adding eight color-permuted augmentations lifts no-TTT
   from 12.8 to 14.4 percent, but TTT stays at 17.6 percent either way, because the adapter trains
   with random recoloring and is already color-robust.

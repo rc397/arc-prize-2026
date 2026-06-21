@@ -341,9 +341,9 @@ by `scripts/compare_ttt.py <tag>`.
 
 An overnight queue swept additional levers on the 84 trainable tasks (all compared to no-TTT 12.8%
 there):
-- Adapter application scale: accuracy rises monotonically with the LoRA scale, 12.0% (0.5), 12.8%
-  (0.7), 15.2% (0.85), 16.8% (1.0), 17.6% (1.25). Still rising at 1.25 (higher scales not
-  exhaustively probed). Best tested: scale 1.25 = 22/125 = 17.6%.
+- Adapter application scale: accuracy rises with the LoRA scale to a peak, 12.0% (0.5), 12.8%
+  (0.7), 15.2% (0.85), 16.8% (1.0), 17.6% (1.25), then declines: 16.0% (1.4), 16.8% (1.5), 1.75
+  collapses (over-applied). Best: scale 1.25 = 22/125 = 17.6%.
 - Color permutation: adding 8 color-permuted augmentations to the 8 D4 lifts the no-TTT baseline
   from 12.8% to 14.4% (more votes), but does NOT stack with TTT (s1.25 is 17.6% with or without
   color-perm). The TTT adapter trains with random recoloring, so it is already color-robust and has

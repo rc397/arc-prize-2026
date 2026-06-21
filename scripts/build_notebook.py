@@ -162,8 +162,8 @@ On the 120-task public evaluation set:
 - **Regularized TTT (20 steps, rank 16, dropout 0.1) on the 84 trainable tasks: 16.8%** vs 12.8%
   no-TTT on the same tasks (+5 outputs; paired 6:1, McNemar p~0.13, consistent across a 15-task
   sweep and the 84-task run).
-- **Adapter scale matters**: accuracy rises monotonically with the LoRA application scale (12.0% at
-  0.5 up to 17.6% at 1.25 on the 84 tasks).
+- **Adapter scale matters**: accuracy climbs with the LoRA application scale to a peak of 17.6% at
+  1.25 (12.0% at 0.5), then declines (16.0% at 1.4, 16.8% at 1.5).
 - **More votes help the baseline but not TTT**: adding 8 color-permuted augmentations lifts no-TTT
   from 12.8 to 14.4%, but TTT stays at 17.6% with or without them, the adapter trains with random
   recoloring and is already color-robust.

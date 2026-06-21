@@ -122,8 +122,8 @@ on six that no-TTT misses and wrong on only one (six to one). With seven disagre
 individually significant (exact McNemar p around 0.13), but three measurements now agree in
 direction (sweep plus one, scale plus five, six-to-one discordant), and no-TTT scores 12.8 percent
 here against its 12.79 percent full baseline, so the subset is representative. Three further levers: the adapter
-application scale matters (accuracy on the 84 tasks rises monotonically to 17.6 percent at scale
-1.25), color permutation lifts the no-TTT baseline to 14.4 percent but does not stack with the
+application scale matters (accuracy on the 84 tasks peaks at 17.6 percent at scale 1.25, then
+declines), color permutation lifts the no-TTT baseline to 14.4 percent but does not stack with the
 already color-robust adapter, and forcing TTT onto the big-grid tasks does not help (the VRAM
 exclusion is a genuine ceiling). The best blend, TTT at scale 1.25 where trainable and no-TTT
 elsewhere, reaches 16.28 percent on the full 120-task eval, up from 12.79 percent. The honest
