@@ -1,4 +1,4 @@
-"""Build paper/arc_submission.ipynb, the runnable pipeline notebook we grow iteratively.
+"""Build notebooks/arc_submission.ipynb, the runnable pipeline notebook we grow iteratively.
 v1: config + setup + no-TTT AIRV -> submission.json (+ score if solutions present). Reuses the
 proven src/arc modules so the notebook is not new risk. Detects Kaggle vs rig/local for paths."""
 import json, os
@@ -189,7 +189,8 @@ nb = {"cells": cells,
                    "language_info": {"name": "python", "version": "3.x"}},
       "nbformat": 4, "nbformat_minor": 5}
 
-out = os.path.join(os.path.dirname(__file__), "..", "paper", "arc_submission.ipynb")
+out = os.path.join(os.path.dirname(__file__), "..", "notebooks", "arc_submission.ipynb")
+os.makedirs(os.path.dirname(out), exist_ok=True)
 with open(out, "w", encoding="utf-8") as f:
     json.dump(nb, f, indent=1)
 json.load(open(out, encoding="utf-8"))

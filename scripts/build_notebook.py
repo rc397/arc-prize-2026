@@ -1,4 +1,4 @@
-"""Build the Paper Track public notebook paper/arc_pipeline.ipynb from a cell list. Keeps the
+"""Build the Paper Track public notebook notebooks/arc_pipeline.ipynb from a cell list. Keeps the
 notebook JSON well-formed (no hand-escaping). Code cells show the real pipeline logic; the notebook
 documents and reproduces the approach (full execution needs the rig llama.cpp + GGUF model)."""
 import json, os
@@ -197,8 +197,8 @@ nb = {"cells": cells,
                    "language_info": {"name": "python", "version": "3.x"}},
       "nbformat": 4, "nbformat_minor": 5}
 
-os.makedirs(os.path.join(os.path.dirname(__file__), "..", "paper"), exist_ok=True)
-out = os.path.join(os.path.dirname(__file__), "..", "paper", "arc_pipeline.ipynb")
+os.makedirs(os.path.join(os.path.dirname(__file__), "..", "notebooks"), exist_ok=True)
+out = os.path.join(os.path.dirname(__file__), "..", "notebooks", "arc_pipeline.ipynb")
 with open(out, "w", encoding="utf-8") as f:
     json.dump(nb, f, indent=1)
 # validate round-trip

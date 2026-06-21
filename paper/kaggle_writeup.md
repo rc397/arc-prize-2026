@@ -20,7 +20,7 @@ blended 16.28 percent), or a simple pipeline strip: model -> llama.cpp bridge ->
 ## Attachments / project links
 
 - Code (GitHub): https://github.com/rc397/arc-prize-2026
-- Public notebook: paper/arc_pipeline.ipynb (in the repo; documents and reproduces the pipeline)
+- Public notebook: notebooks/arc_pipeline.ipynb (in the repo; documents and reproduces the pipeline)
 
 ---
 
