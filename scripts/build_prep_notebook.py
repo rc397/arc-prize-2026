@@ -54,9 +54,23 @@ if not shutil.which("nvcc"):
     raise SystemExit("nvcc not found: this is a CPU-only session and the CUDA build needs it. "
                      "Re-run with any GPU accelerator (this build is ~10 min, about 0.25h quota, the "
                      "GPU is not otherwise used), or attach a prebuilt llama.cpp CUDA dataset.")
+# CMake makes the CUDA::cuda_driver target only when it finds libcuda.so. Its location varies
+# (toolkit stub under lib64/ or targets/, or the real driver as libcuda.so.1). Find it, symlink
+# .so.1 -> .so if only the runtime lib exists, and point cmake at that directory.
+lc = None
+for pat in ("/usr/local/cuda*/**/stubs/libcuda.so", "/usr/**/libcuda.so", "/usr/**/libcuda.so.1"):
+    found = glob.glob(pat, recursive=True)
+    if found:
+        lc = found[0]
+        break
+print("libcuda:", lc, flush=True)
+assert lc, "no libcuda.so on this image; attach a prebuilt llama.cpp CUDA dataset instead"
+libdir = os.path.dirname(lc)
+if lc.endswith(".so.1") and not os.path.exists(os.path.join(libdir, "libcuda.so")):
+    os.symlink(lc, os.path.join(libdir, "libcuda.so"))
 subprocess.run(["cmake", "-B", os.path.join(LCPP, "build"), "-S", LCPP, "-DGGML_CUDA=ON",
                 "-DLLAMA_CURL=OFF", "-DCMAKE_CUDA_ARCHITECTURES=60;75;89", "-DCMAKE_BUILD_TYPE=Release",
-                "-DCMAKE_LIBRARY_PATH=/usr/local/cuda/lib64/stubs"], check=True)
+                "-DCMAKE_LIBRARY_PATH=" + libdir], check=True)
 subprocess.run(["cmake", "--build", os.path.join(LCPP, "build"), "--config", "Release", "-j",
                 "--target", "llama-server", "llama-quantize"], check=True)
 BIN = os.path.join(LCPP, "build", "bin")
