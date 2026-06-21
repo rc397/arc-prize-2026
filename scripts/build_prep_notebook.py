@@ -29,11 +29,17 @@ import os, glob, subprocess, shutil, sys
 B = '/kaggle/working/build'
 os.makedirs(B, exist_ok=True)
 
-# locate the attached Kaggle model (the HF transformers weights)
+# locate the attached model (HF weights: config.json + safetensors + tokenizer). Robust to a Kaggle
+# Model or another user's notebook output, and to hyphen vs underscore in the name.
+def _has_tok(d):
+    return any(os.path.exists(os.path.join(d, t)) for t in ('tokenizer.json', 'tokenizer_config.json'))
 hits = glob.glob('/kaggle/input/**/config.json', recursive=True)
-MODEL = os.path.dirname([h for h in hits if 'qwen3_4b_grids15' in h or 'transformers' in h][0]) if hits else None
-print('MODEL dir:', MODEL)
-assert MODEL and os.path.exists(os.path.join(MODEL, 'config.json')), 'attach sorokin/qwen3_4b_grids15_sft139 via Add Input'
+cands = [h for h in hits if _has_tok(os.path.dirname(h))]
+pref = [h for h in cands if 'grids15' in h.lower()]
+MODEL = os.path.dirname((pref or cands or hits)[0]) if hits else None
+print('found configs:', len(hits), '| MODEL dir:', MODEL)
+assert MODEL and os.path.exists(os.path.join(MODEL, 'config.json')), \
+    'attach the qwen3-4b-grids15-sft139 model (config.json + safetensors) via Add Input'
 """),
 
 md("## 1. Clone llama.cpp at the validated release and apply the two vocab patches"),
