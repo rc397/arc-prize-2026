@@ -21,10 +21,35 @@ binary, and this repo's `src/arc` must be attached as datasets (no download at r
 cell detects Kaggle vs a local/rig run and sets paths accordingly.
 """),
 
+md(r"""
+## Offline submission, datasets to attach
+
+ARC Prize is an offline code competition (no internet at submission). Attach these so the notebook
+runs with internet off:
+
+1. Base model (HF transformers) for TTT training and adapter conversion: the Kaggle model
+   `sorokin/qwen3_4b_grids15_sft139`.
+2. The Q8_0 GGUF (our conversion of that model) for serving: upload as a dataset.
+3. A Linux llama.cpp build (`llama-server` plus `convert_lora_to_gguf.py`): upload as a dataset.
+   The custom-vocab patches are baked into the GGUF at conversion time, so the server itself is a
+   stock build.
+4. This repository (`src/arc`): attach as a dataset or a utility script.
+
+No `pip install` runs at submission. The notebook forces `HF_HUB_OFFLINE` and `TRANSFORMERS_OFFLINE`
+so nothing tries to reach the network. The no-TTT path (v1) needs only items 2-4; TTT (v2) adds
+item 1 plus PyTorch and PEFT (pre-load PEFT as a wheel if the Kaggle image lacks it).
+"""),
+
 md("## 0. Configuration"),
 
 code(r"""
 import os, sys, json, time, subprocess, urllib.request
+
+# Offline code competition: no internet at submission, so never let transformers/HF phone home,
+# and never pip-install at runtime (pre-load any wheels as a dataset and install with --no-index).
+os.environ['HF_HUB_OFFLINE'] = '1'
+os.environ['TRANSFORMERS_OFFLINE'] = '1'
+os.environ['TOKENIZERS_PARALLELISM'] = 'false'
 
 ON_KAGGLE = os.path.isdir('/kaggle')
 
