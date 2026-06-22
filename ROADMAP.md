@@ -53,10 +53,19 @@ we do not have it (our AIRV is a one-shot vote). Staged, cheapest first:
 - E2. Refinement loop (~20 -> ~24%, matches 2025 SOTA): generate -> verify -> re-prompt with the
   discrepancy -> regenerate, keep the best-verified. The defining 2025 technique.
 - E3. Scale TTT toward the NVARC/MindsAI recipe (augmentation ensembles, tokenizer dropout).
+- E3b. Self-trained base (`qwen3-4b-arc2ft`, in progress): a one-time bf16 LoRA continued fine-tune of
+  the NVARC base on official ARC-AGI-2 training + RE-ARC, merged and re-converted to GGUF. Gated
+  keep/drop for the SUBMISSION: ship only if no-TTT(FT) > 12.79% AND FT+TTT > 16.28%. EITHER outcome
+  goes in the PAPER: a win is a better single-GPU operating point; a null/negative result is an honest
+  contribution (does continued fine-tuning on public data move ARC-AGI-2 on one card, or has the SFT'd
+  base already saturated it?), which the rubric rewards.
 - E4. Stretch (~26 -> 38+, real research): evolutionary program synthesis with self-training on
   traces (SOAR-style) or a TRM-style recursive module.
 Paper framing: "refinement loops, the 2025 frontier, on a single consumer GPU." Realistic target
-~24% from E1-E3; 38%+ needs E4 and is a genuine stretch (only frontier models reached it).
+~24% from E1-E3; 38%+ needs E4 and is a genuine stretch (only frontier models reached it). Negative
+results (the E1 verifier dead end, and E3b if the fine-tune does not clear the gate) are reported as
+part of the contribution, not hidden; the honest single-GPU map of what works and what does not is the
+paper's value.
 
 ### Priority order
 1. Prep working. 2. v1 on the board (eligibility). 3. Paper submitted. Those three are the complete,
