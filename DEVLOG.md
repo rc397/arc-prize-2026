@@ -356,3 +356,66 @@ there):
 Best blended full-120 = TTT s1.25 on the 84 trainable + no-TTT on the 36 big = 28/172 = 16.28%, up
 from the 15.70% scale-1.0 blend and the 12.79% no-TTT baseline. Harness: `scripts/ttt_overnight.py`,
 `ttt_scalehi.py`, `ttt_phase2_cp.py`, `ttt_combine.py`; results figure `scripts/make_figure.py`.
+
+### Paper Track report figures: six measured-data figures
+
+Extended `scripts/make_visuals.py` with six report figures (PNG, 200 dpi, the shared Times/blue
+style), each backing one claim, every number cross-checked to the runs and to `DEVLOG.md`:
+- fig_roofline: decode throughput against the 896 GB/s memory roof. Confirmed the GGUF weight sizes
+  first (bf16 6.77, Q8_0 3.60, Q4_K_M 2.02 GB); eager and llama.cpp bf16 run the same weights at the
+  same 132 tok/s roof, so their ~8x gap is engine overhead, not the card. Measured fill: eager 10%,
+  bf16 77%, Q8_0 68%, Q4_K_M 55%.
+- fig_vram_wall: a 3D scatter of all 120 tasks (test height x width x largest train pair), trainable
+  green / excluded red, with the 16 GB training budget as a plane at maxpair 1000. The split is
+  clean because maxpair is the actual cutoff metric (trainable top out at 996 tokens, excluded start
+  at 1010), not the test grid size.
+- fig_scale_flip: a per-output heatmap of which of the 84-subset's 125 test outputs each adapter
+  scale solves; the column counts reproduce the scale curve exactly (16/15/16/19/21/22/20/21/21),
+  confirming the 1.25 peak and the plateau are real at the task level, not an aggregate artifact.
+- fig_cost_frontier: accuracy vs GPU-minutes (log) on the one card, reconstructed from the run logs
+  (no-TTT 78.5 min at 12.79%, TTT-blended 95.7 min at 16.28%, the eight scales stacked at one cost
+  since the adapters train once). +3.5 points costs +17 minutes; an eager ghost marks where the same
+  no-TTT run would land at 13 tok/s (~17 hours), the engine's leverage.
+- fig_airv_votes and fig_phases are written and staged but need a GPU run (an instrumented no-TTT
+  AIRV pass for per-transform vote agreement, and a live nvidia-smi trace of one task's
+  train/convert/serve bridge); both are queued behind the running verifier.
+
+Data dumps live in `paper/data/` (task_dims.csv, scale_flip.csv, timings.csv) and the figure code
+reads them, so every number is auditable. Scripts: `dump_task_dims.py`, `dump_scale_flip.py`,
+`parse_timings.py`, plus `dump_airv_votes.py`, `dump_vram_trace.py`, `b6_train_one.py` staged for the
+two GPU figures.
+
+## 2026-06-21 / 06-22
+
+### v1 eligibility unblocked
+The Kaggle prep notebook now stages the full llama.cpp `bin/` (llama-server plus all shared
+libraries, including libggml-cuda.so) alongside the Q8_0 GGUF, so the offline server actually
+starts on the submission side. Committed prep output is ~7.9 GB. v1 (no-TTT, ~12.79%) is down to
+attaching the prep output + the ARC Prize 2026 competition and running the submission notebook.
+
+### Licensing and provenance
+Relicensed the repo to MIT-0 (was effectively all-rights-reserved; the rules require CC0 or
+MIT-0). Added THIRD_PARTY_LICENSES.md and NOTICE covering Qwen3-4B (Apache-2.0) -> NVARC SFT, the
+official ARC-AGI-2 tasks (Apache-2.0), and RE-ARC (MIT). Citations wired into the paper.
+
+### Continued base fine-tune (gated)
+bitsandbytes does not load on Blackwell+Windows, so the planned 4-bit QLoRA became a bf16 LoRA
+(per-task TTT already proves bf16 fits 16 GB). build_ft_corpus.py mints a corpus from the official
+ARC-2 training pool + RE-ARC generations using the exact inference prompt format (~137k examples).
+finetune_base.py runs a bf16 LoRA (rank 32) and merges to qwen3-4b-arc2ft for GGUF conversion.
+Pilot (20k examples, 1 epoch) running on the rig at ~3.45s/step (~19h); val 0.039 tracking train
+0.024 at step 2000, no overfit yet. Keep only if it clears the gate: no-TTT(FT) > 12.79% and
+FT+TTT > 16.28%.
+
+### Paper as a LaTeX PDF
+No published word cap for the Paper Track (rubric-judged on six criteria with a required
+structure). make_visuals.py now emits every figure as vector SVG + PDF. Authored paper/writeup.tex
+and built a 13-page PDF via MiKTeX: reader's guide + table of contents + PDF bookmarks, typeset
+math (roofline r_max = B/M, AIRV vote, TTT loss), all 10 figures, and six appendices
+(reproducibility incl. the two GGUF converter patches, extended per-scale results + McNemar,
+engineering log of dead ends, prompt/vocab format, provenance + BibTeX).
+
+### Submission notebook
+Redirected llama-server stdout/stderr to llama-server.log instead of the notebook output: the
+per-request server logs were flooding the Kaggle cell output and lagging the browser during the
+model run. Recommended workflow is Save & Run All (Commit), not interactive watching.

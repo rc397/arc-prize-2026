@@ -1,0 +1,12 @@
+config,gpu_minutes,accuracy,kind
+no-TTT,78.5,12.79,measured
+TTT 0.5,95.7,12.21,measured
+TTT 0.7,95.7,12.79,measured
+TTT 0.85,95.7,14.53,measured
+TTT 1.0,95.7,15.70,measured
+TTT 1.25,95.7,16.28,operating
+TTT 1.4,95.7,15.12,measured
+TTT 1.5,95.7,15.70,measured
+TTT 1.75,95.7,15.70,measured
+colour-perm,123.6,13.95,estimated
+no-TTT eager,1027,12.79,ghost
