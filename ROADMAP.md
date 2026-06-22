@@ -18,7 +18,8 @@ Submission constraints (from the ARC-AGI-2 competition pages): the scored run is
 a dev-dropdown option, so confirm on the Code Requirements tab. It must solve 240 tasks (120
 semi-private + 120 private) in under 12 hours, with about a $50 compute budget. The `submission.json`
 schema `{task_id: [{attempt_1, attempt_2}, ...]}` is already what `write_submission` produces, and
-solutions must be open-sourced (our repo is public, CC-BY 4.0). Implication: v1 (no-TTT) fits one L4
+solutions must be open-sourced under a permissive/public-domain license (rules name CC0 or MIT-0;
+our repo is MIT-0, see LICENSE). Implication: v1 (no-TTT) fits one L4
 (~7h for 240 tasks); v2 (TTT) on 240 tasks needs sharding across the four L4s or a TTT subset.
 
 ### A. Prep notebook (build the offline assets)

@@ -1,0 +1,13 @@
+ARC Prize 2026 entry
+Copyright 2026 rchen
+
+Our own code and weights are released under MIT-0 (see LICENSE). This product includes and/or
+derives from third-party material:
+
+- Qwen3-4B, Copyright Alibaba Cloud / Qwen Team, licensed under the Apache License, Version 2.0.
+  The fine-tuned checkpoint qwen3-4b-arc2ft is a derivative of Qwen3-4B (via NVARC's
+  qwen3-4b-grids15-sft139) and is distributed under the Apache License, Version 2.0.
+- ARC-AGI-2 tasks, Copyright ARC Prize Foundation, licensed under the Apache License, Version 2.0.
+- RE-ARC, Copyright (c) 2024 Michael Hodel, licensed under the MIT License.
+
+See THIRD_PARTY_LICENSES.md for license texts, sources, and citations.
