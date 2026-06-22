@@ -419,3 +419,15 @@ engineering log of dead ends, prompt/vocab format, provenance + BibTeX).
 Redirected llama-server stdout/stderr to llama-server.log instead of the notebook output: the
 per-request server logs were flooding the Kaggle cell output and lagging the browser during the
 model run. Recommended workflow is Save & Run All (Commit), not interactive watching.
+
+## 2026-06-23
+
+### v1 on the ARC-AGI-2 main-track leaderboard: 6.53
+The v1 no-TTT AIRV submission was scored: 6.53 on the hidden 240-task test set (P100, offline,
+submission.json produced, "Succeeded"). The Paper-Track team now has its required main-track entry
+(eligibility met). Public-to-hidden gap: 12.79% on the 120 public eval vs 6.53 on the hidden set.
+Likely mostly the hidden set being harder (it resists the public eval's patterns), but a ~2x drop is
+large enough to also suspect per-task failures in the scored rerun (the prompt cache was active in
+the run log; big grids are VRAM-heavy on P100). This run predated the run.log capture, so the next
+submission will show empty-vs-wrong per task. Report both numbers in the paper; the gap is an honest
+single-GPU finding. Score-climb path unchanged: v2 TTT, then the self-trained base if it clears the gate.
