@@ -1,6 +1,7 @@
-"""Build notebooks/arc_submission.ipynb, the runnable pipeline notebook we grow iteratively.
-v1: config + setup + no-TTT AIRV -> submission.json (+ score if solutions present). Reuses the
-proven src/arc modules so the notebook is not new risk. Detects Kaggle vs rig/local for paths."""
+"""Build notebooks/arc_submission.ipynb: the runnable offline ARC-AGI-2 pipeline (v1 no-TTT AIRV).
+Self-contained: the config cell auto-detects the GGUF + llama-server from the attached prep-notebook
+output (and sets LD_LIBRARY_PATH for the server's shared libs), and the pipeline code from this
+repo's src/arc is inlined, so the only things to attach are the prep output and the competition data."""
 import json, os
 
 md = lambda s: {"cell_type": "markdown", "metadata": {}, "source": s.strip("\n").splitlines(keepends=True)}
@@ -9,94 +10,222 @@ code = lambda s: {"cell_type": "code", "metadata": {}, "execution_count": None, 
 
 cells = [
 md(r"""
-# ARC-AGI-2 on a single 16 GB GPU, runnable pipeline
+# ARC-AGI-2 on a single 16 GB GPU, runnable pipeline (v1)
 
-AIRV (Augment-Infer-Reverse-Vote) plus per-task test-time training, served through a llama.cpp LoRA
-bridge. Best result on the public eval: a blended 16.28 percent, up from a 12.79 percent no-TTT
-baseline. This notebook runs the pipeline end to end and writes `submission.json`.
-
-It grows in stages: v1 is the no-TTT AIRV baseline below; TTT and the scale/vote levers layer on
-top in later cells. ARC Prize is an offline code competition, so on Kaggle the model, the llama.cpp
-binary, and this repo's `src/arc` must be attached as datasets (no download at runtime); the config
-cell detects Kaggle vs a local/rig run and sets paths accordingly.
+AIRV (Augment-Infer-Reverse-Vote) over the NVARC Qwen3-4B grid model, served with llama.cpp. This
+notebook runs end to end offline and writes `submission.json`. v1 is the no-TTT baseline (~12.79% on
+the public eval); TTT layers on top later.
 """),
 
 md(r"""
-## Offline submission, datasets to attach
+## Attach two inputs, then Run All
 
-ARC Prize is an offline code competition (no internet at submission). Attach these so the notebook
-runs with internet off:
+This is an offline competition (no internet at submission). Attach via **+ Add Input**:
 
-1. Base model (HF transformers) for TTT training and adapter conversion: the Kaggle model
-   `sorokin/qwen3_4b_grids15_sft139`.
-2. The Q8_0 GGUF (our conversion of that model) for serving: upload as a dataset.
-3. A Linux llama.cpp build (`llama-server` plus `convert_lora_to_gguf.py`): upload as a dataset.
-   The custom-vocab patches are baked into the GGUF at conversion time, so the server itself is a
-   stock build.
-4. This repository (`src/arc`): attach as a dataset or a utility script.
+1. **The prep notebook's Output** (`arc_prep_v1` or newer): provides the Q8_0 GGUF and the Linux
+   `llama-server` with its shared libraries (under `assets/bin/`).
+2. **The ARC Prize 2026 competition data** (Add Input -> Competitions -> ARC Prize 2026): provides the
+   test challenges JSON.
 
-No `pip install` runs at submission. The notebook forces `HF_HUB_OFFLINE` and `TRANSFORMERS_OFFLINE`
-so nothing tries to reach the network. The no-TTT path (v1) needs only items 2-4; TTT (v2) adds
-item 1 plus PyTorch and PEFT (pre-load PEFT as a wheel if the Kaggle image lacks it).
+Nothing else to attach: the config cell finds the GGUF, the server, and the challenges by searching
+`/kaggle/input`, and the pipeline code is inlined below. Settings: **Internet OFF**, Accelerator =
+the same GPU you ran prep on (the server is built for that arch). Then **Run All**.
 """),
 
-md("## 0. Configuration"),
+md("## 0. Configuration (auto-detect attached inputs)"),
 
 code(r"""
-import os, sys, json, time, subprocess, urllib.request
+import os, sys, glob, json, time, subprocess, urllib.request, shutil
+from pathlib import Path
 
-# Offline code competition: no internet at submission, so never let transformers/HF phone home,
-# and never pip-install at runtime (pre-load any wheels as a dataset and install with --no-index).
+# Offline: never let HF/transformers phone home, never pip-install at runtime.
 os.environ['HF_HUB_OFFLINE'] = '1'
 os.environ['TRANSFORMERS_OFFLINE'] = '1'
 os.environ['TOKENIZERS_PARALLELISM'] = 'false'
-
 ON_KAGGLE = os.path.isdir('/kaggle')
 
+def _find(patterns):
+    for pat in patterns:
+        hits = sorted(glob.glob(pat, recursive=True))
+        if hits:
+            return hits[0]
+    return None
+
 if ON_KAGGLE:
-    # TODO set these to the datasets you attach to the notebook
-    REPO       = '/kaggle/input/arc-prize-2026-code'          # this repo (for src/arc)
-    MODEL_GGUF = '/kaggle/input/arc-qwen4b-gguf/arc-qwen4b-q8_0.gguf'
-    SERVER     = '/kaggle/input/llamacpp-linux/llama-server'  # Linux build, +x
-    CH         = '/kaggle/input/arc-prize-2026/arc-agi_test_challenges.json'
-    SOL        = None                                          # hidden at submission time
-    OUT        = '/kaggle/working/submission.json'
+    MODEL_GGUF = _find(['/kaggle/input/**/assets/arc-qwen4b-q8_0.gguf',
+                        '/kaggle/input/**/arc-qwen4b-q8_0.gguf'])
+    server_src = _find(['/kaggle/input/**/assets/bin/llama-server',
+                        '/kaggle/input/**/bin/llama-server',
+                        '/kaggle/input/**/llama-server'])
+    CH = _find(['/kaggle/input/**/arc-agi_test_challenges.json',
+                '/kaggle/input/**/*test*challenge*.json',
+                '/kaggle/input/**/arc-agi_evaluation_challenges.json'])
+    SOL = None                                   # hidden at submission time
+    OUT = '/kaggle/working/submission.json'
+    # llama-server is dynamically linked: copy its directory (binary + .so libraries) to a writable
+    # spot, mark it executable, and add it to the loader path so the libs resolve.
+    SERVER = None
+    if server_src:
+        bindst = '/kaggle/working/llamabin'
+        shutil.copytree(os.path.dirname(server_src), bindst, dirs_exist_ok=True)
+        SERVER = os.path.join(bindst, 'llama-server')
+        os.chmod(SERVER, 0o755)
+        os.environ['LD_LIBRARY_PATH'] = bindst + ':' + os.environ.get('LD_LIBRARY_PATH', '')
 else:
-    REPO       = r'D:\arc'
+    sys.path.insert(0, r'D:\arc')
     MODEL_GGUF = r'D:\arc\models\arc-qwen4b-q8_0.gguf'
-    SERVER     = r'D:\arc\llamacpp\llama-server.exe'
-    CH         = r'D:\arc\data\kaggle\arc-agi_evaluation_challenges.json'
-    SOL        = r'D:\arc\data\kaggle\arc-agi_evaluation_solutions.json'
-    OUT        = r'D:\arc\experiments\submission_nb.json'
+    SERVER = r'D:\arc\llamacpp\llama-server.exe'
+    CH = r'D:\arc\data\kaggle\arc-agi_evaluation_challenges.json'
+    SOL = r'D:\arc\data\kaggle\arc-agi_evaluation_solutions.json'
+    OUT = r'D:\arc\experiments\submission_nb.json'
 
-sys.path.insert(0, REPO)
-
-# best configuration found on the public eval
-SCALE, STEPS, RANK, DROPOUT = 1.25, 20, 16, 0.1
-N_LIMIT = 2 if not ON_KAGGLE else 0      # small smoke run locally, all tasks on Kaggle
-print('on_kaggle=%s  n_limit=%s' % (ON_KAGGLE, N_LIMIT))
+N_LIMIT = 2 if not ON_KAGGLE else 0              # small smoke run locally, all tasks on Kaggle
+print('on_kaggle =', ON_KAGGLE, ' n_limit =', N_LIMIT)
+for label, path in [('model', MODEL_GGUF), ('server', SERVER), ('challenges', CH)]:
+    print('%-11s %-5s %s' % (label, 'OK' if path and os.path.exists(path) else 'MISSING', path))
+assert MODEL_GGUF and SERVER and CH, 'an input is missing: attach the prep output and the competition data'
 """),
 
-md("## 1. Setup, model, engine, code"),
+md("## 1. Pipeline code (inlined from this repo's src/arc, no repo attach needed)"),
 
 code(r"""
-from src.arc.model import build_prompt_ids
-from src.arc.data import load_consolidated, write_submission
-from src.arc.augment import Augmentation, apply_task, invert_grid, D4_NAMES
-from src.arc.select import select_top2
-from src.arc.eval import score_submission
+import numpy as np
+from dataclasses import dataclass
+from typing import Optional, Tuple
 
-for label, path in [('model', MODEL_GGUF), ('server', SERVER), ('challenges', CH)]:
-    print('%-11s %s  %s' % (label, 'ok' if os.path.exists(path) else 'MISSING', path))
+# --- model.py: 16-token grid vocab, id-level ChatML prompt (a color value equals its token id) ---
+NL, USER, ASSISTANT, PAD, IM_START, IM_END = 10, 11, 12, 13, 14, 15
+
+def grid_to_ids(grid):
+    ids = []
+    for i, row in enumerate(grid):
+        if i:
+            ids.append(NL)
+        ids.extend(int(v) for v in row)
+    return ids
+
+def _turn(role_id, content_ids):
+    return [IM_START, role_id, NL] + content_ids + [IM_END]
+
+def build_prompt_ids(train_pairs, test_input):
+    seq = []
+    for p in train_pairs:
+        seq += _turn(USER, grid_to_ids(p['input'])) + [NL]
+        seq += _turn(ASSISTANT, grid_to_ids(p['output'])) + [NL]
+    seq += _turn(USER, grid_to_ids(test_input)) + [NL]
+    seq += [IM_START, ASSISTANT, NL]
+    return seq
+
+# --- augment.py: invertible D4 augmentations ---
+def _id(a): return a
+def _rot90(a): return np.rot90(a, 1)
+def _rot180(a): return np.rot90(a, 2)
+def _rot270(a): return np.rot90(a, 3)
+def _flip_lr(a): return np.fliplr(a)
+def _flip_ud(a): return np.flipud(a)
+def _transpose(a): return a.T
+def _anti(a): return np.fliplr(np.fliplr(a).T)
+D4_FWD = {'identity': _id, 'rot90': _rot90, 'rot180': _rot180, 'rot270': _rot270,
+          'flip_lr': _flip_lr, 'flip_ud': _flip_ud, 'transpose': _transpose, 'anti': _anti}
+D4_INV = {'identity': _id, 'rot90': _rot270, 'rot180': _rot180, 'rot270': _rot90,
+          'flip_lr': _flip_lr, 'flip_ud': _flip_ud, 'transpose': _transpose, 'anti': _anti}
+D4_NAMES = list(D4_FWD)
+
+@dataclass(frozen=True)
+class Augmentation:
+    d4: str = 'identity'
+    color: Tuple[int, ...] = tuple(range(10))
+    example_order: Optional[Tuple[int, ...]] = None
+    def inv_color(self):
+        inv = [0] * len(self.color)
+        for c, nc in enumerate(self.color):
+            inv[nc] = c
+        return tuple(inv)
+
+def _recolor(arr, mapping):
+    return np.asarray(mapping, dtype=arr.dtype)[arr]
+
+def apply_grid(aug, grid):
+    a = np.asarray(grid, dtype=np.int64)
+    return _recolor(D4_FWD[aug.d4](a), aug.color).tolist()
+
+def invert_grid(aug, grid):
+    a = np.asarray(grid, dtype=np.int64)
+    return D4_INV[aug.d4](_recolor(a, aug.inv_color())).tolist()
+
+def apply_task(aug, task):
+    def pair(p):
+        q = {'input': apply_grid(aug, p['input'])}
+        if 'output' in p:
+            q['output'] = apply_grid(aug, p['output'])
+        return q
+    train = [pair(p) for p in task['train']]
+    if aug.example_order is not None:
+        train = [train[i] for i in aug.example_order]
+    return {'train': train, 'test': [pair(p) for p in task['test']]}
+
+# --- data.py / select.py / eval.py ---
+def load_consolidated(challenges_path, solutions_path=None, n=None):
+    ch = json.loads(Path(challenges_path).read_text(encoding='utf-8'))
+    sol = json.loads(Path(solutions_path).read_text(encoding='utf-8')) if solutions_path else {}
+    if n:
+        ids = list(ch)[:n]
+        ch = {k: ch[k] for k in ids}
+        sol = {k: sol[k] for k in ids if k in sol}
+    return ch, sol
+
+def write_submission(submission, challenges, path):
+    out = {}
+    for tid, task in challenges.items():
+        preds = submission.get(tid, [])
+        entry = []
+        for i in range(len(task['test'])):
+            p = preds[i] if i < len(preds) else {}
+            a1 = p.get('attempt_1') or [[0]]
+            entry.append({'attempt_1': a1, 'attempt_2': p.get('attempt_2') or a1})
+        out[tid] = entry
+    Path(path).write_text(json.dumps(out))
+    return out
+
+def select_top2(candidates):
+    agg = {}
+    for g, lp in candidates:
+        if not g:
+            continue
+        k = tuple(tuple(int(v) for v in r) for r in g)
+        if k not in agg:
+            agg[k] = [0, 0.0, g]
+        agg[k][0] += 1
+        agg[k][1] += lp
+    if not agg:
+        return [[0]], [[0]]
+    ranked = sorted(agg.values(), key=lambda v: (v[0], v[1] / v[0]), reverse=True)
+    return ranked[0][2], (ranked[1][2] if len(ranked) > 1 else ranked[0][2])
+
+def normalize(grid):
+    return [[int(v) for v in row] for row in grid]
+
+def score_submission(submission, solutions):
+    correct = total = 0
+    for tid, gts in solutions.items():
+        preds = submission.get(tid, [])
+        for i, gt in enumerate(gts):
+            total += 1
+            gt_n = normalize(gt)
+            if i < len(preds) and (preds[i] or {}):
+                p = preds[i]
+                if any(k in p and normalize(p[k]) == gt_n for k in ('attempt_1', 'attempt_2')):
+                    correct += 1
+    return (correct / total if total else 0.0), correct, total
+print('pipeline ready')
 """),
 
 md(r"""
 ## 2. No-TTT AIRV baseline
 
-For each test input we generate one prediction under each of the eight dihedral (D4) augmentations,
-invert each prediction back to the original frame, and vote to two attempts. The pipeline owns the
-llama-server lifecycle and restarts it on the rare crash, the same code that produced the 12.79
-percent baseline.
+For each test input, generate one prediction under each of the 8 dihedral (D4) augmentations, invert
+each back to the original frame, and vote to two attempts. The pipeline owns the llama-server
+lifecycle and restarts it on the rare crash.
 """),
 
 code(r"""
@@ -118,7 +247,7 @@ def ensure_server():
         return True
     flags = 0x08000000 if os.name == 'nt' else 0
     subprocess.Popen(SERVER_ARGS, creationflags=flags) if os.name == 'nt' else subprocess.Popen(SERVER_ARGS)
-    for _ in range(60):
+    for _ in range(120):
         time.sleep(2)
         if healthy():
             return True
@@ -161,7 +290,7 @@ def airv(task):
 """),
 
 code(r"""
-ensure_server()
+assert ensure_server(), 'llama-server failed to start (check the attached prep build / accelerator)'
 tasks, sols = load_consolidated(CH, SOL, n=(N_LIMIT or None))
 submission = {}
 t0 = time.time()
@@ -178,9 +307,8 @@ if sols:
 md(r"""
 ## 3. Per-task TTT (next)
 
-The next cells will layer TTT on top: per task, fit a rank-16 LoRA in PyTorch, convert it to a GGUF
-adapter, hot-swap it on llama-server, and run the same AIRV at adapter scale 1.25. That is the step
-that lifts the trainable tasks from 12.8 to 17.6 percent. Added in v2.
+v2 layers TTT on top: per task, fit a rank-16 LoRA in PyTorch, convert it to a GGUF adapter,
+hot-swap it on llama-server, and run the same AIRV at adapter scale 1.25.
 """),
 ]
 

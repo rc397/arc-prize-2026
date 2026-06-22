@@ -49,11 +49,24 @@ if 'add_token_merges(["user assistant"' not in s:
 open(base, "w").write(s)
 print("patched", flush=True)
 
-print("=== 4. build llama.cpp (CUDA, multi-arch) ===", flush=True)
+print("=== 4. build llama.cpp (CUDA, single arch, bounded -j) ===", flush=True)
 if not shutil.which("nvcc"):
     raise SystemExit("nvcc not found: this is a CPU-only session and the CUDA build needs it. "
-                     "Re-run with any GPU accelerator (this build is ~10 min, about 0.25h quota, the "
+                     "Re-run with any GPU accelerator (this build is ~20 min, about 0.4h quota, the "
                      "GPU is not otherwise used), or attach a prebuilt llama.cpp CUDA dataset.")
+# Build for THIS GPU's arch only. Multi-arch fatbins plus unbounded -j OOM-kill cc1plus/nvcc on
+# Kaggle's RAM (the "Killed ... Error 137" loop); one arch keeps each compile small. Run prep on the
+# same accelerator you will submit on.
+cc = ""
+try:
+    cc = subprocess.run(["nvidia-smi", "--query-gpu=compute_cap", "--format=csv,noheader"],
+                        capture_output=True, text=True, timeout=30).stdout.strip().splitlines()[0].strip()
+except Exception:
+    pass
+arch = cc.replace(".", "")
+if not arch.isdigit():
+    arch = "75"
+print("GPU compute capability", cc or "?", "-> CUDA arch", arch, flush=True)
 # CMake makes the CUDA::cuda_driver target only when it finds libcuda.so. Its location varies
 # (toolkit stub under lib64/ or targets/, or the real driver as libcuda.so.1). Find it, symlink
 # .so.1 -> .so if only the runtime lib exists, and point cmake at that directory.
@@ -69,9 +82,12 @@ libdir = os.path.dirname(lc)
 if lc.endswith(".so.1") and not os.path.exists(os.path.join(libdir, "libcuda.so")):
     os.symlink(lc, os.path.join(libdir, "libcuda.so"))
 subprocess.run(["cmake", "-B", os.path.join(LCPP, "build"), "-S", LCPP, "-DGGML_CUDA=ON",
-                "-DLLAMA_CURL=OFF", "-DCMAKE_CUDA_ARCHITECTURES=60;75;89", "-DCMAKE_BUILD_TYPE=Release",
+                "-DLLAMA_CURL=OFF", "-DCMAKE_CUDA_ARCHITECTURES=" + arch, "-DCMAKE_BUILD_TYPE=Release",
+                "-DLLAMA_BUILD_TESTS=OFF", "-DLLAMA_BUILD_EXAMPLES=OFF",
                 "-DCMAKE_LIBRARY_PATH=" + libdir], check=True)
-subprocess.run(["cmake", "--build", os.path.join(LCPP, "build"), "--config", "Release", "-j",
+# Bounded -j: httplib.cpp and the CUDA kernels each need ~2-4 GB; unbounded parallelism exhausts RAM
+# and the OOM-killer terminates the build (Error 137).
+subprocess.run(["cmake", "--build", os.path.join(LCPP, "build"), "--config", "Release", "-j", "2",
                 "--target", "llama-server", "llama-quantize"], check=True)
 BIN = os.path.join(LCPP, "build", "bin")
 print("built:", [f for f in os.listdir(BIN) if f.startswith("llama-")], flush=True)
@@ -88,17 +104,24 @@ print("GGUF size GB: %.2f" % (os.path.getsize(q8) / 1e9), flush=True)
 print("=== 6. stage the offline assets ===", flush=True)
 OUT = "/kaggle/working/assets"
 os.makedirs(OUT, exist_ok=True)
-for f in [q8, os.path.join(BIN, "llama-server"), os.path.join(BIN, "llama-quantize"),
-          os.path.join(LCPP, "convert_lora_to_gguf.py"), os.path.join(LCPP, "convert_hf_to_gguf.py")]:
+shutil.copy(q8, OUT)
+# Stage the WHOLE build bin. llama-server is dynamically linked, so it needs its shared libraries
+# (libllama.so, libggml*.so, and the dlopen-ed CUDA backend libggml-cuda.so) beside it at runtime;
+# copying only the binary, as before, left it unable to start. Keep them together under assets/bin.
+shutil.copytree(BIN, os.path.join(OUT, "bin"), dirs_exist_ok=True)
+for f in [os.path.join(LCPP, "convert_lora_to_gguf.py"), os.path.join(LCPP, "convert_hf_to_gguf.py")]:
     shutil.copy(f, OUT)
 shutil.copytree(os.path.join(LCPP, "conversion"), os.path.join(OUT, "conversion"), dirs_exist_ok=True)
 shutil.copytree(os.path.join(LCPP, "gguf-py"), os.path.join(OUT, "gguf-py"), dirs_exist_ok=True)
-os.chmod(os.path.join(OUT, "llama-server"), 0o755)
+os.chmod(os.path.join(OUT, "bin", "llama-server"), 0o755)
+os.chmod(os.path.join(OUT, "bin", "llama-quantize"), 0o755)
 shutil.rmtree(LCPP, ignore_errors=True)
-for f in sorted(os.listdir(OUT)):
-    p = os.path.join(OUT, f)
-    print("  ", f, ("%.1f MB" % (os.path.getsize(p) / 1e6)) if os.path.isfile(p) else "<dir>", flush=True)
-print("DONE in %.0f s. Save Version, then in the submission notebook: Add Input -> Notebook Output -> this notebook." % (time.time() - t0), flush=True)
+for f in sorted(os.listdir(os.path.join(OUT, "bin"))):
+    p = os.path.join(OUT, "bin", f)
+    if os.path.isfile(p):
+        print("   bin/%s %.1f MB" % (f, os.path.getsize(p) / 1e6), flush=True)
+print("DONE in %.0f s. Save Version (Save & Run All), then attach this notebook's Output to the "
+      "submission notebook." % (time.time() - t0), flush=True)
 '''
 
 cells = [
