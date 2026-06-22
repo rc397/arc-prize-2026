@@ -60,7 +60,8 @@ The strongest published results on ARC-AGI-2 come from multi-GPU clusters. We as
 winning recipe, a small grid language model with per-task test-time training (TTT) and
 Augment-Infer-Reverse-Vote (AIRV) selection, goes on a single 16~GB consumer GPU, and where it walls
 out. Building on the released NVARC Qwen3-4B grid model, we report a reproducible offline system with
-a \textbf{12.79\%} no-TTT baseline on the 120-task public evaluation set. We find that the binding
+a \textbf{12.79\%} no-TTT baseline on the 120-task public evaluation set, and 6.53\% on the hidden main-track
+leaderboard. We find that the binding
 constraint is generation throughput, not model quality or memory, and that the single largest lever
 is the inference engine, which buys a $13\times$ decode speedup. We then show how to run per-task TTT
 on this hardware by serving each task's adapter on the fast engine, and report a measured lift: naive
@@ -283,8 +284,11 @@ the largest train pair, and any VRAM surface shown is a calibrated model).}
 
 \subsection{No-TTT baseline}
 The AIRV pipeline without TTT scores \textbf{12.79\%} (22 of 172 test outputs) on the 120-task public
-evaluation set, a clean single-stream run completing in $\approx 78$ minutes. For reference the 2025
-winner reached 24.0\% with TTT~\cite{arc2025}.
+evaluation set, a clean single-stream run completing in $\approx 78$ minutes. Submitted to the
+ARC-AGI-2 main-track leaderboard, the same pipeline scores \textbf{6.53\%} on the hidden 240-task
+test set (semi-private plus private), a roughly twofold drop from the public eval that we attribute
+to the hidden set's greater difficulty, and possibly to per-task failures in the scored rerun
+(Section~\ref{sec:limits}). For reference the 2025 winner reached 24.0\% with TTT~\cite{arc2025}.
 
 \subsection{The engine speedup}
 The $13\times$ decode improvement from changing engines (Section~\ref{sec:engine},
@@ -411,6 +415,11 @@ while naive TTT, colour-perm stacking, and big-grid TTT did not.}
 \subsection{Limitations and ongoing work}
 \label{sec:limits}
 Our absolute accuracy is far below the 24.0\% cluster result, by design: one card and a fixed recipe.
+The public-to-hidden gap is itself a finding: the no-TTT system scores 12.79\% on the public eval but
+6.53\% on the hidden main-track set, a reminder that the public ARC-AGI-2 eval is more saturated than
+the held-out sets, so a small single-GPU model carries less of its public accuracy across than a
+cluster model would. A scored rerun can also lose the heaviest-grid tasks to server stalls, which our
+next submission instruments (a per-task log) to separate empty answers from genuine misses.
 The biggest known lever we still lack is verifier-guided selection and a refinement loop (generate,
 check each candidate against the train pairs, then re-prompt on the discrepancy), which the 2025
 analysis names as the central advance; our AIRV is a one-shot vote. As ongoing work we are also
