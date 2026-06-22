@@ -246,7 +246,8 @@ def ensure_server():
     if healthy():
         return True
     flags = 0x08000000 if os.name == 'nt' else 0
-    subprocess.Popen(SERVER_ARGS, creationflags=flags) if os.name == 'nt' else subprocess.Popen(SERVER_ARGS)
+    _slog = open('llama-server.log', 'ab')  # server logs to a file, not the notebook (Kaggle UI lag)
+    subprocess.Popen(SERVER_ARGS, stdout=_slog, stderr=_slog, creationflags=flags) if os.name == 'nt' else subprocess.Popen(SERVER_ARGS, stdout=_slog, stderr=_slog)
     for _ in range(120):
         time.sleep(2)
         if healthy():
