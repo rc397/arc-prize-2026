@@ -3,7 +3,7 @@
 % robustness: Times for text and math, core packages only
 \usepackage[T1]{fontenc}
 \usepackage[utf8]{inputenc}
-\usepackage[margin=1in]{geometry}
+\usepackage[margin=1.1in]{geometry}
 \usepackage{mathptmx}              % Times for text + math
 \usepackage{amsmath,amssymb}
 \usepackage{graphicx}
@@ -12,6 +12,7 @@
 \usepackage{float}
 \usepackage{enumitem}
 \usepackage[hidelinks]{hyperref}
+\usepackage{microtype}             % tighter, less cramped justification
 
 \hypersetup{
   bookmarksnumbered=true,
@@ -23,7 +24,8 @@
 
 \graphicspath{{./}}
 \captionsetup{font=small,labelfont=bf}
-\setlength{\parskip}{0.35em}
+\linespread{1.1}                   % more leading, less cramped
+\setlength{\parskip}{0.55em}
 \setlength{\parindent}{0pt}
 \DeclareMathOperator*{\select}{select}   % top-2 vote selection operator
 
@@ -32,7 +34,26 @@
 \date{}
 
 \begin{document}
-\maketitle
+
+\begin{titlepage}
+\centering
+\vspace*{0.10\textheight}
+{\Huge\bfseries Test-Time Training on a Budget\par}
+\vspace{0.7em}
+{\LARGE\bfseries ARC-AGI-2 on a Single Consumer GPU\par}
+\vspace{1.1em}
+{\large Running the 2025 ARC Prize winning recipe, per-task test-time training\\[3pt]
+with augment-infer-reverse-vote selection, on one 16~GB card\par}
+\vspace{0.045\textheight}
+\rule{0.55\linewidth}{0.4pt}\par
+\vspace{0.05\textheight}
+\includegraphics[width=0.94\linewidth]{card_1120x560}\par
+\vspace{\fill}
+{\large ARC Prize 2026 Paper Track entry\par}
+\vspace{0.5em}
+{\normalsize Open source under MIT-0\par}
+\vspace*{0.06\textheight}
+\end{titlepage}
 
 \begin{abstract}
 The strongest published results on ARC-AGI-2 come from multi-GPU clusters. We ask how far the 2025
