@@ -38,6 +38,25 @@ code(r"""
 import os, sys, glob, json, time, subprocess, urllib.request, shutil
 from pathlib import Path
 
+# Tee stdout/stderr to run.log so the full pipeline log lands in the notebook Output (downloadable),
+# not just the live cell log that Kaggle can truncate.
+class _Tee:
+    def __init__(self, *streams): self._streams = streams
+    def write(self, s):
+        for st in self._streams:
+            try: st.write(s); st.flush()
+            except Exception: pass
+        return len(s)
+    def flush(self):
+        for st in self._streams:
+            try: st.flush()
+            except Exception: pass
+if not isinstance(sys.stdout, _Tee):
+    _run_log = open('run.log', 'a', encoding='utf-8', buffering=1)
+    sys.stdout = _Tee(sys.stdout, _run_log)
+    sys.stderr = _Tee(sys.stderr, _run_log)
+print('run.log: capturing this run at', time.strftime('%Y-%m-%d %H:%M:%S'))
+
 # Offline: never let HF/transformers phone home, never pip-install at runtime.
 os.environ['HF_HUB_OFFLINE'] = '1'
 os.environ['TRANSFORMERS_OFFLINE'] = '1'
