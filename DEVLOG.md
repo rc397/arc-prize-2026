@@ -431,3 +431,15 @@ large enough to also suspect per-task failures in the scored rerun (the prompt c
 the run log; big grids are VRAM-heavy on P100). This run predated the run.log capture, so the next
 submission will show empty-vs-wrong per task. Report both numbers in the paper; the gap is an honest
 single-GPU finding. Score-climb path unchanged: v2 TTT, then the self-trained base if it clears the gate.
+
+## 2026-06-23 (later)
+
+### Keep/drop gate: self-trained base DROPPED (honest negative result)
+Converted qwen3-4b-arc2ft to Q8_0 (the rig's convert_hf_to_gguf is already vocab-patched) and ran the
+no-TTT AIRV eval on the 120 public set: 11.63% (20/172) vs the stock base's 12.79% (22/172). The FT is
+slightly worse, so it fails the gate (needed > 12.79%); FT+TTT was not run since the first condition
+already failed. Decision: DROP the fine-tune, ship the stock NVARC base. The base is already
+well-adapted to the grid format; continued FT on official ARC-2 + RE-ARC (ARC-1-derived) did not
+transfer, consistent with the barely-moving val loss (0.039 -> 0.036). This is the negative result we
+agreed to report either way; it goes in the paper as an honest single-GPU finding. v2 is unaffected (it
+uses the stock base). The dual-path framing held: a clean drop, no sunk-cost.
