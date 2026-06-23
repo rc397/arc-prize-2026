@@ -51,6 +51,8 @@ class _Tee:
         for st in self._streams:
             try: st.flush()
             except Exception: pass
+    def isatty(self): return False
+    def __getattr__(self, name): return getattr(self._streams[0], name)
 if not isinstance(sys.stdout, _Tee):
     _run_log = open('run.log', 'a', encoding='utf-8', buffering=1)
     sys.stdout = _Tee(sys.stdout, _run_log)
