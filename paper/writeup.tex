@@ -422,10 +422,12 @@ cluster model would. A scored rerun can also lose the heaviest-grid tasks to ser
 next submission instruments (a per-task log) to separate empty answers from genuine misses.
 The biggest known lever we still lack is verifier-guided selection and a refinement loop (generate,
 check each candidate against the train pairs, then re-prompt on the discrepancy), which the 2025
-analysis names as the central advance; our AIRV is a one-shot vote. As ongoing work we are also
-probing whether a one-time continued LoRA fine-tune of the base on official ARC-AGI-2 training data
-and RE-ARC~\cite{rearc} generations yields a better static model; that result is gated on beating the
-12.79\% baseline and is not claimed here. Finally, the significance of the TTT lift is directional
+analysis names as the central advance; our AIRV is a one-shot vote. We also probed whether a one-time continued LoRA fine-tune of the base on official ARC-AGI-2 training
+data and RE-ARC~\cite{rearc} generations yields a better static model. It did not: the fine-tuned base
+scores 11.63\% no-TTT against the stock base's 12.79\%, so we ship the stock base. The NVARC base is
+already well-adapted to this grid format, and continued fine-tuning on this public data did not
+transfer, a useful negative result for the compute-poor practitioner, more public data is not a free
+lever once the base is task-tuned. Finally, the significance of the TTT lift is directional
 rather than conclusive (Appendix~\ref{app:results}); a full-eval paired run is the obvious next
 measurement.
 
