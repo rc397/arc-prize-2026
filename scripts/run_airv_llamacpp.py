@@ -13,8 +13,9 @@ N_LIMIT = int(sys.argv[1]) if len(sys.argv) > 1 else 0    # 0 = all tasks
 WORKERS = int(sys.argv[2]) if len(sys.argv) > 2 else 1    # keep 1: single stream is stable
 CH = r"D:\arc\data\kaggle\arc-agi_evaluation_challenges.json"
 SOL = r"D:\arc\data\kaggle\arc-agi_evaluation_solutions.json"
-OUT = r"D:\arc\experiments\airv_nottt_eval.json"
-SERVER_ARGS = [r"D:\arc\llamacpp\llama-server.exe", "-m", r"D:\arc\models\arc-qwen4b-q8_0.gguf",
+MODEL = sys.argv[3] if len(sys.argv) > 3 else r"D:\arc\models\arc-qwen4b-q8_0.gguf"
+OUT = sys.argv[4] if len(sys.argv) > 4 else r"D:\arc\experiments\airv_nottt_eval.json"
+SERVER_ARGS = [r"D:\arc\llamacpp\llama-server.exe", "-m", MODEL,
                "-ngl", "99", "-c", "16384", "-np", "1", "--host", "127.0.0.1", "--port", "8080",
                "--no-webui", "--no-cache-prompt", "--no-cache-idle-slots"]
 AUGS = [Augmentation(d4=name) for name in D4_NAMES]
