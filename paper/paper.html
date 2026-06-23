@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test-Time Training on a Budget: ARC-AGI-2 on a Single Consumer GPU</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#ffffff; --backdrop:#e4e4e2;
+  --ink:#15151a; --body:#27272d; --muted:#6a6a72; --faint:#a0a0a8;
+  --rule:#d3d3d0; --rule-faint:#e6e6e3;
+  --accent:#6d1f2c; --link:#7c2a38;
+  --serif:"Source Serif 4", Georgia, "Times New Roman", serif;
+  --mono:"IBM Plex Mono", "SFMono-Regular", Menlo, Consolas, monospace;
+  --sheet:8.27in; --pad:0.92in;
+  --justify:justify;
+}
+*{box-sizing:border-box;}
+html{background:var(--backdrop);}
+body{
+  margin:0; color:var(--body);
+  font-family:var(--serif); font-size:16.5px; line-height:1.62;
+  -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+}
+.sheet{
+  background:var(--paper); max-width:var(--sheet); margin:28px auto;
+  padding:var(--pad); box-shadow:0 2px 24px rgba(0,0,0,.14); border-radius:1px;
+}
+p{margin:0 0 .7em; text-align:var(--justify); hyphens:auto;}
+p, li{orphans:3; widows:3;}
+em{font-style:italic;}
+strong{font-weight:700;}
+i.v{font-style:italic;}
+code, .mono{font-family:var(--mono); font-size:.86em; color:var(--ink);}
+a{color:var(--link); text-decoration:none;}
+a:hover{text-decoration:underline;}
+sub,sup{line-height:0; font-size:.72em;}
+
+/* ---- headings ---- */
+h2{
+  font-family:var(--serif); font-size:24px; font-weight:700; color:var(--ink);
+  margin:1.7em 0 .15em; padding-bottom:.18em; border-bottom:1.5px solid var(--accent);
+  break-after:avoid; line-height:1.25;
+}
+h2 .sn{color:var(--accent); margin-right:.5em;}
+h3{
+  font-size:17.5px; font-weight:600; color:var(--accent);
+  margin:1.25em 0 .1em; break-after:avoid; line-height:1.3;
+}
+h3 .sn{color:var(--faint); font-weight:400; margin-right:.45em;}
+h2 + p, h3 + p{margin-top:.2em;}
+
+/* ---- cover ---- */
+.cover{min-height:100vh; display:flex; flex-direction:column; text-align:center; padding-top:7vh;}
+.cover .eyebrow{font-family:var(--mono); font-size:12.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent);}
+.cover .eyebrow-rule{width:54px; height:2px; background:var(--accent); margin:.7em auto 0;}
+.cover h1{font-size:46px; font-weight:700; color:var(--ink); margin:.9em 0 .12em; line-height:1.08; letter-spacing:-.01em;}
+.cover .subtitle{font-size:25px; font-weight:600; color:var(--accent); margin:0 0 1.1em; line-height:1.2;}
+.cover .lede{font-style:italic; color:var(--muted); font-size:16px; max-width:30em; margin:0 auto 2.1em; line-height:1.5;}
+.cover .hero{width:min(92%,720px); margin:0 auto; border:1px solid var(--rule); padding:10px; background:#fff;}
+.cover .hero img{width:100%; display:block;}
+.cover .foot{margin-top:auto; padding-top:2.4em; display:flex; justify-content:space-between; align-items:baseline; color:var(--muted); font-size:14px; border-top:1px solid var(--rule-faint);}
+.cover .foot .mono{font-family:var(--mono); font-size:12.5px;}
+
+/* ---- front matter ---- */
+.abstract{margin:0 0 1.3em;}
+.abstract .lab{font-weight:700; color:var(--ink); text-align:center; display:block; margin-bottom:.35em; letter-spacing:.02em;}
+.abstract p{font-size:15.5px; line-height:1.55;}
+.toc{margin:1.2em 0 1.1em; border-top:1px solid var(--rule-faint); border-bottom:1px solid var(--rule-faint); padding:.7em 0;}
+.toc h2.tochead{font-size:15px; border:0; margin:0 0 .5em; color:var(--ink); padding:0;}
+.toc ul{list-style:none; margin:0; padding:0; columns:2; column-gap:2.4em;}
+.toc li{margin:.16em 0; font-size:14.5px; break-inside:avoid;}
+.toc a{color:var(--body);}
+.toc .num{color:var(--accent); font-variant-numeric:tabular-nums; display:inline-block; min-width:2.1em;}
+.toc .sub{padding-left:2.1em;}
+.toc .sub .num{color:var(--faint); min-width:2.6em;}
+.guide{font-size:15px; color:var(--body);}
+.guide .lab{font-weight:700; color:var(--ink);}
+
+/* ---- figures ---- */
+figure{margin:1.4em 0; break-inside:avoid;}
+figure .frame{border:1px solid var(--rule); padding:8px; background:#fff;}
+figure img{width:100%; display:block;}
+figure .frame img + img{margin-top:8px;}
+figcaption{font-size:13.5px; line-height:1.45; color:var(--muted); margin-top:.5em; text-align:justify; hyphens:auto;}
+figcaption .lab{font-weight:700; color:var(--accent);}
+
+/* ---- tables ---- */
+.tbl{margin:1.3em 0; break-inside:avoid;}
+.tbl .cap{font-size:13.5px; color:var(--muted); margin-bottom:.4em; text-align:center;}
+.tbl .cap .lab{font-weight:700; color:var(--accent);}
+table{border-collapse:collapse; margin:0 auto; font-size:14.5px; font-variant-numeric:tabular-nums;}
+table.book th, table.book td{padding:.32em 1.05em; text-align:center;}
+table.book th:first-child, table.book td:first-child{text-align:left;}
+table.book{border-top:2px solid var(--ink); border-bottom:2px solid var(--ink);}
+table.book thead th{border-bottom:1px solid var(--rule); font-weight:600;}
+table.book tbody tr:first-child td{padding-top:.5em;}
+
+/* ---- equations ---- */
+.eqrow{display:flex; align-items:center; margin:1.15em 0; break-inside:avoid;}
+.eqbody{flex:1; text-align:center; font-size:17px;}
+.eqno{width:3em; text-align:right; color:var(--muted); font-variant-numeric:tabular-nums;}
+.eqbody i{font-style:italic;}
+.rm{font-style:normal;}
+.frac{display:inline-flex; flex-direction:column; text-align:center; vertical-align:middle; margin:0 .18em; line-height:1.1;}
+.frac .den{border-top:1px solid currentColor; padding-top:.06em;}
+.frac .num{padding-bottom:.04em;}
+.bigop{display:inline-flex; flex-direction:column; align-items:center; vertical-align:middle; margin:0 .12em; line-height:1;}
+.bigop .op{font-size:1.7em; line-height:.7;}
+.bigop .lim{font-size:.6em; font-style:italic; margin-top:.12em; white-space:nowrap;}
+.eqgrid{display:grid; grid-template-columns:1fr 1fr; gap:.5em 1.6em; justify-items:center; align-items:center;}
+.olbar{text-decoration:overline;}
+
+/* ---- print ---- */
+@page{ size:letter; margin:0; }
+@media print{
+  html,body{background:#fff;}
+  .controls{display:none !important;}
+  .sheet{box-shadow:none; margin:0; max-width:none; width:100%; padding:0;}
+  .pagepad{padding:0.7in 0.92in;}
+  .cover{min-height:auto; padding:1.0in 0.92in 0; height:9.4in;}
+  .breakafter{break-after:page;}
+  .breakbefore{break-before:page;}
+  figure,.tbl,.eqrow,.bibtex,table{break-inside:avoid;}
+  a{color:var(--ink);}
+}
+@media screen{ .pagepad{} }
+
+/* ---- bibtex ---- */
+.bibtex{font-family:var(--mono); font-size:12px; line-height:1.5; color:var(--ink); background:#faf9f8; border:1px solid var(--rule-faint); border-left:2px solid var(--accent); padding:.7em .9em; white-space:pre-wrap; break-inside:avoid; margin:.6em 0 1em;}
+.refs{font-size:14px; line-height:1.5;}
+.refs ol{padding-left:1.5em; margin:.3em 0;}
+.refs li{margin:.3em 0;}
+.applab{font-weight:700; color:var(--ink);}
+
+/* ---- controls ---- */
+.controls{position:fixed; top:14px; right:14px; background:#fff; border:1px solid var(--rule); border-radius:6px; padding:10px 12px; box-shadow:0 2px 14px rgba(0,0,0,.12); font-family:var(--mono); font-size:11.5px; color:var(--body); z-index:50;}
+.controls h4{margin:0 0 6px; font-size:10.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted);}
+.controls label{display:block; margin:3px 0; cursor:pointer;}
+.controls .swatch{display:inline-block; width:10px; height:10px; border-radius:2px; vertical-align:middle; margin-right:5px; border:1px solid rgba(0,0,0,.15);}
+.sec-newpage h2{break-before:page;}
+</style>
+</head>
+<body>
+
+<div class="controls" id="controls">
+  <h4>Accent</h4>
+  <label><input type="radio" name="accent" value="#6d1f2c" checked><span class="swatch" style="background:#6d1f2c"></span>Burgundy</label>
+  <label><input type="radio" name="accent" value="#1a1a1a"><span class="swatch" style="background:#1a1a1a"></span>Graphite</label>
+  <label><input type="radio" name="accent" value="#2f3b45"><span class="swatch" style="background:#2f3b45"></span>Slate</label>
+  <h4 style="margin-top:9px">Layout</h4>
+  <label><input type="checkbox" id="t-justify" checked> Justified body</label>
+  <label><input type="checkbox" id="t-newpage"> Section per page</label>
+</div>
+
+<div class="sheet" id="sheet">
+
+<!-- ============ COVER ============ -->
+<section class="cover breakafter">
+  <div class="eyebrow">ARC Prize 2026 &middot; Paper Track<div class="eyebrow-rule"></div></div>
+  <h1>Test-Time Training on a Budget</h1>
+  <div class="subtitle">ARC-AGI-2 on a Single Consumer GPU</div>
+  <div class="lede">Running the 2025 ARC Prize winning recipe, per-task test-time training with augment-infer-reverse-vote selection, on one 16&nbsp;GB card.</div>
+  <div class="hero"><img src="cover_hero_1120x560.png" alt="Isometric ARC grid with the 16.28% result"></div>
+  <div class="foot">
+    <span>ARC Prize 2026 Paper Track entry</span>
+    <span class="mono">Open source under MIT-0</span>
+  </div>
+</section>
+
+<!-- ============ FRONT MATTER ============ -->
+<section class="pagepad breakafter">
+  <div class="abstract">
+    <span class="lab">Abstract</span>
+    <p>The strongest published results on ARC-AGI-2 come from multi-GPU clusters. We ask how far the 2025 winning recipe, a small grid language model with per-task test-time training (TTT) and Augment-Infer-Reverse-Vote (AIRV) selection, goes on a single 16&nbsp;GB consumer GPU, and where it walls out. Building on the released NVARC Qwen3-4B grid model, we report a reproducible offline system with a <strong>12.79%</strong> no-TTT baseline on the 120-task public evaluation set, and 6.53% on the hidden main-track leaderboard. We find that the binding constraint is generation throughput, not model quality or memory, and that the single largest lever is the inference engine, which buys a 13&times; decode speedup. We then show how to run per-task TTT on this hardware by serving each task's adapter on the fast engine, and report a measured lift: naive TTT ties the no-TTT baseline because the per-task adapter overfits, while a regularized, scale-tuned configuration raises accuracy from 12.8% to <strong>17.6%</strong> on the 84 trainable tasks, lifting the full evaluation to a blended <strong>16.28%</strong>. The contribution is an honest accounting of what the recipe costs and where the effort should go when you cannot rent a cluster. All code, the conversion recipe, and a development log of every measurement are open source under MIT-0.</p>
+  </div>
+
+  <nav class="toc">
+    <h2 class="tochead">Contents</h2>
+    <ul>
+      <li><span class="num">1</span><a href="#s1">Introduction</a></li>
+      <li class="sub"><span class="num">1.1</span><a href="#s1-1">Efficient abstraction is the point</a></li>
+      <li class="sub"><span class="num">1.2</span><a href="#s1-2">Contributions</a></li>
+      <li><span class="num">2</span><a href="#s2">Related Work</a></li>
+      <li><span class="num">3</span><a href="#s3">System and Method</a></li>
+      <li class="sub"><span class="num">3.1</span><a href="#s3-1">Model and prompting</a></li>
+      <li class="sub"><span class="num">3.2</span><a href="#s3-2">The engine is the bottleneck</a></li>
+      <li class="sub"><span class="num">3.3</span><a href="#s3-3">AIRV: augment, infer, reverse, vote</a></li>
+      <li class="sub"><span class="num">3.4</span><a href="#s3-4">Per-task test-time training</a></li>
+      <li><span class="num">4</span><a href="#s4">Results</a></li>
+      <li class="sub"><span class="num">4.1</span><a href="#s4-1">No-TTT baseline</a></li>
+      <li class="sub"><span class="num">4.2</span><a href="#s4-2">The engine speedup</a></li>
+      <li class="sub"><span class="num">4.3</span><a href="#s4-3">Test-time training</a></li>
+      <li class="sub"><span class="num">4.4</span><a href="#s4-4">Ablations: scale, colour, big-grid wall</a></li>
+      <li><span class="num">5</span><a href="#s5">Discussion</a></li>
+      <li class="sub"><span class="num">5.1</span><a href="#s5-1">Two lessons that generalize</a></li>
+      <li class="sub"><span class="num">5.2</span><a href="#s5-2">Accuracy per GPU-hour</a></li>
+      <li class="sub"><span class="num">5.3</span><a href="#s5-3">Limitations and ongoing work</a></li>
+      <li><span class="num">6</span><a href="#s6">Conclusion</a></li>
+      <li><span class="num">A</span><a href="#sa">Reproducibility</a></li>
+      <li><span class="num">B</span><a href="#sb">Extended results</a></li>
+      <li><span class="num">C</span><a href="#sc">Engineering log</a></li>
+      <li><span class="num">D</span><a href="#sd">Prompt and serialization format</a></li>
+      <li><span class="num">E</span><a href="#se">Data and model provenance</a></li>
+      <li><span class="num">&nbsp;</span><a href="#refs">References</a></li>
+    </ul>
+  </nav>
+
+  <p class="guide"><span class="lab">Reader's guide.</span> Section 1 motivates efficient ARC and states the contributions. Section 2 places the work against the 2025 winning systems. Section 3 is the method: the model and prompt format (3.1), the engine bottleneck and its fix (3.2), the AIRV selection rule (3.3), and the per-task TTT bridge (3.4). Section 4 reports the numbers; Section 5 draws the lessons. Readers who want to reproduce the system should go straight to Appendix A; the per-scale tables and significance detail are in Appendix B; the honest list of dead ends is Appendix C; the exact prompt and 16-token vocabulary are in Appendix D; data licensing and BibTeX are in Appendix E.</p>
+</section>
+
+<!-- ============ BODY ============ -->
+<section class="pagepad">
+
+<h2 id="s1"><span class="sn">1</span>Introduction</h2>
+
+<h3 id="s1-1"><span class="sn">1.1</span>Efficient abstraction is the point</h3>
+<p>ARC-AGI-2 [<a href="#refs">1</a>,&nbsp;<a href="#refs">2</a>] is a benchmark of abstraction and reasoning: each task gives a few input/output grid pairs that demonstrate a transformation, and the solver must apply that transformation to a held-out input. The tasks are designed to be easy for humans and hard for machines, and the competition is run <em>offline</em>, which rules out frontier API models and forces every entrant to ship a self-contained system. The 2025 ARC Prize was won by NVARC at 24.0% on ARC-AGI-2 using a 4B grid model with per-task TTT [<a href="#refs">3</a>,&nbsp;<a href="#refs">4</a>]; the recipe reproduced across the top teams is the same: fine-tune a small model on augmented grid data, train a fresh low-rank adapter on each test task, then sample many augmented candidates and vote.</p>
+<p>The recipe is effective but expensive: the public reports were produced on clusters of H100 or GH200 GPUs. Most researchers do not have that hardware, and the ARC Prize's stated mission is <em>efficient</em> skill acquisition, not skill bought with compute. We therefore characterize the recipe under a constraint we think is widely shared: a single RTX&nbsp;5070&nbsp;Ti with 16&nbsp;GB, on the Blackwell architecture, running native Windows. The aim is not to top the leaderboard, which is unrealistic on one card, but to build a working, reproducible system, measure honest numbers, and map where one card stops being enough. Figure&nbsp;1 shows a representative task our system solves end to end.</p>
+
+<figure id="fig1">
+  <div class="frame"><img src="fig_solve.png" alt="A solved ARC-AGI-2 task as colour grids"></div>
+  <figcaption><span class="lab">Figure 1.</span> A real ARC-AGI-2 evaluation task solved by the no-TTT pipeline, shown as colour grids: the few-shot train pairs establish the rule, and the model produces the held-out test output exactly. Grids are rendered with the model's own 16-colour serialization (Appendix&nbsp;D).</figcaption>
+</figure>
+
+<h3 id="s1-2"><span class="sn">1.2</span>Contributions</h3>
+<ol style="margin:.2em 0 .8em; padding-left:1.4em;">
+  <li style="margin:.25em 0;">A reproducible offline ARC-AGI-2 system for the custom-vocabulary NVARC model on a single 16&nbsp;GB card, with a clean <strong>12.79%</strong> no-TTT baseline (Section&nbsp;4, Appendix&nbsp;A).</li>
+  <li style="margin:.25em 0;">The finding that, on this hardware class, the inference <em>engine</em> dominates every other knob: moving decode off the Hugging Face eager path onto llama.cpp is worth a 13&times; speedup (Section&nbsp;3.2).</li>
+  <li style="margin:.25em 0;">A practical bridge that makes per-task TTT runnable on one card by hot-swapping GGUF adapters on the fast engine, and a measured, regularization-dependent lift to a <strong>16.28%</strong> blend (Sections&nbsp;3.4, 4.3).</li>
+  <li style="margin:.25em 0;">An "accuracy per GPU-hour" accounting that names the three walls a compute-poor practitioner hits first: the decode ceiling, the VRAM limit on large-grid TTT, and adapter overfitting (Section&nbsp;5).</li>
+  <li style="margin:.25em 0;">A complete open-source release: the conversion patches, the pipeline, the TTT harness, and a development log of every measurement and dead end behind these numbers (Appendix&nbsp;C).</li>
+</ol>
+
+<h2 id="s2"><span class="sn">2</span>Related Work</h2>
+<p><strong>ARC and the measure of intelligence.</strong> ARC was introduced to measure skill-acquisition efficiency rather than skill itself [<a href="#refs">1</a>]; ARC-AGI-2 [<a href="#refs">2</a>] raises compositional difficulty while keeping tasks human-solvable, widening the human/machine gap that frontier models had begun to close on ARC-AGI-1.</p>
+<p><strong>Test-time training.</strong> The dominant 2025 approach fits a small per-task adapter at inference, trading test-time compute for generalization. The ARC Prize 2025 technical report [<a href="#refs">3</a>] identifies this, together with heavy synthetic pre-training and disciplined engineering, as the core of the winning NVARC solution [<a href="#refs">4</a>], whose released model we build on directly. We hold this recipe fixed and ask what survives a single consumer GPU.</p>
+<p><strong>Augmentation and voting.</strong> Predicting under the eight dihedral symmetries of the grid, inverting each prediction back to the original frame, and voting is a standard self-consistency device for ARC; it is cheap, training-free, and provides a usable confidence signal (Section&nbsp;3.3).</p>
+<p><strong>Synthetic data.</strong> Procedural generators such as RE-ARC [<a href="#refs">6</a>] and LLM-mutated corpora supply the augmented grid data these models are trained on. We use RE-ARC only in a base-model probe (Section&nbsp;5.3), not in the results below.</p>
+<p><strong>Efficient and on-device inference.</strong> Our engineering contribution, getting a custom-vocabulary grid transformer to decode near the memory-bandwidth roofline on a consumer card and then serving per-task adapters on it, sits in the practical lineage of quantized GGUF inference. The novelty is not the engine but the demonstration that the full TTT recipe, adapter serving included, fits one 16&nbsp;GB card, and a measurement of exactly where it stops.</p>
+
+<h2 id="s3"><span class="sn">3</span>System and Method</h2>
+
+<h3 id="s3-1"><span class="sn">3.1</span>Model and prompting</h3>
+<p>We use the NVARC <code>qwen3_4b_grids15_sft139</code> model, a Qwen3-4B [<a href="#refs">5</a>] with a 16-token vocabulary: the ten grid colours as digits, a newline, two role markers, and three specials (Appendix&nbsp;D). A grid is serialized one token per cell, and a colour value equals its token id. Because the role and special tokens cannot be produced by tokenizing text, we assemble every prompt at the token-id level as a ChatML few-shot sequence; getting this byte-exact is the single most important correctness condition, since a one-token drift between training and inference silently destroys accuracy.</p>
+
+<h3 id="s3-2"><span class="sn">3.2</span>The engine is the bottleneck</h3>
+<p>Our most consequential finding concerns throughput. Decoding a 4B model is memory-bound: each token streams the full weight matrix from VRAM, so for a weight footprint <i class="v">M</i> on a card of bandwidth <i class="v">B</i> the decode rate is bounded by a first-order roofline</p>
+<div class="eqrow">
+  <div class="eqbody"><i>r</i><sub class="rm">max</sub> &nbsp;=&nbsp; <span class="frac"><span class="num"><i>B</i></span><span class="den"><i>M</i></span></span>.</div>
+  <div class="eqno">(1)</div>
+</div>
+<p>With <i class="v">B</i>&nbsp;=&nbsp;896&nbsp;GB/s, Eq.&nbsp;(1) gives 132 tok/s in bf16 (<i class="v">M</i>&nbsp;=&nbsp;6.77&nbsp;GB), 249 in Q8_0 (<i class="v">M</i>&nbsp;=&nbsp;3.6&nbsp;GB), and 444 in Q4_K_M (<i class="v">M</i>&nbsp;=&nbsp;2.02&nbsp;GB). The standard Hugging Face eager path prefills healthily (&approx;3,400 tok/s) but <em>decodes</em> at only &approx;13 tok/s, about a tenth of the bf16 roof, because of per-token framework overhead with no CUDA graphs. The usual remedy, compiling the decode step, is unavailable on this platform: <code>torch.compile</code> needs Triton, and Triton has no native-Windows backend (Appendix&nbsp;C).</p>
+<p>The fix is to change engines. We convert the model to GGUF and serve it with llama.cpp. The custom vocabulary needs two small, documented converter patches (Appendix&nbsp;A): the unknown tokenizer hash is mapped to the <code>qwen2</code> pre-tokenizer it actually uses, and two throwaway byte-pair merges are added to satisfy a loader that requires a non-empty merge list (they never fire on grid text). The prebuilt CUDA&nbsp;12.4 binary runs on the Blackwell card through PTX just-in-time compilation. Measured decode rises to 102 tok/s in bf16, 170 in Q8_0, and 244 in Q4_K_M (Figure&nbsp;2), a 13&times; speedup over eager at Q8_0, which we adopt: it is near-lossless (14 of 15 training tasks reproduced exactly under greedy decoding) and has a 3.6&nbsp;GB footprint. One stability note: the server's default prompt cache reserves &approx;680&nbsp;MiB per unique prompt; since every ARC prompt is unique it yields no reuse and destabilizes sustained generation, so we disable it and run a single supervised stream.</p>
+
+<figure id="fig2">
+  <div class="frame"><img src="fig_roofline.png" alt="Decode throughput versus the memory-bandwidth roofline"></div>
+  <figcaption><span class="lab">Figure 2.</span> Decode throughput versus the memory-bandwidth roofline of Eq.&nbsp;(1) (the ceiling is a first-order model, bytes/token &approx; weight bytes). Bars are <em>measured</em> tok/s; the shaded gap to each cap is framework overhead, not the card. The eager path fills only &approx;10% of its roof; moving decode to llama.cpp at Q8_0 recovers the 13&times;.</figcaption>
+</figure>
+
+<h3 id="s3-3"><span class="sn">3.3</span>AIRV: augment, infer, reverse, vote</h3>
+<p>Let <i class="v">f</i> be the served model and <i class="v">G</i> the eight dihedral (D4) symmetries of the grid. For a test input <i class="v">x</i> we generate one prediction per symmetry, invert it back to the original frame, and vote. Writing <i>n</i><sub><i>c</i></sub> for a candidate's vote count and <span class="olbar">&#8467;</span><sub><i>c</i></sub> for its mean sequence log-prob,</p>
+<div class="eqrow">
+  <div class="eqbody">
+    <div class="eqgrid">
+      <span><i>c</i><sub><i>g</i></sub> = <i>g</i><sup>&minus;1</sup><span class="rm">(</span><i>f</i><span class="rm">(</span><i>g</i><span class="rm">(</span><i>x</i><span class="rm">)))</span>,</span>
+      <span><i>n</i><sub><i>c</i></sub> = | { <i>g</i> &isin; <i>G</i> : <i>c</i><sub><i>g</i></sub> = <i>c</i> } |,</span>
+      <span><span class="olbar">&#8467;</span><sub><i>c</i></sub> = <span class="frac"><span class="num">1</span><span class="den"><i>n</i><sub><i>c</i></sub></span></span><span class="bigop"><span class="op">&sum;</span><span class="lim">g : c<sub>g</sub>=c</span></span> log <i>p</i>(<i>c</i><sub><i>g</i></sub>),</span>
+      <span><i>&Ycirc;</i> = <span class="rm">select</span><sub><i>c</i></sub> ( <i>n</i><sub><i>c</i></sub>, &nbsp;<span class="olbar">&#8467;</span><sub><i>c</i></sub> ).</span>
+    </div>
+  </div>
+  <div class="eqno">(2)</div>
+</div>
+<p>where select returns the two distinct candidates with the highest vote count, ties broken by mean log-prob, and emits them as the two attempts the metric allows. The vote count is itself a usable confidence signal: agreement across symmetries predicts correctness (Figure&nbsp;6). The whole offline system (the trainer, the converter, and the server, which never share VRAM) is sketched in Figure&nbsp;3.</p>
+
+<figure id="fig3">
+  <div class="frame"><img src="fig_pipeline.png" alt="The offline TTT and serving system"></div>
+  <figcaption><span class="lab">Figure 3.</span> The offline system. The PyTorch trainer and the llama.cpp server never share VRAM; per-task adapters cross the bridge as GGUF and are hot-swapped on the fast engine per request.</figcaption>
+</figure>
+
+<h3 id="s3-4"><span class="sn">3.4</span>Per-task test-time training</h3>
+<p>For TTT we fit a per-task LoRA adapter &Delta;<i>W</i> = <i>s</i>&#8202;<i>BA</i> of rank <i class="v">r</i> and scale <i class="v">s</i> on the task's own train pairs <i class="v">T</i>, with a leave-one-out target and the loss masked to the answer tokens:</p>
+<div class="eqrow">
+  <div class="eqbody"><i>&Lscr;</i>(<i>&theta;</i>) = &minus;<span class="bigop"><span class="op">&sum;</span><span class="lim">(u,v)&isin;T</span></span><span class="bigop"><span class="op">&sum;</span><span class="lim">t</span></span> log <i>p</i><sub><i>&theta;</i></sub><span class="rm">(</span> <i>v</i><sub><i>t</i></sub> <span class="rm">|</span> <i>v</i><sub>&lt;<i>t</i></sub>, <span class="rm">ctx</span><sub><i>T</i>&#8726;{(u,v)}</sub>, <i>u</i> <span class="rm">)</span>.</div>
+  <div class="eqno">(3)</div>
+</div>
+<p>drawing a fresh random augmentation each step. Capping the few-shot context to &approx;1,600 tokens drops a training step from &approx;13&nbsp;s to &approx;2&nbsp;s, so training is no longer the expensive part.</p>
+<p>The harder problem is <em>serving</em> the trained adapter. TTT must run in PyTorch, where decoding is the slow 13 tok/s and intermittently becomes quadratic after a step; the fast engine does not train. We bridge them (Figure&nbsp;3): train in PyTorch, save each adapter, convert it to a GGUF adapter, and hot-swap it on llama.cpp through its <code>/lora-adapters</code> endpoint, where decode holds &approx;115 tok/s with no stalls. We run three phases (train all, convert all from a clean process, then serve and generate all) so the two frameworks never share VRAM (Figure&nbsp;4). Large-grid tasks remain too VRAM-bound to train and are excluded by their largest-train-pair token length (Figure&nbsp;4).</p>
+
+<figure id="fig4">
+  <div class="frame"><img src="fig_phases.png" alt="Three-phase VRAM schedule"><img src="fig_vram_wall.png" alt="The VRAM wall"></div>
+  <figcaption><span class="lab">Figure 4.</span> Top: the three-phase schedule keeps PyTorch and llama.cpp from sharing the 16&nbsp;GB at once (VRAM trace sampled live; peaks measured). Bottom: the VRAM wall, with each task placed by grid size and context length; tasks above the operational cutoff are excluded from TTT (the cutoff metric is the largest train pair, and any VRAM surface shown is a calibrated model).</figcaption>
+</figure>
+
+<h2 id="s4"><span class="sn">4</span>Results</h2>
+
+<h3 id="s4-1"><span class="sn">4.1</span>No-TTT baseline</h3>
+<p>The AIRV pipeline without TTT scores <strong>12.79%</strong> (22 of 172 test outputs) on the 120-task public evaluation set, a clean single-stream run completing in &approx;78 minutes. Submitted to the ARC-AGI-2 main-track leaderboard, the same pipeline scores <strong>6.53%</strong> on the hidden 240-task test set (semi-private plus private), a roughly twofold drop from the public eval that we attribute to the hidden set's greater difficulty, and possibly to per-task failures in the scored rerun (Section&nbsp;5.3). For reference the 2025 winner reached 24.0% with TTT [<a href="#refs">3</a>].</p>
+
+<h3 id="s4-2"><span class="sn">4.2</span>The engine speedup</h3>
+<p>The 13&times; decode improvement from changing engines (Section&nbsp;3.2, Figure&nbsp;2) is the single most important result for this hardware class. It turned an overnight, frequently-failing process into a sub-90-minute evaluation. On one consumer GPU, the inference engine dominated every other knob we touched (Figure&nbsp;5).</p>
+
+<figure id="fig5">
+  <div class="frame"><img src="fig_results.png" alt="Engine, accuracy, and the adapter-scale curve"></div>
+  <figcaption><span class="lab">Figure 5.</span> Engine choice, accuracy, and the adapter-scale curve. Accuracy peaks at scale 1.25 on the 84 trainable tasks, then declines, a real optimum rather than a monotone gain. All values are measured.</figcaption>
+</figure>
+
+<h3 id="s4-3"><span class="sn">4.3</span>Test-time training</h3>
+<p>With generation fixed, we first swept the adapter configuration on 15 small-context tasks, scoring each against no-TTT on the same tasks (Table&nbsp;1). The standard configuration overfits (its training loss reaches 0.000) and ties the baseline; the regularized configuration recovers a one-task lift; an over-aggressive reduction undertrains and ties again, coherent with an overfit diagnosis, though one task on 15 is only a hint.</p>
+
+<div class="tbl">
+  <div class="cap"><span class="lab">Table 1.</span> Adapter-configuration sweep on 15 small-context tasks (23 test outputs).</div>
+  <table class="book">
+    <thead><tr><th>configuration</th><th>TTT</th><th>no-TTT</th></tr></thead>
+    <tbody>
+      <tr><td>40 steps, rank 32, no dropout</td><td>3/23</td><td>3/23</td></tr>
+      <tr><td>20 steps, rank 16, dropout 0.1</td><td><strong>4/23</strong></td><td>3/23</td></tr>
+      <tr><td>8 steps, rank 8, dropout 0.05</td><td>3/23</td><td>3/23</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<p>We then validated the regularized configuration at scale, on the 84 evaluation tasks small enough to train on a 16&nbsp;GB card, against no-TTT on the same tasks (Table&nbsp;2). The lift holds and strengthens: +5 test outputs, a four-point gain (&approx;31% relative). The paired breakdown is clean: of the tasks the two methods disagree on, TTT is right on six that no-TTT misses and wrong on only one. With seven disagreements this is not individually significant (exact McNemar <i>p</i>&nbsp;&approx;&nbsp;0.13, Appendix&nbsp;B), but three measurements now agree in direction (sweep +1, scale +5, six-to-one discordant), and no-TTT scores 12.8% here against its 12.79% full baseline, so the subset is representative.</p>
+
+<div class="tbl">
+  <div class="cap"><span class="lab">Table 2.</span> Regularized TTT vs. no-TTT on the 84 trainable tasks (125 test outputs), scale 1.0.</div>
+  <table class="book">
+    <thead><tr><th>method</th><th>correct</th><th>accuracy</th></tr></thead>
+    <tbody>
+      <tr><td>regularized TTT</td><td><strong>21/125</strong></td><td><strong>16.8%</strong></td></tr>
+      <tr><td>no-TTT</td><td>16/125</td><td>12.8%</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h3 id="s4-4"><span class="sn">4.4</span>Ablations: scale, colour, and the big-grid wall</h3>
+<p>Three further levers, each measured on the 84 trainable tasks (full per-scale numbers in Appendix&nbsp;B). The adapter <em>scale</em> matters: accuracy peaks at 17.6% at scale 1.25, then declines (Figures&nbsp;5, 6). Colour permutation lifts the no-TTT baseline to 14.4% but does <em>not</em> stack with the already colour-robust adapter. Forcing TTT onto the big-grid tasks does not help; the VRAM exclusion is a genuine ceiling, not a missed opportunity. The best blend, TTT at scale 1.25 where trainable and no-TTT elsewhere, reaches <strong>16.28%</strong> on the full 120-task evaluation, up from 12.79%. The honest summary: naive per-task TTT <em>ties</em> a strong no-TTT AIRV baseline, while a regularized, scale-tuned TTT <em>beats</em> it by a consistent if modest margin.</p>
+
+<figure id="fig6">
+  <div class="frame"><img src="fig_scale_flip.png" alt="Which tasks TTT solves at each adapter scale"><img src="fig_airv_votes.png" alt="AIRV vote agreement predicts correctness"></div>
+  <figcaption><span class="lab">Figure 6.</span> Top: which tasks TTT solves at each adapter scale, with most gains concentrated at scale 1.25. Bottom: AIRV vote agreement (Eq.&nbsp;(2)) predicts correctness; full eight-way consensus is right far more often than split votes.</figcaption>
+</figure>
+
+<h2 id="s5"><span class="sn">5</span>Discussion</h2>
+
+<h3 id="s5-1"><span class="sn">5.1</span>Two lessons that generalize</h3>
+<p>First, on a single GPU the inference engine is the dominant design choice; quantization and sampling mattered far less than the 13&times; we recovered by moving decode off the eager path. Second, the real obstacle for TTT is the <em>serving bridge</em>: training needs a gradient framework, fast generation needs an optimized engine, and per-task TTT produces a fresh adapter the engine must serve. We show this bridge is buildable on one card, and that once it exists the open question is not plumbing but <em>regularization</em>, because the small per-task training set overfits easily.</p>
+
+<h3 id="s5-2"><span class="sn">5.2</span>Accuracy per GPU-hour</h3>
+<p>We argue the right framing for compute-poor ARC work is <strong>accuracy per GPU-hour</strong> (Figure&nbsp;7), and the map of walls reported here (the decode ceiling, the VRAM limit on large-grid TTT, and the overfitting of naive adapters; Figure&nbsp;7) is a first step toward it. The findings tell a practitioner with similar hardware exactly which problems to solve first: fix the engine before touching anything else, budget VRAM by largest-train-pair length, and regularize the per-task adapter rather than training it harder.</p>
+
+<figure id="fig7">
+  <div class="frame"><img src="fig_cost_frontier.png" alt="Accuracy per GPU-hour"><img src="fig_levers.png" alt="What worked and what did not"></div>
+  <figcaption><span class="lab">Figure 7.</span> Top: accuracy per GPU-hour on one card; the TTT blend at 16.28% sits on the Pareto front (compute is measured wall-clock, and any eager "ghost" points are 13&times; projections, labelled in the source). Bottom: what worked and what did not. The engine swap and regularized TTT helped, while naive TTT, colour-perm stacking, and big-grid TTT did not.</figcaption>
+</figure>
+
+<h3 id="s5-3"><span class="sn">5.3</span>Limitations and ongoing work</h3>
+<p>Our absolute accuracy is far below the 24.0% cluster result, by design: one card and a fixed recipe. The public-to-hidden gap is itself a finding: the no-TTT system scores 12.79% on the public eval but 6.53% on the hidden main-track set, a reminder that the public ARC-AGI-2 eval is more saturated than the held-out sets, so a small single-GPU model carries less of its public accuracy across than a cluster model would. A scored rerun can also lose the heaviest-grid tasks to server stalls, which our next submission instruments (a per-task log) to separate empty answers from genuine misses. The biggest known lever we still lack is verifier-guided selection and a refinement loop (generate, check each candidate against the train pairs, then re-prompt on the discrepancy), which the 2025 analysis names as the central advance; our AIRV is a one-shot vote. We also probed whether a one-time continued LoRA fine-tune of the base on official ARC-AGI-2 training data and RE-ARC [<a href="#refs">6</a>] generations yields a better static model. It did not: the fine-tuned base scores 11.63% no-TTT against the stock base's 12.79%, so we ship the stock base. The NVARC base is already well-adapted to this grid format, and continued fine-tuning on this public data did not transfer, a useful negative result for the compute-poor practitioner, more public data is not a free lever once the base is task-tuned. Finally, the significance of the TTT lift is directional rather than conclusive (Appendix&nbsp;B); a full-eval paired run is the obvious next measurement.</p>
+
+<h2 id="s6"><span class="sn">6</span>Conclusion</h2>
+<p>The 2025 winning recipe survives a single 16&nbsp;GB consumer GPU, but only after the inference engine is fixed: that one change is worth more than every other knob, and it is what makes per-task TTT tractable through an adapter-serving bridge. The honest result is a 12.79% no-TTT baseline and a 16.28% regularized-TTT blend, with the gains bounded by adapter overfitting and a hard VRAM wall on large grids. The full system is open source: the GGUF conversion recipe for the custom-vocabulary model, the AIRV pipeline, the per-task TTT bridge and sweep harness, and a development log recording every measurement and dead end behind these numbers.</p>
+
+</section>
+
+<!-- ============ APPENDICES ============ -->
+<section class="pagepad breakbefore">
+
+<h2 id="sa"><span class="sn">A</span>Reproducibility</h2>
+<p><span class="applab">Environment.</span> A single NVIDIA RTX&nbsp;5070&nbsp;Ti (16&nbsp;GB, Blackwell, &approx;896&nbsp;GB/s), native Windows 11. Inference: a prebuilt llama.cpp CUDA&nbsp;12.4 <code>llama-server</code>, run on Blackwell through PTX JIT. Training: PyTorch with a LoRA via PEFT, bf16 base, gradient checkpointing. The two frameworks are never co-resident in VRAM (Section&nbsp;3.4).</p>
+<p><span class="applab">The two GGUF converter patches.</span> The NVARC model has a 16-token <em>WordLevel</em> tokenizer, which trips the stock converter twice. (1)&nbsp;<em>Unknown tokenizer hash:</em> the loader does not recognize the tokenizer's hash and refuses to guess a pre-tokenizer; its pre-tokenizer is in fact the <code>qwen2</code> regex, so we map the hash to <code>qwen2</code> explicitly. (2)&nbsp;<em>Empty merge list:</em> a WordLevel tokenizer has no byte-pair merges, but the loader requires a non-empty list, so we add two throwaway merges among the role tokens, which never fire on grid text. Both patches are in the repository's conversion script and are applied automatically by the Kaggle prep notebook.</p>
+<p><span class="applab">Serving flags.</span> <code>llama-server</code> is launched with full GPU offload (<code>-ngl 99</code>), a 16,384-token context, a single slot (<code>-np 1</code>), and the prompt cache disabled (<code>--no-cache-prompt</code>); its own logs are redirected to a file so they never flood the notebook. Decoding is greedy (temperature 0) with <code>n_predict</code> sized to the target grid.</p>
+<p><span class="applab">Hyperparameters.</span> AIRV uses the eight D4 augmentations and votes to two attempts. Per-task TTT (regularized): rank 16 to 32, dropout 0.05 to 0.1, 8 to 20 steps, AdamW, a fresh random augmentation per step, leave-one-out target, context capped at &approx;1,600 tokens, applied at adapter scale 1.25 at inference. Exact values per experiment are in the development log.</p>
+
+<h2 id="sb"><span class="sn">B</span>Extended results</h2>
+<p><span class="applab">Per-scale accuracy (84 trainable tasks).</span> Table&nbsp;3 gives the full adapter-scale sweep behind Figures&nbsp;5 and 6. Accuracy rises to a peak at scale 1.25 and then declines, the signature of an adapter applied too strongly.</p>
+
+<div class="tbl">
+  <div class="cap"><span class="lab">Table 3.</span> No-TTT vs. TTT accuracy on the 84 trainable tasks as a function of adapter scale.</div>
+  <table class="book">
+    <thead><tr><th>adapter scale</th><th>no-TTT</th><th>0.50</th><th>0.70</th><th>0.85</th><th>1.00</th><th>1.25</th><th>1.40</th><th>1.50</th><th>1.75</th></tr></thead>
+    <tbody>
+      <tr><td>accuracy (%)</td><td>12.8</td><td>12.0</td><td>12.8</td><td>15.2</td><td>16.8</td><td><strong>17.6</strong></td><td>16.0</td><td>16.8</td><td>16.8</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<p><span class="applab">Paired significance.</span> On the 84 trainable tasks, TTT and no-TTT disagree on seven test outputs: TTT is correct on six that no-TTT misses and incorrect on one that no-TTT gets. An exact two-sided McNemar test on a 6/1 split gives <i>p</i>&nbsp;&approx;&nbsp;0.13, so the lift is not individually significant; we report it as directional, corroborated by the configuration sweep (+1) and the representativeness check (no-TTT scores 12.8% on the subset versus 12.79% on the full set).</p>
+<p><span class="applab">Colour permutation.</span> Adding a random colour permutation to the augmentation set lifts the no-TTT baseline from 12.8% to 14.4% on the 84 tasks, but provides no further gain on top of the per-task adapter, which has already learned the task's colour mapping, so the two do not stack.</p>
+
+<h2 id="sc"><span class="sn">C</span>Engineering log: walls and dead ends</h2>
+<p>We record the failures explicitly, because on this hardware they are most of the work.</p>
+<ul style="margin:.3em 0 .8em; padding-left:1.3em;">
+  <li style="margin:.4em 0;"><strong>Eager decode is overhead-bound, and the usual fix is unavailable.</strong> Hugging Face eager decode runs at &approx;13 tok/s, about 10% of the bandwidth roofline. <code>torch.compile</code> would close the gap, but it needs Triton, which has no native-Windows backend. The resolution was to change engines, not to optimize the eager path.</li>
+  <li style="margin:.4em 0;"><strong>The server prompt cache destabilizes unique-prompt workloads.</strong> Enabled by default, it reserves &approx;680&nbsp;MiB per unique prompt; every ARC prompt is unique, so it never reuses and instead destabilizes sustained generation. Disabling it and running a single supervised stream fixed the stalls.</li>
+  <li style="margin:.4em 0;"><strong>4-bit QLoRA is broken on Blackwell + Windows.</strong> bitsandbytes fails to load on this platform, so the planned 4-bit continued fine-tune was infeasible. Because per-task TTT already runs in bf16 inside 16&nbsp;GB, we use a bf16 LoRA throughout and drop the 4-bit path entirely.</li>
+  <li style="margin:.4em 0;"><strong>PyTorch decode can turn quadratic after a training step.</strong> Generation in the gradient framework is not only slow but intermittently degrades after an optimizer step; this is precisely why the serving bridge exists, since we never generate in PyTorch in the scored pipeline.</li>
+  <li style="margin:.4em 0;"><strong>The VRAM wall on large grids is real.</strong> The largest-train-pair token length, not the test grid size, is the binding constraint; tasks above the operational cutoff cannot train in 16&nbsp;GB. Forcing TTT onto them by truncation did not recover accuracy, so they are excluded and served no-TTT.</li>
+  <li style="margin:.4em 0;"><strong>Naive TTT ties the baseline.</strong> The standard adapter configuration drives training loss to 0.000 and generalizes no better than no-TTT; only regularization (fewer steps, lower rank, dropout) recovers a lift.</li>
+</ul>
+
+<h2 id="sd"><span class="sn">D</span>Prompt and serialization format</h2>
+<p>The model's 16-token vocabulary is given in Table&nbsp;4. A grid is serialized row by row, one token per cell (the token id equals the colour), rows separated by the newline token; prompts are assembled at the id level as a ChatML few-shot sequence of train pairs followed by the test input, ending at the <code>ASSISTANT</code> turn for the model to complete. Because the role and special tokens have no textual spelling, the whole sequence is built from ids directly, never by tokenizing a string, which is what guarantees parity between training and inference.</p>
+
+<div class="tbl">
+  <div class="cap"><span class="lab">Table 4.</span> The 16-token grid vocabulary.</div>
+  <table class="book">
+    <thead><tr><th>token ids</th><th>meaning</th></tr></thead>
+    <tbody>
+      <tr><td>0 to 9</td><td>the ten ARC grid colours (id = colour)</td></tr>
+      <tr><td>10</td><td>newline / row separator</td></tr>
+      <tr><td>11</td><td><code>USER</code> role marker</td></tr>
+      <tr><td>12</td><td><code>ASSISTANT</code> role marker</td></tr>
+      <tr><td>13</td><td><code>PAD</code></td></tr>
+      <tr><td>14</td><td><code>IM_START</code></td></tr>
+      <tr><td>15</td><td><code>IM_END</code></td></tr>
+    </tbody>
+  </table>
+</div>
+
+<h2 id="se"><span class="sn">E</span>Data and model provenance</h2>
+<p>The base model is Qwen3-4B [<a href="#refs">5</a>] (Apache-2.0), supervised-fine-tuned on ARC grids by NVARC [<a href="#refs">4</a>]; any derived weights we redistribute are released under Apache-2.0 with the required <code>NOTICE</code>. Evaluation and training tasks are the official ARC-AGI-2 corpus [<a href="#refs">2</a>] (Apache-2.0); the fine-tune probe additionally uses RE-ARC [<a href="#refs">6</a>] (MIT). Our own code and weights are released under MIT-0. We never train on the evaluation tasks. Full license texts and attribution are in the repository's <code>THIRD_PARTY_LICENSES.md</code> and <code>NOTICE</code>.</p>
+<p style="margin-bottom:.3em"><span class="applab">BibTeX.</span></p>
+<div class="bibtex">@article{chollet2019measure,
+  title={On the Measure of Intelligence},
+  author={Chollet, Francois}, journal={arXiv:1911.01547}, year={2019}}
+@techreport{arcagi2,
+  title={ARC-AGI-2 Technical Report},
+  institution={ARC Prize Foundation}, year={2025}}
+@techreport{arcprize2025,
+  title={ARC Prize 2025: Technical Report},
+  institution={ARC Prize Foundation}, note={arXiv:2601.10904}, year={2026}}
+@misc{qwen3, title={Qwen3 Technical Report}, author={Qwen Team}, year={2025}}
+@misc{nvarc2025,
+  title={NVARC: ARC Prize 2025 (ARC-AGI-2) 1st-place solution},
+  author={{NVIDIA Kaggle Grandmasters}}, year={2025}}
+@article{hodel2024rearc,
+  title={Addressing the Abstraction and Reasoning Corpus via
+         Procedural Example Generation},
+  author={Hodel, Michael}, journal={arXiv:2404.07353}, year={2024}}</div>
+
+<div class="refs" id="refs">
+  <h2 style="border-bottom:1.5px solid var(--accent);"><span class="sn">&nbsp;</span>References</h2>
+  <ol>
+    <li>F. Chollet. On the Measure of Intelligence. arXiv:1911.01547, 2019.</li>
+    <li>ARC Prize Foundation. ARC-AGI-2 Technical Report. 2025. arcprize.org.</li>
+    <li>ARC Prize Foundation. ARC Prize 2025: Technical Report. arXiv:2601.10904, 2026.</li>
+    <li>NVIDIA Kaggle Grandmasters (NVARC). ARC Prize 2025 (ARC-AGI-2) 1st-place solution. 2025.</li>
+    <li>Qwen Team. Qwen3 Technical Report. 2025.</li>
+    <li>M. Hodel. Addressing the Abstraction and Reasoning Corpus via Procedural Example Generation. arXiv:2404.07353, 2024.</li>
+  </ol>
+</div>
+
+</section>
+</div>
+
+<script>
+(function(){
+  var root=document.documentElement, sheet=document.getElementById('sheet');
+  document.querySelectorAll('input[name=accent]').forEach(function(r){
+    r.addEventListener('change',function(){
+      root.style.setProperty('--accent',this.value);
+      // link shade: nudge burgundy default, else reuse accent
+      root.style.setProperty('--link', this.value==='#6d1f2c' ? '#7c2a38' : this.value);
+    });
+  });
+  document.getElementById('t-justify').addEventListener('change',function(){
+    root.style.setProperty('--justify', this.checked ? 'justify' : 'left');
+  });
+  document.getElementById('t-newpage').addEventListener('change',function(){
+    sheet.classList.toggle('sec-newpage', this.checked);
+  });
+})();
+</script>
+</body>
+</html>
