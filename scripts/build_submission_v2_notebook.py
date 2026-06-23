@@ -263,7 +263,7 @@ def elapsed_h():
     return (time.time() - T_START) / 3600.0
 """),
 
-md("## 2. Phase A: train per-task adapters on the trainable tasks (one GPU)"),
+md("## 2. Phase A+B: train each adapter, convert to GGUF, delete the PEFT dir (bounds disk)"),
 
 code(r"""
 tasks, sols = load_consolidated(CH, SOL, n=None)
@@ -273,13 +273,14 @@ if N_LIMIT:
 
 trainable = sorted([t for t in tids if maxpair_tokens(tasks[t]) <= MAXPAIR],
                    key=lambda t: maxpair_tokens(tasks[t]))[:MAX_TTT_TASKS]
-print('Phase A: %d/%d tasks trainable (maxpair <= %d, cap %d)' % (len(trainable), len(tids), MAXPAIR, MAX_TTT_TASKS))
+print('Phase A+B: %d/%d tasks trainable (maxpair <= %d, cap %d)' % (len(trainable), len(tids), MAXPAIR, MAX_TTT_TASKS))
 
 ADAPTERS = os.path.join(WORK, 'loras_v2')
 os.makedirs(ADAPTERS, exist_ok=True)
-trained = []
+MANIFEST = {}
+cenv = dict(os.environ, PYTHONPATH=GGUF_PY + os.pathsep + os.environ.get('PYTHONPATH', ''), PYTHONIOENCODING='utf-8')
 try:
-    import torch
+    import torch, shutil as _sh
     from src.arc.model import load_model
     from src.arc.ttt import make_adapter, test_time_train
     model, tok = load_model(BASE_HF, dtype=torch.bfloat16, device='cuda')
@@ -287,42 +288,29 @@ try:
     rng = np.random.default_rng(0)
     for i, tid in enumerate(trainable):
         if elapsed_h() > TRAIN_BUDGET_H:
-            print('Phase A: train budget reached at %d/%d, rest served no-TTT' % (i, len(trainable)), flush=True)
+            print('Phase A+B: budget reached at %d/%d, rest served no-TTT' % (i, len(trainable)), flush=True)
             break
+        adir = os.path.join(ADAPTERS, tid)
+        gguf = os.path.join(ADAPTERS, tid + '.gguf')
         try:
-            t1 = time.time()
-            loss = test_time_train(peft_model, init, tasks[tid], rng, steps=TTT_STEPS,
-                                   max_ctx_tokens=1600, time_budget=120)
-            peft_model.save_pretrained(os.path.join(ADAPTERS, tid))
-            trained.append(tid)
-            print('[A %d/%d] %s loss=%.3f %.0fs' % (i + 1, len(trainable), tid, loss, time.time() - t1), flush=True)
+            test_time_train(peft_model, init, tasks[tid], rng, steps=TTT_STEPS, max_ctx_tokens=1600, time_budget=120)
+            peft_model.save_pretrained(adir)
+            subprocess.run([sys.executable, CONVERT, adir, '--base', BASE_HF, '--outfile', gguf, '--outtype', 'f16'],
+                           env=cenv, stdout=open(os.path.join(WORK, 'convert.log'), 'ab'),
+                           stderr=subprocess.STDOUT, timeout=600)
+            if os.path.exists(gguf):
+                MANIFEST[tid] = gguf
+            _sh.rmtree(adir, ignore_errors=True)   # keep only the small GGUF, not the fp32 PEFT dir (disk guard)
+            print('[AB %d/%d] %s ok=%s %.2fh' % (i + 1, len(trainable), tid, tid in MANIFEST, elapsed_h()), flush=True)
         except Exception as e:
-            print('[A %d/%d] %s TRAIN-FAIL %r' % (i + 1, len(trainable), tid, str(e)[:90]), flush=True)
+            _sh.rmtree(adir, ignore_errors=True)
+            print('[AB %d/%d] %s FAIL %r' % (i + 1, len(trainable), tid, str(e)[:90]), flush=True)
     del peft_model, model
     torch.cuda.empty_cache()
 except Exception as e:
-    print('Phase A unavailable (%r); all tasks served no-TTT' % (str(e)[:120],), flush=True)
-    trained = []
-print('Phase A done: %d adapters trained, %.2fh elapsed' % (len(trained), elapsed_h()), flush=True)
-"""),
-
-md("## 3. Phase B: convert each adapter to GGUF"),
-
-code(r"""
-MANIFEST = {}
-env = dict(os.environ, PYTHONPATH=GGUF_PY + os.pathsep + os.environ.get('PYTHONPATH', ''), PYTHONIOENCODING='utf-8')
-for i, tid in enumerate(trained):
-    gguf = os.path.join(ADAPTERS, tid + '.gguf')
-    if not os.path.exists(gguf):
-        try:
-            subprocess.run([sys.executable, CONVERT, os.path.join(ADAPTERS, tid), '--base', BASE_HF,
-                            '--outfile', gguf, '--outtype', 'f16'], env=env,
-                           stdout=open(os.path.join(WORK, 'convert.log'), 'ab'), stderr=subprocess.STDOUT, timeout=600)
-        except Exception as e:
-            print('[B %d/%d] %s CONVERT-FAIL %r' % (i + 1, len(trained), tid, str(e)[:90]), flush=True)
-    if os.path.exists(gguf):
-        MANIFEST[tid] = gguf
-print('Phase B done: %d/%d adapters converted, %.2fh elapsed' % (len(MANIFEST), len(trained), elapsed_h()), flush=True)
+    print('Phase A+B unavailable (%r); all tasks served no-TTT' % (str(e)[:120],), flush=True)
+    MANIFEST = {}
+print('Phase A+B done: %d adapters ready, %.2fh elapsed' % (len(MANIFEST), elapsed_h()), flush=True)
 """),
 
 md("## 4. Phase C: serve and generate, sharded across all GPUs"),
