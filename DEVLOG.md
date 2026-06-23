@@ -443,3 +443,17 @@ well-adapted to the grid format; continued FT on official ARC-2 + RE-ARC (ARC-1-
 transfer, consistent with the barely-moving val loss (0.039 -> 0.036). This is the negative result we
 agreed to report either way; it goes in the paper as an honest single-GPU finding. v2 is unaffected (it
 uses the stock base). The dual-path framing held: a clean drop, no sunk-cost.
+
+## 2026-06-24
+
+### v2 (TTT + colour-perm) on the main-track leaderboard: 11.94
+The v2 submission (160 tasks with per-task TTT at scale 1.25, 80 no-TTT, 8 D4 + 4 colour-perm, 2.45h)
+scored 11.94 on the hidden 240-task set, up from v1's 6.53 no-TTT. That is +5.41 absolute, ~83%
+relative from TTT, a LARGER lift than the public eval saw (12.79 -> 16.28, +27%). Per-task adaptation
+pays off more on the harder held-out distribution; this is the headline result of the entry.
+
+### v2.1: spend the 12h headroom on accuracy
+v2 used only 2.45h of 12h. Scaled the v2 notebook knobs up (still per-task try/except + budget-guarded):
+MAX_TTT_TASKS 160->240, MAXPAIR 1000->1500 (L4 24GB trains bigger tasks the rig's 16GB excluded),
+N_COLORPERM 4->8 (16 votes), TTT context 1600->2000 tokens (more train pairs per step), TRAIN_BUDGET_H
+4->7. Kept TTT_STEPS=20 (more steps overfit per the sweep). Projected ~4-6h, well inside 12h.

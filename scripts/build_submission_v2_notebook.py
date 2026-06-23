@@ -85,15 +85,15 @@ ON_KAGGLE = os.path.isdir('/kaggle')
 # ---- v2 knobs (tune from the smoke-test timing) ----
 N_LIMIT       = 3 if ON_KAGGLE else 2     # 3 = smoke test; 0 for all tasks once timing is known
 SHARDS        = 4                         # serve across up to this many GPUs
-MAXPAIR       = 1000                      # train a task only if its largest train pair <= this many tokens
-MAX_TTT_TASKS = 160                       # hard cap on how many tasks get TTT
-TTT_STEPS     = 20
+MAXPAIR       = 1500                      # train a task if its largest train pair <= this many tokens (L4 24GB fits more than the rig's 16GB)
+MAX_TTT_TASKS = 240                       # effectively no cap; 12h budget has lots of headroom
+TTT_STEPS     = 20                        # regularized sweet spot; more steps overfit (do not raise)
 TTT_RANK      = 16
 TTT_DROPOUT   = 0.1
 SCALE         = 1.25
-N_COLORPERM   = 4                         # colour-permuted augmentations on top of the 8 D4
+N_COLORPERM   = 8                         # colour-permuted augmentations on top of the 8 D4 (16 total votes)
 BATCH         = 24                        # adapters loaded per server start
-TRAIN_BUDGET_H = 4.0                      # stop training new adapters after this many hours
+TRAIN_BUDGET_H = 7.0                      # stop training new adapters after this many hours
 TOTAL_BUDGET_H = 11.0                     # leave headroom under the 12h cap
 
 def _find(patterns):
@@ -293,7 +293,7 @@ try:
         adir = os.path.join(ADAPTERS, tid)
         gguf = os.path.join(ADAPTERS, tid + '.gguf')
         try:
-            test_time_train(peft_model, init, tasks[tid], rng, steps=TTT_STEPS, max_ctx_tokens=1600, time_budget=120)
+            test_time_train(peft_model, init, tasks[tid], rng, steps=TTT_STEPS, max_ctx_tokens=2000, time_budget=200)
             peft_model.save_pretrained(adir)
             subprocess.run([sys.executable, CONVERT, adir, '--base', BASE_HF, '--outfile', gguf, '--outtype', 'f16'],
                            env=cenv, stdout=open(os.path.join(WORK, 'convert.log'), 'ab'),
