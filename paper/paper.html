@@ -113,8 +113,7 @@ table.book tbody tr:first-child td{padding-top:.5em;}
 .bigop .lim{font-size:.6em; font-style:italic; margin-top:.12em; white-space:nowrap;}
 .eqgrid{display:grid; grid-template-columns:1fr 1fr; gap:.5em 1.6em; justify-items:center; align-items:center;}
 .olbar{text-decoration:overline;}
-math{font-size:20px; color:var(--ink); font-family:"Latin Modern Math","STIX Two Math","Cambria Math",serif;}
-math[display="block"]{margin:0 auto;}
+.eqbody img.eq{display:inline-block; vertical-align:middle;}
 
 /* ---- print ---- */
 @page{ size:letter; margin:0; }
@@ -147,12 +146,6 @@ math[display="block"]{margin:0 auto;}
 </style>
 </head>
 <body>
-
-<div class="controls" id="controls">
-  <h4>Layout</h4>
-  <label><input type="checkbox" id="t-justify" checked> Justified body</label>
-  <label><input type="checkbox" id="t-newpage"> Section per page</label>
-</div>
 
 <div class="sheet" id="sheet">
 
@@ -248,7 +241,7 @@ math[display="block"]{margin:0 auto;}
 <h3 id="s3-2"><span class="sn">3.2</span>The engine is the bottleneck</h3>
 <p>Our most consequential finding concerns throughput. Decoding a 4B model is memory-bound: each token streams the full weight matrix from VRAM, so for a weight footprint <i class="v">M</i> on a card of bandwidth <i class="v">B</i> the decode rate is bounded by a first-order roofline</p>
 <div class="eqrow">
-  <div class="eqbody"><math display="block"><msub><mi>r</mi><mtext>max</mtext></msub><mo>=</mo><mfrac><mi>B</mi><mi>M</mi></mfrac></math></div>
+  <div class="eqbody"><img class="eq" src="eq1.svg" alt="r_max = B / M" style="height:40px"></div>
   <div class="eqno">(1)</div>
 </div>
 <p>With <i class="v">B</i>&nbsp;=&nbsp;896&nbsp;GB/s, Eq.&nbsp;(1) gives 132 tok/s in bf16 (<i class="v">M</i>&nbsp;=&nbsp;6.77&nbsp;GB), 249 in Q8_0 (<i class="v">M</i>&nbsp;=&nbsp;3.6&nbsp;GB), and 444 in Q4_K_M (<i class="v">M</i>&nbsp;=&nbsp;2.02&nbsp;GB). The standard Hugging Face eager path prefills healthily (&approx;3,400 tok/s) but <em>decodes</em> at only &approx;13 tok/s, about a tenth of the bf16 roof, because of per-token framework overhead with no CUDA graphs. The usual remedy, compiling the decode step, is unavailable on this platform: <code>torch.compile</code> needs Triton, and Triton has no native-Windows backend (Appendix&nbsp;C).</p>
@@ -262,14 +255,7 @@ math[display="block"]{margin:0 auto;}
 <h3 id="s3-3"><span class="sn">3.3</span>AIRV: augment, infer, reverse, vote</h3>
 <p>Let <i class="v">f</i> be the served model and <i class="v">G</i> the eight dihedral (D4) symmetries of the grid. For a test input <i class="v">x</i> we generate one prediction per symmetry, invert it back to the original frame, and vote. Writing <i>n</i><sub><i>c</i></sub> for a candidate's vote count and <span class="olbar">&#8467;</span><sub><i>c</i></sub> for its mean sequence log-prob,</p>
 <div class="eqrow">
-  <div class="eqbody">
-    <div class="eqgrid">
-      <math display="block"><msub><mi>c</mi><mi>g</mi></msub><mo>=</mo><msup><mi>g</mi><mrow><mo>&#8722;</mo><mn>1</mn></mrow></msup><mo>(</mo><mi>f</mi><mo>(</mo><mi>g</mi><mo>(</mo><mi>x</mi><mo>)</mo><mo>)</mo><mo>)</mo></math>
-      <math display="block"><msub><mi>n</mi><mi>c</mi></msub><mo>=</mo><mrow><mo>|</mo><mo>{</mo><mi>g</mi><mo>&#8712;</mo><mi>G</mi><mo>:</mo><msub><mi>c</mi><mi>g</mi></msub><mo>=</mo><mi>c</mi><mo>}</mo><mo>|</mo></mrow></math>
-      <math display="block"><msub><mover accent="true"><mi>&#8467;</mi><mo>&#175;</mo></mover><mi>c</mi></msub><mo>=</mo><mfrac><mn>1</mn><msub><mi>n</mi><mi>c</mi></msub></mfrac><munder><mo>&#8721;</mo><mrow><mi>g</mi><mo>:</mo><msub><mi>c</mi><mi>g</mi></msub><mo>=</mo><mi>c</mi></mrow></munder><mi>log</mi><mo>&#8201;</mo><mi>p</mi><mo>(</mo><msub><mi>c</mi><mi>g</mi></msub><mo>)</mo></math>
-      <math display="block"><mover accent="true"><mi>Y</mi><mo>^</mo></mover><mo>=</mo><msub><mrow><mi mathvariant="normal">select</mi></mrow><mi>c</mi></msub><mo>(</mo><msub><mi>n</mi><mi>c</mi></msub><mo>,</mo><msub><mover accent="true"><mi>&#8467;</mi><mo>&#175;</mo></mover><mi>c</mi></msub><mo>)</mo></math>
-    </div>
-  </div>
+  <div class="eqbody"><img class="eq" src="eq2.svg" alt="AIRV: candidate, vote count, mean log-prob, and the top-2 select" style="height:94px"></div>
   <div class="eqno">(2)</div>
 </div>
 <p>where select returns the two distinct candidates with the highest vote count, ties broken by mean log-prob, and emits them as the two attempts the metric allows. The vote count is itself a usable confidence signal: agreement across symmetries predicts correctness (Figure&nbsp;6). The whole offline system (the trainer, the converter, and the server, which never share VRAM) is sketched in Figure&nbsp;3.</p>
@@ -282,7 +268,7 @@ math[display="block"]{margin:0 auto;}
 <h3 id="s3-4"><span class="sn">3.4</span>Per-task test-time training</h3>
 <p>For TTT we fit a per-task LoRA adapter &Delta;<i>W</i> = <i>s</i>&#8202;<i>BA</i> of rank <i class="v">r</i> and scale <i class="v">s</i> on the task's own train pairs <i class="v">T</i>, with a leave-one-out target and the loss masked to the answer tokens:</p>
 <div class="eqrow">
-  <div class="eqbody"><math display="block"><mi>&#8466;</mi><mo>(</mo><mi>&#952;</mi><mo>)</mo><mo>=</mo><mo>&#8722;</mo><munder><mo>&#8721;</mo><mrow><mo>(</mo><mi>u</mi><mo>,</mo><mi>v</mi><mo>)</mo><mo>&#8712;</mo><mi>T</mi></mrow></munder><munder><mo>&#8721;</mo><mi>t</mi></munder><mi>log</mi><msub><mi>p</mi><mi>&#952;</mi></msub><mrow><mo>(</mo><msub><mi>v</mi><mi>t</mi></msub><mo>&#8739;</mo><msub><mi>v</mi><mrow><mo>&lt;</mo><mi>t</mi></mrow></msub><mo>,</mo><msub><mi mathvariant="normal">ctx</mi><mrow><mi>T</mi><mo>&#8726;</mo><mo>{</mo><mo>(</mo><mi>u</mi><mo>,</mo><mi>v</mi><mo>)</mo><mo>}</mo></mrow></msub><mo>,</mo><mi>u</mi><mo>)</mo></mrow></math></div>
+  <div class="eqbody"><img class="eq" src="eq3.svg" alt="TTT leave-one-out loss masked to the answer tokens" style="height:43px"></div>
   <div class="eqno">(3)</div>
 </div>
 <p>drawing a fresh random augmentation each step. Capping the few-shot context to &approx;1,600 tokens drops a training step from &approx;13&nbsp;s to &approx;2&nbsp;s, so training is no longer the expensive part.</p>
@@ -454,16 +440,5 @@ math[display="block"]{margin:0 auto;}
 </section>
 </div>
 
-<script>
-(function(){
-  var root=document.documentElement, sheet=document.getElementById('sheet');
-  document.getElementById('t-justify').addEventListener('change',function(){
-    root.style.setProperty('--justify', this.checked ? 'justify' : 'left');
-  });
-  document.getElementById('t-newpage').addEventListener('change',function(){
-    sheet.classList.toggle('sec-newpage', this.checked);
-  });
-})();
-</script>
 </body>
 </html>
