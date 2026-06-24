@@ -493,3 +493,18 @@ training distribution), a clean second negative on weight refinement that also e
 Recorded in paper section 5.3 (writeup.tex/.pdf + paper.html). Pivot to the inference-time lever:
 scripts/refine_loop.py (verifier-guided selection via honest leave-one-out on the un-adapted base, so it
 avoids the saturated check that sank the earlier E1 vote-reweighting), validating on the public eval now.
+
+### Refinement loop v1 (verifier-guided selection): null on the eval slice, same bimodal wall
+scripts/refine_loop.py: generate under each D4 aug, score each aug by honest leave-one-out train fidelity
+(un-adapted base, so not the saturated E1 check), select the test answer from the top-fidelity augs, fall
+back to the plain vote when none reproduce the task. On a 20-task eval slice it scored 2/32 = 6.25%,
+IDENTICAL to no-TTT AIRV on the same tasks (2/32), because most eval tasks had fidelity 0 (the base
+reproduces no held-out train pair for puzzles it does not understand), so the selector had nothing to act
+on and fell back to the vote. UNIFYING FINDING: this is the same wall self-training hit. The base is
+bimodal on ARC tasks (robust solve or total miss, almost no partial-understanding middle: the training
+harvest was 95.5% robust vote / 1.5% near-miss; eval fidelity is ~0 on the tasks it misses), so every
+refinement lever (self-training on near-misses, verifier-guided selection) has nothing to grip. The one
+lever that works, per-task TTT, MANUFACTURES capability rather than refining partial understanding. The
+lever that would break the wall is program search (partial credit on a program is a real gradient even
+where the LLM is lost). Paper write-up of the refinement family held pending the call to test the active
+re-prompt variant or bank it.
