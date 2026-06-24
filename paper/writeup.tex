@@ -380,13 +380,16 @@ consensus is right far more often than split votes.}
 \section{Discussion}
 \label{sec:disc}
 
-\subsection{Two lessons that generalize}
+\subsection{Three lessons that generalize}
 First, on a single GPU the inference engine is the dominant design choice; quantization and sampling
 mattered far less than the $13\times$ we recovered by moving decode off the eager path. Second, the
 real obstacle for TTT is the \emph{serving bridge}: training needs a gradient framework, fast
 generation needs an optimized engine, and per-task TTT produces a fresh adapter the engine must
 serve. We show this bridge is buildable on one card, and that once it exists the open question is not
-plumbing but \emph{regularization}, because the small per-task training set overfits easily.
+plumbing but \emph{regularization}, because the small per-task training set overfits easily. Third, a
+4B model is bimodal on these tasks, it solves or it misses with little partial credit, so the
+refinement family that defines the current frontier needs an external partial-credit signal to work at
+this scale; a method that only re-ranks the model's own outputs stalls (Section~\ref{sec:limits}).
 
 \subsection{Accuracy per GPU-hour}
 We argue the right framing for compute-poor ARC work is \textbf{accuracy per GPU-hour}
@@ -420,9 +423,14 @@ The public-to-hidden gap is itself a finding: the no-TTT system scores 12.79\% o
 the held-out sets, so a small single-GPU model carries less of its public accuracy across than a
 cluster model would. A scored rerun can also lose the heaviest-grid tasks to server stalls, which our
 next submission instruments (a per-task log) to separate empty answers from genuine misses.
-The biggest known lever we still lack is verifier-guided selection and a refinement loop (generate,
-check each candidate against the train pairs, then re-prompt on the discrepancy), which the 2025
-analysis names as the central advance; our AIRV is a one-shot vote. We also probed whether a one-time continued LoRA fine-tune of the base on official ARC-AGI-2 training
+The 2025 analysis names verifier-guided selection and a refinement loop (check each candidate against
+the train pairs, then re-prompt on the discrepancy) as the central advance, so we built and tested it.
+It does not lift here: a passive form (weighting the augmentation vote by leave-one-out train fidelity)
+and an active form (verification-gated re-sampling on the tasks the base is unsure of) each match the
+plain no-TTT vote exactly on the eval slices we ran. The reasons are structural: the verifier is silent
+exactly where it is needed, since on a task the base misses it reproduces none of the held-out train
+pairs, so there is nothing to select between or correct toward; and our 16-token model cannot read a
+natural-language critique, so the canonical re-prompt-with-the-discrepancy step is not even expressible. We also probed whether a one-time continued LoRA fine-tune of the base on official ARC-AGI-2 training
 data and RE-ARC~\cite{rearc} generations yields a better static model. It did not: the fine-tuned base
 scores 11.63\% no-TTT against the stock base's 12.79\%, so we ship the stock base. The NVARC base is
 already well-adapted to this grid format, and continued fine-tuning on this public data did not
@@ -443,6 +451,16 @@ is a second, sharper negative result on weight refinement, and it explains the f
 directly: on one GPU, with a base already tuned to the grid format, neither continued fine-tuning nor
 self-training moves ARC-AGI-2, because the public training data carries no signal the base has not
 already absorbed.
+
+These three null results, the fine-tune, self-training, and the refinement loop, share one cause: the
+base is bimodal on ARC. It solves a task robustly or misses it entirely, with almost no
+partial-understanding middle (of the training tasks it harvests, 95.5\% are solved robustly and only
+1.5\% are near-misses). Every method that refines, re-ranks, or distils the model's own understanding
+therefore has nothing to grip on the tasks it misses, and per-task TTT, the one lever that helped, is
+the exception that proves the rule: it does not refine partial understanding, it manufactures new
+capability for the task. The implication for compute-poor ARC is concrete: the next lever must supply
+an external, continuously-gradable signal that is valid even where the base is lost, a program checked
+against the train pairs being the cleanest, rather than another pass over the model's own grid outputs.
 
 Finally, the significance of the TTT lift is directional
 rather than conclusive (Appendix~\ref{app:results}); a full-eval paired run is the obvious next

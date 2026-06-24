@@ -508,3 +508,11 @@ lever that works, per-task TTT, MANUFACTURES capability rather than refining par
 lever that would break the wall is program search (partial credit on a program is a real gradient even
 where the LLM is lost). Paper write-up of the refinement family held pending the call to test the active
 re-prompt variant or bank it.
+
+### Active refinement variant: also null, refinement family closed
+The active form (verification-gated temperature re-sampling, 6 extra samples on the tasks the base is
+unsure of; our 16-token model cannot take natural-language feedback, so the canonical NL re-prompt is
+not expressible) scored 2/26 = 7.69% on a 15-task slice, IDENTICAL to no-TTT AIRV on the same tasks.
+Both refinement forms (passive selection, active search) are null. Refinement family closed: the
+bimodal base gives no partial-credit gradient to act on, and the 16-token interface forbids the
+natural-language critique the canonical loop needs. Consolidated into the paper (sections 5.1 + 5.3).

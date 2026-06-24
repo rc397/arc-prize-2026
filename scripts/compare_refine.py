@@ -8,7 +8,7 @@ from src.arc.eval import score_submission
 
 CH = r"D:\arc\data\kaggle\arc-agi_evaluation_challenges.json"
 SOL = r"D:\arc\data\kaggle\arc-agi_evaluation_solutions.json"
-REFINE = r"D:\arc\experiments\airv_refine_eval.json"
+REFINE = sys.argv[1] if len(sys.argv) > 1 else r"D:\arc\experiments\airv_refine_eval.json"
 NOTTT = r"D:\arc\experiments\airv_nottt_eval.json"
 
 tids = set(json.load(open(REFINE)).keys())

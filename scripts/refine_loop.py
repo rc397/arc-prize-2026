@@ -34,6 +34,7 @@ LOO_MAX = int(sys.argv[2]) if len(sys.argv) > 2 else 3       # leave-one-out che
 MODEL = sys.argv[3] if len(sys.argv) > 3 else r"D:\arc\models\arc-qwen4b-q8_0.gguf"
 OUT = sys.argv[4] if len(sys.argv) > 4 else r"D:\arc\experiments\airv_refine_eval.json"
 PORT = int(sys.argv[5]) if len(sys.argv) > 5 else 8080
+ACTIVE_K = int(sys.argv[6]) if len(sys.argv) > 6 else 0   # temperature re-samples on shaky tasks (0 = off)
 CH = r"D:\arc\data\kaggle\arc-agi_evaluation_challenges.json"
 SOL = r"D:\arc\data\kaggle\arc-agi_evaluation_solutions.json"
 SERVER_ARGS = [r"D:\arc\llamacpp\llama-server.exe", "-m", MODEL, "-ngl", "99", "-c", "16384",
@@ -68,8 +69,8 @@ def ensure_server():
     return False
 
 
-def query(prompt_ids, n_predict=1536, retries=4):
-    body = json.dumps({"prompt": prompt_ids, "n_predict": n_predict, "temperature": 0.0,
+def query(prompt_ids, n_predict=1536, retries=4, temperature=0.0):
+    body = json.dumps({"prompt": prompt_ids, "n_predict": n_predict, "temperature": temperature,
                        "cache_prompt": False, "n_probs": 1}).encode()
     for attempt in range(retries):
         try:
@@ -107,12 +108,12 @@ def seq_logprob(resp):
     return total
 
 
-def gen(train_pairs, test_input, aug):
+def gen(train_pairs, test_input, aug, temp=0.0):
     """Generate one answer for test_input given train_pairs, under augmentation aug, inverted back."""
     task = {"train": train_pairs, "test": [{"input": test_input}]}
     atask = apply_task(aug, task)
     pid = build_prompt_ids(atask["train"], atask["test"][0]["input"])
-    resp = query(pid)
+    resp = query(pid, temperature=temp)
     if resp is None:
         return None, 0.0
     g = parse_grid(resp.get("content", ""))
@@ -150,8 +151,15 @@ def refine_one(task, ti):
     if not scored:
         return None, None, 0.0
     best_fid = max(f for _, _, f in scored)
-    tier = [(g, lp) for g, lp, f in scored if f >= best_fid - 1e-9]
-    pool = tier if best_fid > 0 else [(g, lp) for g, lp, _ in scored]
+    pool = ([(g, lp) for g, lp, f in scored if f >= best_fid - 1e-9] if best_fid > 0
+            else [(g, lp) for g, lp, _ in scored])
+    # ACTIVE: when no augmentation fully reproduces the task, spend extra temperature samples and fold
+    # them into the vote (verification-gated search; the 16-token model cannot take natural-language feedback).
+    if ACTIVE_K and best_fid < 1.0:
+        for k in range(ACTIVE_K):
+            g, lp = gen(train, test_in, AUGS[k % len(AUGS)], temp=0.7)
+            if g is not None:
+                pool.append((g, lp))
     a1, a2 = select_top2(pool)
     return a1, a2, best_fid
 
