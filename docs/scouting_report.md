@@ -21,12 +21,61 @@
 > leave-one-out TTT, reuses the existing model) first, both bankable; Stage 1.5 (train a DSL proposer)
 > gates Stage 2 (search) and Stage 3 (verified-program distillation).
 
+## Verification audit (2026-06-24)
+
+Every load-bearing claim was checked against primary sources. The headline identities and scores hold,
+but one framing problem and five specific errors were found; this audit supersedes the body where they
+conflict.
+
+**Framing (the important one): the comparison regimes do not match.** The TL;DR's "Pang 26.0% and
+Berman 29.4% beat the best neural TTT submission (NVARC 24%)" places in-box and out-of-box results side
+by side. NVARC's 24.03% was on the ARC-AGI-2 PRIVATE set under the offline contest constraints that
+define our box (12 h, 4x L4, ~$0.20/task), by a fine-tuned Qwen3-4B (our base's lineage), TTT plus
+synthetic data. Pang's 26.0% and Berman's 29.4% were on the unconstrained commercial leaderboard using
+Grok-4 (a frontier natural-language model) at $8.42 to $30 per task. So within our constraints the
+relevant SOTA is NVARC's 24%, achieved by the TTT approach we already run, and no published
+program-synthesis result beats TTT in the offline / 4B / grid regime (the top three offline finishers
+are all TTT/neural: NVARC 24.03%, ARChitects 16.53%, MindsAI 12.64%). Consequence: the 26 to 29% figures
+are an aspirational upper bound from a frontier-NL setup, not evidence that a compute-poor grid-DSL 4B
+will clear 16.28%. Whether it can is the open question, not a settled result. This re-weights the plan
+toward the secondary lever (honest leave-one-out TTT), which lives in the same regime as our 16.28%,
+with program search kept as the higher-risk bet justified solely by its unique partial-credit property.
+One corroboration the other way: Berman's fitness function is explicitly partial-credit, scoring each
+candidate by the percentage of correct cells, which is the report's central thesis stated by a
+practitioner.
+
+**Errata (verified corrected values):**
+- GridCoder: the "452M-parameter VLM (one decoder layer, embedding dim 512, 4 heads)" is wrong and
+  internally inconsistent (a 1-layer, 512-dim model is single-digit millions of params); the parameter
+  count is unverified. GridCoder is a compact CNN+Transformer and is non-execution-guided (it enumerates
+  by joint probability under the DSL grammar, then executes candidates as a post-filter; execution is not
+  used during decoding). Its mechanism and the "limited ARC examples" quote are confirmed.
+- PeARL: 77 primitives, not 30 (the 18/400 = 4.5% figure is correct).
+- ARChitects: the DFS cumulative-sampling-probability threshold is T = 9% (Product-of-Experts paper,
+  arXiv:2505.07859); the "17% in 2024 lowered to 7% via speculative decoding" is unsupported. The 7.3 GB
+  (DFS) vs 14 GB (beam) VRAM figure is correct. The ARChitects were the 2024 paper-award RUNNER-UP (and
+  2025 Kaggle 2nd), not "the 2024 winner."
+- Akyurek: 53.0% is TTT applied to the BARC model; 47.1% on their own model; 61.9% ensembled with
+  program synthesis. The report's "35% improvement" is unsupported (53.0 vs 47.1 is ~13% relative).
+- arc-dsl: ships 400 worked solvers (one per ARC-1 training task), not "400+"; the ~160-primitive count
+  is approximate (we did independently count 160 `def`s in dsl.py on the rig).
+
+**Confirmed exactly:** Pang 77.1/26.0; Berman 79.6 at $8.42 and 29.4 "(previous best 25%)"; NVARC =
+NVIDIA (Sorokin, Puget), 24.03% private, 12 h / 4x L4; TRM ~7M, ~45%/~8%; SOAR 52% ARC-1 (2nd, MIT);
+CompressARC 76K, 20%/4%, arXiv:2512.06104; BARC arXiv:2411.02272 (+ quote, 42.2%); Akyurek
+arXiv:2411.07279 (+ leave-one-out); CodeIt 59/400, arXiv:2402.04858; icecuber 2020, ~20%; Greenblatt 50%
+blog / 42% official.
+
+**Not re-verified (treat as indicative):** Akyurek's exact hyperparameters; SOAR's (rank 256, 6,000
+attempts); BARC's "73.5% after TTT" and "400k dataset"; icecuber's "42 functions / 142 variants" and
+"~10^7 pieces/task"; LPN's "39M / JAX / doubles OOD" (paper arXiv:2411.08706 confirmed, specifics not).
+
 ---
 
 # Engineering Scouting Report: Raising the ARC-AGI-2 Solve Rate of a 4B Grid-Native Model on a 16 GB GPU
 
 ## TL;DR
-- **Build LLM-guided, execution-verified program search as the primary new lever.** It is the only scouted method that natively manufactures a partial-credit signal (programs that reproduce k of n train pairs) valid on tasks the base misses, fits the box without relaxing the grid-only constraint, and has demonstrated real ARC-AGI-2 scores (Eric Pang 26.0%, Jeremy Berman 29.4%) that beat the best pure neural test-time-training submission (top Kaggle score 24% on ARC-AGI-2 private). Port Greenblatt's "generate many programs, keep those that pass train pairs, vote" structure off natural-language Python onto Michael Hodel's MIT-licensed arc-dsl, with the 4B model demoted to a grammar-constrained DSL proposer.
+- **Build LLM-guided, execution-verified program search as the primary new lever.** It is the only scouted method that natively manufactures a partial-credit signal (programs that reproduce k of n train pairs) valid on tasks the base misses, fits the box without relaxing the grid-only constraint, and has demonstrated ARC-AGI-2 scores (Eric Pang 26.0%, Jeremy Berman 29.4%), but only on the unconstrained commercial leaderboard with frontier natural-language models (Grok-4, $8 to $30 per task); within our offline 4B/grid box the SOTA is NVARC's 24.03% by TTT and no program-synthesis result beats TTT in-regime (see the verification audit above). The case for program search here rests on its unique partial-credit property, not on those out-of-regime numbers. Port Greenblatt's "generate many programs, keep those that pass train pairs, vote" structure off natural-language Python onto Michael Hodel's MIT-licensed arc-dsl, with the 4B model demoted to a grammar-constrained DSL proposer.
 - **Run honest leave-one-out TTT as the cheaper, proven secondary lever.** Akyürek's MIT recipe already builds leave-one-out tasks; held-out-pair exact-match is a continuous re-ranking signal the saturated train-pair check cannot provide. This is the fallback if program search does not fit 12 h.
 - **The bimodal wall is mostly an interface + scale artifact, not destiny.** A symbolic program is checkable to fractional train-pair accuracy even when the 4B is "lost," so program search dissolves the wall without needing natural language. Distilling verified programs back into weights is the one self-training path that can move the model where flat fine-tune and STaR could not, because the supervision is a NEW symbolic artifact, not the ground-truth grid the model already memorized.
 
@@ -38,7 +87,7 @@
 
 3. **The arc-dsl is a ready, searchable, permissively-licensed target.** Michael Hodel's arc-dsl (MIT) has roughly 160 primitives (count of `def` in dsl.py; the repo ships 400+ worked solver programs), a typed grid/object/patch system in arc_types.py, and is the DSL behind RE-ARC (MIT). A maintained fork (arc-dsl-2) revives it and contemplates ARC-AGI-2 support. The DSL is fully deterministic and CPU-executable, so verification against train pairs is free of the GPU.
 
-4. **TTT precedents give concrete, copyable recipes.** Akyürek et al. (MIT, repo `ekinakyurek/marc`): per-task LoRA rank 128 on MLP+attention+output layers, 2 epochs, batch 2, lr 5e-5, leave-one-out task construction plus D8 augmentation, hierarchical self-consistency voting; their TTT pipeline applied to BARC's neural model reached "53% accuracy — a 35% improvement over their original TTT method" on the ARC-1 public validation set. The ARChitects (2024 winner): D8 + color-permutation + example-reorder augmentation, depth-first-search sampling with a cumulative-probability cutoff (lowered from 17% in 2024 to 7% in 2025 via speculative decoding), and a product-of-experts selection that scores candidates by stability across augmentations; their DFS uses a single path in memory (~7.3 GB VRAM) versus ~14 GB for beam search.
+4. **TTT precedents give concrete, copyable recipes.** Akyürek et al. (MIT, repo `ekinakyurek/marc`): per-task LoRA rank 128 on MLP+attention+output layers, 2 epochs, batch 2, lr 5e-5, leave-one-out task construction plus D8 augmentation, hierarchical self-consistency voting; their TTT pipeline reached 53.0% on the ARC-1 public validation set applied to the BARC model (47.1% on their own model, 61.9% ensembled with program synthesis). The ARChitects (2024 paper-award runner-up): D8 + color-permutation + example-reorder augmentation, depth-first-search sampling with a cumulative-sampling-probability threshold T=9% (arXiv:2505.07859), and a product-of-experts selection that scores candidates by stability across augmentations; their DFS uses a single path in memory (~7.3 GB VRAM) versus ~14 GB for beam search.
 
 5. **Distilling verified programs is the live route to moving the weights.** STaR was null because a verified-correct grid trace equals the ground-truth target the fine-tune already used (base is 95.5% solved / 1.5% near-miss on its training set). A verified DSL program is a different artifact: it supervises the proposer's program-token distribution, not the grid it already emits, reviving the saturated weight path the way CodeIt's hindsight replay did. CodeIt (Butt et al., ICML 2024, arXiv:2402.04858) "solves 59/400 ARC evaluation tasks, achieving state-of-the-art performance" by learning from its own relabeled program samples.
 
@@ -60,11 +109,11 @@ The minimal port: replace "GPT-4o emits Python" with "the 4B emits arc-dsl token
 
 **Why it grips the bimodal wall.** A program reproducing 2 of 3 train pairs is graded 0.67 even when the base would emit a wrong grid and score 0. That fractional signal ranks candidates and seeds curriculum, which is exactly what re-ranking the model's own grid outputs (the established null results) could never get.
 
-**DreamCoder / library learning — assess for the box.** DreamCoder (Ellis et al., PLDI 2021) bootstraps a DSL library via wake-sleep, refactoring frequent sub-programs into new primitives via E-graph matching. On ARC-1 the best DreamCoder-style result (PeARL, 30 primitives) was only 18/400 (4.5%), beaten by stock GPT-4 and smashed by icecuber. Verdict: full wake-sleep library learning is too compute-heavy and too data-starved (ARC has too few tasks per concept) to run in the box, and GridCoder's author explicitly chose to skip DreamCoder's DSL-growth for this reason ("the limited amount of natural ARC-AGI examples [is] an obstacle to making this feature particularly useful"). BUT the *library-learning kernel* — promoting frequent verified sub-program patterns from your self-training buffer into named DSL macros — is a cheap, optional add-on that shrinks search depth over rounds. Recommend the kernel, not the full system.
+**DreamCoder / library learning — assess for the box.** DreamCoder (Ellis et al., PLDI 2021) bootstraps a DSL library via wake-sleep, refactoring frequent sub-programs into new primitives via E-graph matching. On ARC-1 the best DreamCoder-style result (PeARL, 77 primitives) was only 18/400 (4.5%), beaten by stock GPT-4 and smashed by icecuber. Verdict: full wake-sleep library learning is too compute-heavy and too data-starved (ARC has too few tasks per concept) to run in the box, and GridCoder's author explicitly chose to skip DreamCoder's DSL-growth for this reason ("the limited amount of natural ARC-AGI examples [is] an obstacle to making this feature particularly useful"). BUT the *library-learning kernel* — promoting frequent verified sub-program patterns from your self-training buffer into named DSL macros — is a cheap, optional add-on that shrinks search depth over rounds. Recommend the kernel, not the full system.
 
 **Induction vs transduction (BARC, Li et al.).** BARC (ARC Prize 2024 best paper, Wen-Ding Li, Kevin Ellis et al., arXiv:2411.02272) showed induction (synthesize a program) and transduction (directly predict the grid) solve DIFFERENT tasks and ensemble to near-human on ARC-1: "Inductive program synthesis excels at precise computations, and at composing multiple concepts, while transduction succeeds on fuzzier perceptual concepts." Akyürek found that with their TTT pipeline, BARC's neural model solved 73.5% of the tasks the program synthesizer solved (up from 42.2%), i.e. the two are complementary. This is the strategic justification for program search as an ADDITION to the existing transductive 4B, not a replacement: the program-search arm should catch the "precise computation / multi-step composition" tasks ARC-2 emphasizes, exactly where the transductive base hits the wall. BARC's models (barc0 on HuggingFace, Llama-3.1-8B, fine-tuned on a 400k-task GPT-4o-mini-generated dataset) are 8B and NL-Python, so not directly droppable, but the induction/transduction split is the design principle to copy.
 
-**GridCoder as the closest precedent.** Simon Ouellette's GridCoder (ARC Prize 2024 paper "Towards Efficient Neurally-Guided Program Induction for ARC-AGI," arXiv:2411.17708; repo SimonOuellette35) trains a 452M-parameter VLM (one decoder layer, embedding dim 512, 4 heads) to output a probability distribution over a 74-98 primitive DSL grammar, then enumerates programs in joint-probability order with a conditional-independence simplification that requires only a few model calls per task. It sorts programs by the product of token probabilities, raises the probability threshold tau until the program count is manageable, executes in order, and returns the first that passes the examples. This is almost exactly the proposed architecture at smaller scale; it is the existence proof that grammar-conditioned program enumeration fits modest compute. Study its search loop directly.
+**GridCoder as the closest precedent.** Simon Ouellette's GridCoder (ARC Prize 2024 paper "Towards Efficient Neurally-Guided Program Induction for ARC-AGI," arXiv:2411.17708; repo SimonOuellette35) trains a compact CNN+Transformer (the "452M-parameter, 1-layer, 512-dim" description is internally inconsistent and unverified) to output a probability distribution over a 74-98 primitive DSL grammar, used as a non-execution-guided enumerator (execution is a post-filter), then enumerates programs in joint-probability order with a conditional-independence simplification that requires only a few model calls per task. It sorts programs by the product of token probabilities, raises the probability threshold tau until the program count is manageable, executes in order, and returns the first that passes the examples. This is almost exactly the proposed architecture at smaller scale; it is the existence proof that grammar-conditioned program enumeration fits modest compute. Study its search loop directly.
 
 ### SECONDARY (one deliberate thread): TTT as the partial-credit manufacturer
 

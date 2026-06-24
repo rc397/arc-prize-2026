@@ -516,3 +516,26 @@ not expressible) scored 2/26 = 7.69% on a 15-task slice, IDENTICAL to no-TTT AIR
 Both refinement forms (passive selection, active search) are null. Refinement family closed: the
 bimodal base gives no partial-credit gradient to act on, and the 16-token interface forbids the
 natural-language critique the canonical loop needs. Consolidated into the paper (sections 5.1 + 5.3).
+
+## 2026-06-24 (later): program-search line scouted
+
+### Scouting report + verification audit
+A research scouting pass (docs/scouting_report.md) ranked the post-bimodal directions; the user audited
+every load-bearing claim against primary sources. Headline catch: the regimes did not match. Pang (26%)
+and Berman (29.4%) on ARC-2 were UNCONSTRAINED frontier-NL runs (Grok-4, $8-30/task); the in-box SOTA is
+NVARC's 24.03% by TTT, and NO published program-synthesis result beats TTT in the offline / 4B / grid
+regime. So program search has no in-regime evidence over TTT; its case rests solely on its unique
+partial-credit property. Folded the audit + five figure corrections (GridCoder params, PeARL 30->77,
+ARChitects threshold T=9% and "runner-up not winner", Akyurek 53.0/47.1/61.9 not "+35%", arc-dsl 400 not
+400+) into the artifact. Re-weighting: lead with the in-regime secondary lever (honest LOO-TTT); program
+search is the parallel higher-risk bet.
+
+### Program-search Stage 0: arc-dsl grader built and validated
+Cloned arc-dsl (MIT, Hodel: 160 dsl.py primitives, 400 ARC-1 reference solvers) + the ARC-1 training set
+(400 tasks) on the rig. scripts/grade.py scores an arc-dsl program as fraction-of-train-pairs-reproduced
+(CPU, no GPU), the partial-credit grader the program-search line needs. Validation: 399/400 reference
+solvers reproduce their whole task (99.8%, mean fractional grade 0.999), confirming the grader + DSL
+execution end to end. Throughput 252 program-exec/s single-core; below the report's optimistic gate but
+the executor is not the bottleneck (neural-guided search proposes few programs/task), so it passes the
+real bar. Next gate for program search is the proposer (the 16-token model cannot emit DSL: needs a
+trained DSL proposer, Stage 1.5). Stage 0 done.
