@@ -56,10 +56,10 @@ with augment-infer-reverse-vote selection, on one 16~GB card\par}
 \end{titlepage}
 
 \begin{abstract}
-The strongest published results on ARC-AGI-2 come from multi-GPU clusters. We ask how far the 2025
-winning recipe, a small grid language model with per-task test-time training (TTT) and
-Augment-Infer-Reverse-Vote (AIRV) selection, goes on a single 16~GB consumer GPU, and where it walls
-out. Building on the released NVARC Qwen3-4B grid model, we report a reproducible offline system with
+The 2025 ARC-AGI-2 contest was won offline by a small grid model with per-task test-time training
+(TTT), on four L4 GPUs and atop a base pre-trained on GPU clusters. We ask how far that recipe, with
+TTT and Augment-Infer-Reverse-Vote (AIRV) selection, goes on a single 16~GB consumer GPU once the
+released base is taken as given, and where it walls out. Building on the released NVARC Qwen3-4B grid model, we report a reproducible offline system with
 a \textbf{12.79\%} no-TTT baseline on the 120-task public evaluation set, and 6.53\% on the hidden main-track
 leaderboard. We find that the binding
 constraint is generation throughput, not model quality or memory, and that the single largest lever
@@ -68,7 +68,7 @@ on this hardware by serving each task's adapter on the fast engine, and report a
 TTT ties the no-TTT baseline because the per-task adapter overfits, while a regularized, scale-tuned
 configuration raises accuracy from 12.8\% to \textbf{17.6\%} on the 84 trainable tasks, lifting the
 full evaluation to a blended \textbf{16.28\%}. The contribution is an honest accounting of what the
-recipe costs and where the effort should go when you cannot rent a cluster. All code, the conversion
+recipe costs and where the effort should go when you have a single consumer GPU rather than the winner's hardware. All code, the conversion
 recipe, and a development log of every measurement are open source under MIT-0.
 \end{abstract}
 
@@ -99,8 +99,8 @@ ARC-AGI-2 using a 4B grid model with per-task TTT~\cite{arc2025,nvarc}; the reci
 the top teams is the same: fine-tune a small model on augmented grid data, train a fresh low-rank
 adapter on each test task, then sample many augmented candidates and vote.
 
-The recipe is effective but expensive: the public reports were produced on clusters of H100 or GH200
-GPUs. Most researchers do not have that hardware, and the ARC Prize's stated mission is
+The recipe is effective but front-loaded with compute: the base models are pre-trained on clusters of
+H100 or GH200 GPUs, though the winning offline submission itself runs on four L4 GPUs. Most researchers do not have that hardware, and the ARC Prize's stated mission is
 \emph{efficient} skill acquisition, not skill bought with compute. We therefore characterize the
 recipe under a constraint we think is widely shared: a single RTX~5070~Ti with 16~GB, on the
 Blackwell architecture, running native Windows. The aim is not to top the leaderboard, which is
@@ -417,11 +417,14 @@ while naive TTT, colour-perm stacking, and big-grid TTT did not.}
 
 \subsection{Limitations and ongoing work}
 \label{sec:limits}
-Our absolute accuracy is far below the 24.0\% cluster result, by design: one card and a fixed recipe.
+Our absolute accuracy is below NVARC's 24.0\% winning result, by design. That score was set offline on
+four L4 GPUs, not a cluster, by a more developed recipe on the same Qwen3-4B base lineage, so the gap
+reflects recipe sophistication (synthetic data, ensembling, TTT scale) more than hardware; we study the
+one-card inference-plus-TTT recipe rather than maximize a system.
 The public-to-hidden gap is itself a finding: the no-TTT system scores 12.79\% on the public eval but
 6.53\% on the hidden main-track set, a reminder that the public ARC-AGI-2 eval is more saturated than
-the held-out sets, so a small single-GPU model carries less of its public accuracy across than a
-cluster model would. A scored rerun can also lose the heaviest-grid tasks to server stalls, which our
+the held-out sets, so a lean single-GPU recipe carries less of its public accuracy across than a
+more developed system would. A scored rerun can also lose the heaviest-grid tasks to server stalls, which our
 next submission instruments (a per-task log) to separate empty answers from genuine misses.
 The 2025 analysis names verifier-guided selection and a refinement loop (check each candidate against
 the train pairs, then re-prompt on the discrepancy) as the central advance, so we built and tested it.
