@@ -466,3 +466,18 @@ fault, comfortably inside the 12h budget. Hidden score pending submission. Run-t
 v1 ~3.2h est (P100 x1, the hidden run was not instrumented), v2 2.45h, v2.1 3.90h (both L4 x4), all
 under the 12h cap. Added two version-progression figures, fig_version_score and fig_version_time,
 built by scripts/make_version_progress.py from a single VERSIONS table (append a row per submission).
+
+### Self-training (STaR) scaffolded; oracle self-solve saturates, pivot to a near-miss curriculum
+User directed self-training on the rig. Built scripts/self_train.py: harvest (AIRV over the ARC-2
+TRAINING tasks, keep what the model self-solves) -> curriculum corpus (reuses build_ft_corpus
+official_pools + mint) -> bf16 LoRA distil (reuses finetune_base) -> convert + quantize + no-TTT AIRV
+gate vs stock 12.79%, then iterate. Honest catch recorded up front: on the training set a verified-correct
+solution equals the ground-truth target, so plain self-training shares the failure mode of the dropped
+continued-FT (11.63%). The smoke (12 tasks, port 8090) validated the pipeline end to end but self-solved
+12/12 under oracle any-match: the lenient criterion saturates, so that curriculum is ~the FT's data.
+Pivot: the harvest now records voted top-2 correctness AND oracle any-match, and the distil targets the
+NEAR-MISS set (oracle-solved but not voted), the tasks at the base's edge, the only genuinely new signal
+vs the FT. A 200-task harvest (skip-train, port 8090) is running to measure the oracle/voted/near-miss
+split. Train + gate are blocked on a stale llama-server (pid 27900) holding port 8080 + ~3.6 GB that the
+distil (VRAM) and the gate eval (port) need. Dual-path: ship if it clears the gate, else honest negative
+result #2 (does self-distillation move ARC-AGI-2 on one GPU, or has the SFT'd base saturated it).

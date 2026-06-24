@@ -427,7 +427,24 @@ data and RE-ARC~\cite{rearc} generations yields a better static model. It did no
 scores 11.63\% no-TTT against the stock base's 12.79\%, so we ship the stock base. The NVARC base is
 already well-adapted to this grid format, and continued fine-tuning on this public data did not
 transfer, a useful negative result for the compute-poor practitioner, more public data is not a free
-lever once the base is task-tuned. Finally, the significance of the TTT lift is directional
+lever once the base is task-tuned.
+
+Building on that null result, we are extending the static fine-tune into an expert-iteration
+self-training loop: the system solves the official training tasks with the current model, distils
+the base on a curriculum of its own verified-correct solutions, then iterates. Exact-match grids
+impose a sharp constraint: a verified-correct solution on a training task simply is its ground-truth
+output, so a naive self-training corpus coincides with the data the continued fine-tune already used.
+We confirm the trap empirically: an oracle any-match criterion saturates (the base reaches most
+training tasks under some augmentation), so distilling on it would reproduce the null result above.
+The lever that makes self-training a different experiment is the curriculum: we separate what the
+base solves \emph{robustly} (the AIRV vote is correct) from what it merely \emph{reaches} (some
+augmentation is correct), and distil only the gap, the near-miss tasks at the model's edge. The
+keep/drop gate is unchanged (ship only if it beats the stock 12.79\% no-TTT and still stacks with
+TTT), and the outcome is reported either way, a positive result as a better single-GPU operating
+point or a second negative result on whether self-distillation can move ARC-AGI-2 once the base is
+already task-tuned.
+
+Finally, the significance of the TTT lift is directional
 rather than conclusive (Appendix~\ref{app:results}); a full-eval paired run is the obvious next
 measurement.
 
