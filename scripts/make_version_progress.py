@@ -38,6 +38,8 @@ VERSIONS = [
          ttt=160, note="TTT + colour-perm"),
     dict(tag="v2.1", score=13.61, hours=3.90, time_est=False, accel="L4 x4",
          ttt=232, note="TTT, maxpair 1500"),
+    dict(tag="v3",   score=None,  hours=7.06, time_est=False, accel="L4 x4",
+         ttt=232, note="+ multi-scale vote"),
 ]
 
 BUDGET_H = 12.0
