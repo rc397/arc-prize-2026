@@ -457,3 +457,12 @@ v2 used only 2.45h of 12h. Scaled the v2 notebook knobs up (still per-task try/e
 MAX_TTT_TASKS 160->240, MAXPAIR 1000->1500 (L4 24GB trains bigger tasks the rig's 16GB excluded),
 N_COLORPERM 4->8 (16 votes), TTT context 1600->2000 tokens (more train pairs per step), TRAIN_BUDGET_H
 4->7. Kept TTT_STEPS=20 (more steps overfit per the sweep). Projected ~4-6h, well inside 12h.
+
+### v2.1 run completed: 3.90h, 232 of 240 tasks trained
+The scaled-up v2.1 ran clean on L4 x4. Phase A+B trained 232 of 240 tasks (maxpair <= 1500; only 8
+big-grid tasks excluded, up from v2's 160 trained), 2.13h. Phase C served 8 no-TTT + 232 TTT across
+the 4 GPUs, 1.77h. Total 3.90h wall-clock (vs v2's 2.45h), every adapter ok=True, no disk or OOM
+fault, comfortably inside the 12h budget. Hidden score pending submission. Run-time series so far:
+v1 ~3.2h est (P100 x1, the hidden run was not instrumented), v2 2.45h, v2.1 3.90h (both L4 x4), all
+under the 12h cap. Added two version-progression figures, fig_version_score and fig_version_time,
+built by scripts/make_version_progress.py from a single VERSIONS table (append a row per submission).
