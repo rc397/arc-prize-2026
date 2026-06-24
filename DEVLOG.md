@@ -547,3 +547,14 @@ The scaled-up v2.1 (232/240 tasks TTT, 16 augmentations, 2000-token context, 3.9
 lifted the score. Trajectory: v1 6.53 (no-TTT) -> v2 11.94 -> v2.1 13.61, climbing toward the in-box
 SOTA (NVARC 24.03% on 4x L4). Confirms the audit's read that in-regime TTT-family headroom remains,
 reinforcing the lead on honest LOO-TTT (Stage 1). Version-progression figures updated with 13.61.
+
+### Stage 1 LOO probe: weak positive (held-out accuracy predicts test correctness, thinly)
+scripts/ttt_loo.py ran overnight on the rig (40 trainable tasks, greedy single-seed: one adapter on n-1
+pairs predicting the held-out pair, one adapter on n predicting the test). Verdict: leave-one-out IS
+directionally predictive. LOO-hit tasks (9): 22% test-correct; LOO-miss (31): 3%; contingency
+{(T,T):2,(T,F):7,(F,T):1,(F,F):30}. The 0.19 gap clears the script's 0.15 threshold, but it rests on only
+3 test-correct tasks in a greedy proxy (no AIRV/scale, base rate 7.5% << the 16.28% pipeline). So a real
+but thin positive: it confirms CORRELATION, not yet that acting on it lifts the score. Green light to
+build v4 = LOO-based adapter SELECTION (train a few seeds/task, keep only the best-held-out seed's GGUF so
+disk stays 1/task) and measure it on the rig against 16.28% before spending Kaggle quota. ("launch failed
+exit 255" was just the SSH link dropping when the laptop slept; the detached probe finished 40/40 clean.)
