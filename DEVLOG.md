@@ -539,3 +539,11 @@ execution end to end. Throughput 252 program-exec/s single-core; below the repor
 the executor is not the bottleneck (neural-guided search proposes few programs/task), so it passes the
 real bar. Next gate for program search is the proposer (the 16-token model cannot emit DSL: needs a
 trained DSL proposer, Stage 1.5). Stage 0 done.
+
+### v2.1 on the leaderboard: 13.61 (rank 468 / 4000)
+The scaled-up v2.1 (232/240 tasks TTT, 16 augmentations, 2000-token context, 3.90h on L4 x4) scored
+13.61 on the hidden 240-task main-track set, up from v2's 11.94 (+1.67 absolute, +14% relative), rank
+468 / 4000 (top ~12%). The scale-up paid off: more TTT coverage (160 -> 232 tasks) plus richer context
+lifted the score. Trajectory: v1 6.53 (no-TTT) -> v2 11.94 -> v2.1 13.61, climbing toward the in-box
+SOTA (NVARC 24.03% on 4x L4). Confirms the audit's read that in-regime TTT-family headroom remains,
+reinforcing the lead on honest LOO-TTT (Stage 1). Version-progression figures updated with 13.61.

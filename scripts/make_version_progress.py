@@ -36,7 +36,7 @@ VERSIONS = [
          ttt=0,   note="no-TTT AIRV"),
     dict(tag="v2",   score=11.94, hours=2.45, time_est=False, accel="L4 x4",
          ttt=160, note="TTT + colour-perm"),
-    dict(tag="v2.1", score=None,  hours=3.90, time_est=False, accel="L4 x4",
+    dict(tag="v2.1", score=13.61, hours=3.90, time_est=False, accel="L4 x4",
          ttt=232, note="TTT, maxpair 1500"),
 ]
 
@@ -90,9 +90,9 @@ def fig_version_score():
                         textcoords="offset points", xytext=(0, 11), ha="center",
                         fontsize=11.5, color=BLUE, fontweight="bold")
 
-    # relative lift v1 -> v2
-    ax.text(0.5, 10.6, "+83% relative", ha="center", fontsize=9.5, color=GREEN,
-            style="italic")
+    # relative lifts between successive versions
+    ax.text(0.5, 10.6, "+83%", ha="center", fontsize=9.5, color=GREEN, style="italic")
+    ax.text(1.5, 14.4, "+14%", ha="center", fontsize=9.5, color=GREEN, style="italic")
 
     ax.set_xticks(xs)
     ax.set_xticklabels([f"{v['tag']}\n{v['note']}" for v in VERSIONS], fontsize=9.5)
