@@ -558,3 +558,22 @@ but thin positive: it confirms CORRELATION, not yet that acting on it lifts the 
 build v4 = LOO-based adapter SELECTION (train a few seeds/task, keep only the best-held-out seed's GGUF so
 disk stays 1/task) and measure it on the rig against 16.28% before spending Kaggle quota. ("launch failed
 exit 255" was just the SSH link dropping when the laptop slept; the detached probe finished 40/40 clean.)
+
+### v3 ran: multi-scale voting, 7.06h (submitted, score pending)
+v3 (multi-scale: the per-task adapter applied at scales 1.0/1.25/1.5, AIRV votes over the union) ran full
+on L4 x4: Phase A+B 232/232 adapters (2.13h), Phase C multi-scale serve completed, 7.06h total. Serve was
+~4.9h, ~2.8x v2.1's 1.77h, confirming the 3-scale vote engaged (not a silent no-op). Valid submission.json
+(8 no-TTT, 232 TTT), no fallbacks. The earlier smoke fell back to no-TTT only because the accelerator was
+set to None/CPU ("Torch not compiled with CUDA"); with L4 x4 selected it trained fine. Base
+mirzamilanfarabi (the always-used Kaggle base, correct). Submitted, hidden score pending (~7h marking).
+Honest expectation: modest lift or flat over 13.61. Run-time series: v1 ~3.2h est, v2 2.45h, v2.1 3.90h,
+v3 7.06h (the multi-scale serve is the cost).
+
+### v4 go/no-go: leave-one-out adapter SELECTION test (running on the rig, free)
+scripts/ttt_loo_select.py: per trainable task, train a baseline adapter (all n pairs) and K=3 leave-one-out
+adapters (each holding out a different pair); keep only the LOO adapters that reproduce their held-out
+pair; pool their AIRV (4 D4) candidates and vote; compare to the baseline by PAIRED FLIPS (recovered
+miss->hit vs lost hit->miss, the sensitive read for a thin signal). Tests whether the probe's weak LOO
+correlation translates into an actual selection lift. 30 tasks, ~7h on the single 16GB GPU, zero Kaggle
+quota. If selection recovers more than it loses, v4 is worth building as a full submission; else drop LOO
+and v3 (multi-scale) stays the lead.
