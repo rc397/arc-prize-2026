@@ -481,3 +481,15 @@ vs the FT. A 200-task harvest (skip-train, port 8090) is running to measure the 
 split. Train + gate are blocked on a stale llama-server (pid 27900) holding port 8080 + ~3.6 GB that the
 distil (VRAM) and the gate eval (port) need. Dual-path: ship if it clears the gate, else honest negative
 result #2 (does self-distillation move ARC-AGI-2 on one GPU, or has the SFT'd base saturated it).
+
+### Self-training result: the base is saturated, near-miss curriculum empty, DROPPED
+The 200-task harvest settled it. The stock base self-solves 194/200 training tasks by oracle any-match
+(97%) and 191/200 by the robust AIRV vote (95.5%); the near-miss set (reached but not robustly solved,
+the only exploitable self-training signal) is 3/200 (1.5%). The minted curriculum (15,203 examples from
+the 194 solved) is the same ground-truth data the dropped continued-FT used. So self-training has no
+purchase here: the training tasks split into already-solved (nothing to learn) and unsolved (no correct
+trace), almost nothing between. This answers the open question (the SFT'd base IS saturated on its own
+training distribution), a clean second negative on weight refinement that also explains the FT failure.
+Recorded in paper section 5.3 (writeup.tex/.pdf + paper.html). Pivot to the inference-time lever:
+scripts/refine_loop.py (verifier-guided selection via honest leave-one-out on the un-adapted base, so it
+avoids the saturated check that sank the earlier E1 vote-reweighting), validating on the public eval now.

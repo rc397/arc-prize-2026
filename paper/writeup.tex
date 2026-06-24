@@ -429,20 +429,20 @@ already well-adapted to this grid format, and continued fine-tuning on this publ
 transfer, a useful negative result for the compute-poor practitioner, more public data is not a free
 lever once the base is task-tuned.
 
-Building on that null result, we are extending the static fine-tune into an expert-iteration
-self-training loop: the system solves the official training tasks with the current model, distils
-the base on a curriculum of its own verified-correct solutions, then iterates. Exact-match grids
-impose a sharp constraint: a verified-correct solution on a training task simply is its ground-truth
-output, so a naive self-training corpus coincides with the data the continued fine-tune already used.
-We confirm the trap empirically: an oracle any-match criterion saturates (the base reaches most
-training tasks under some augmentation), so distilling on it would reproduce the null result above.
-The lever that makes self-training a different experiment is the curriculum: we separate what the
-base solves \emph{robustly} (the AIRV vote is correct) from what it merely \emph{reaches} (some
-augmentation is correct), and distil only the gap, the near-miss tasks at the model's edge. The
-keep/drop gate is unchanged (ship only if it beats the stock 12.79\% no-TTT and still stacks with
-TTT), and the outcome is reported either way, a positive result as a better single-GPU operating
-point or a second negative result on whether self-distillation can move ARC-AGI-2 once the base is
-already task-tuned.
+Building on that null result, we tested an expert-iteration self-training loop: solve the official
+training tasks with the current model, distil the base on a curriculum of its own verified-correct
+solutions, and iterate. Exact-match grids impose a sharp constraint: a verified-correct solution on a
+training task simply is its ground-truth output, so a naive self-training corpus coincides with the
+data the continued fine-tune already used. We hoped to escape this through the curriculum, distilling
+only the near-miss tasks the base reaches but does not solve robustly, but a 200-task harvest shows
+that set is nearly empty: the base self-solves 194 of 200 training tasks under some augmentation
+(97\%) and 191 by the robust vote (95.5\%), leaving only three near-miss tasks. The base is saturated
+on its own training distribution, so self-training has no signal to add: the training tasks split into
+already-solved (nothing to learn) and unsolved (no correct trace), with almost nothing between. This
+is a second, sharper negative result on weight refinement, and it explains the fine-tune failure
+directly: on one GPU, with a base already tuned to the grid format, neither continued fine-tuning nor
+self-training moves ARC-AGI-2, because the public training data carries no signal the base has not
+already absorbed.
 
 Finally, the significance of the TTT lift is directional
 rather than conclusive (Appendix~\ref{app:results}); a full-eval paired run is the obvious next
