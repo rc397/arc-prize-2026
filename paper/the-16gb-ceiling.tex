@@ -496,9 +496,13 @@ with nothing between, which is the exact reason refinement and verifier-guided s
 grip. A larger model run in the 96~GB the contest provides stops being bimodal. It yields partially-correct
 candidates that a verifier can rank and a refinement loop can improve, which converts the levers that
 stalled here into the levers the leading offline systems run. The same reasoning carries program synthesis,
-where a capable proposer can compose the precise transformations a small one cannot. We read the 16~GB
-result not as the limit of the task but as the point where the small-model recipe runs out and scaling
-takes over. The pieces transfer directly. The executable verifier we measured at about 250 programs per
+where a capable proposer can compose the precise transformations a small one cannot. We have a measurement
+that points the same way. On one card a second transductive model buys almost nothing, since our own
+fine-tuned variant solves only two tasks the stock 4B misses, and the released TRM model, the strongest
+small grid model available, scores far below our pipeline and needs more compute than a 16~GB card can give
+it. The diversity that pays is a larger model rather than a second small one, which is the move the 96~GB
+allows. We read the 16~GB result not as the limit of the task but as the point where the small-model recipe
+runs out and scaling takes over. The pieces transfer directly. The executable verifier we measured at about 250 programs per
 second, the per-task TTT harness, and the AIRV selection rule all gain power, not lose it, with more model
 and more compute behind them. Our next measurements move this same pipeline onto the full 96~GB and report
 where the curve goes, scheduled against the weekly compute budget so each run tests a bigger base, a
