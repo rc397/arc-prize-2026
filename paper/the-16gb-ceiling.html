@@ -185,7 +185,7 @@ table.book tbody tr:first-child td{padding-top:.5em;}
       <li class="sub"><span class="num">4.1</span><a href="#s4-1">No-TTT baseline</a></li>
       <li class="sub"><span class="num">4.2</span><a href="#s4-2">The engine speedup</a></li>
       <li class="sub"><span class="num">4.3</span><a href="#s4-3">Test-time training</a></li>
-      <li class="sub"><span class="num">4.4</span><a href="#s4-4">Ablations: scale, colour, big-grid wall</a></li>
+      <li class="sub"><span class="num">4.4</span><a href="#s4-4">Ablations on scale, colour, big-grid wall</a></li>
       <li><span class="num">5</span><a href="#s5">Discussion</a></li>
       <li class="sub"><span class="num">5.1</span><a href="#s5-1">Three lessons that generalize</a></li>
       <li class="sub"><span class="num">5.2</span><a href="#s5-2">Accuracy per GPU-hour</a></li>
@@ -201,7 +201,7 @@ table.book tbody tr:first-child td{padding-top:.5em;}
     </ul>
   </nav>
 
-  <p class="guide"><span class="lab">Reader's guide.</span> Section 1 motivates efficient ARC and states the contributions. Section 2 places the work against the 2025 winning systems. Section 3 is the method: the model and prompt format (3.1), the engine bottleneck and its fix (3.2), the AIRV selection rule (3.3), and the per-task TTT bridge (3.4). Section 4 reports the numbers. Section 5 draws the lessons. Readers who want to reproduce the system should go straight to Appendix A. The per-scale tables and significance detail are in Appendix B, the honest list of dead ends in Appendix C, the exact prompt and 16-token vocabulary in Appendix D, and data licensing and BibTeX in Appendix E.</p>
+  <p class="guide"><span class="lab">Reader's guide.</span> Section 1 motivates efficient ARC and states the contributions. Section 2 places the work against the 2025 winning systems. Section 3 is the method, covering the model and prompt format (3.1), the engine bottleneck and its fix (3.2), the AIRV selection rule (3.3), and the per-task TTT bridge (3.4). Section 4 reports the numbers. Section 5 draws the lessons. Readers who want to reproduce the system should go straight to Appendix A. The per-scale tables and significance detail are in Appendix B, the honest list of dead ends in Appendix C, the exact prompt and 16-token vocabulary in Appendix D, and data licensing and BibTeX in Appendix E.</p>
 </section>
 
 <!-- ============ BODY ============ -->
@@ -211,11 +211,11 @@ table.book tbody tr:first-child td{padding-top:.5em;}
 
 <h3 id="s1-1"><span class="sn">1.1</span>Efficient abstraction is the point</h3>
 <p>ARC-AGI-2 [<a href="#refs">1</a>,&nbsp;<a href="#refs">2</a>] is a benchmark of abstraction and reasoning. Each task gives a few input/output grid pairs that demonstrate a transformation, and the solver must apply that transformation to a held-out input. The tasks are designed to be easy for humans and hard for machines, and the competition is run <em>offline</em>, which rules out frontier API models and forces every entrant to ship a self-contained system. The 2025 ARC Prize was won by NVARC at 24.0% on ARC-AGI-2 using a 4B grid model with per-task TTT [<a href="#refs">3</a>,&nbsp;<a href="#refs">4</a>]. The same recipe reproduced across the top teams. They fine-tune a small model on augmented grid data, train a fresh low-rank adapter on each test task, then sample many augmented candidates and vote.</p>
-<p>The recipe is effective but front-loaded with compute. The base models are pre-trained on clusters of H100 or GH200 GPUs, though the winning offline submission itself runs on four L4 GPUs. Most researchers do not have that hardware, and the ARC Prize's stated mission is <em>efficient</em> skill acquisition, not skill bought with compute. We therefore characterize the recipe under a constraint we think is widely shared: a single RTX&nbsp;5070&nbsp;Ti with 16&nbsp;GB, on the Blackwell architecture, running native Windows. The aim on one card is not to top the leaderboard but to build a working, reproducible system, measure honest numbers, and map where the small model stops being enough. That map is the efficient floor of a larger climb. The same contest hands every entrant four L4 GPUs, 96&nbsp;GB together, and the offline frontier on that hardware has already passed 50% with refinement loops and program synthesis [<a href="#refs">3</a>]. We read the 16&nbsp;GB walls not as the limit of the task but as the exact places scaling up has to break, and Section&nbsp;5.4 lays out that path. Figure&nbsp;1 shows a representative task our system solves end to end.</p>
+<p>The recipe is effective but front-loaded with compute. The base models are pre-trained on clusters of H100 or GH200 GPUs, though the winning offline submission itself runs on four L4 GPUs. Most researchers do not have that hardware, and the ARC Prize's stated mission is <em>efficient</em> skill acquisition, not skill bought with compute. We therefore characterize the recipe under a constraint we think is widely shared, a single RTX&nbsp;5070&nbsp;Ti with 16&nbsp;GB, on the Blackwell architecture, running native Windows. The aim on one card is not to top the leaderboard but to build a working, reproducible system, measure honest numbers, and map where the small model stops being enough. That map is the efficient floor of a larger climb. The same contest hands every entrant four L4 GPUs, 96&nbsp;GB together, and the offline frontier on that hardware has already passed 50% with refinement loops and program synthesis [<a href="#refs">3</a>]. We read the 16&nbsp;GB walls not as the limit of the task but as the exact places scaling up has to break, and Section&nbsp;5.4 lays out that path. Figure&nbsp;1 shows a representative task our system solves end to end.</p>
 
 <figure id="fig1">
   <div class="frame"><img src="fig_solve.png" alt="A solved ARC-AGI-2 task as colour grids"></div>
-  <figcaption><span class="lab">Figure 1.</span> A real ARC-AGI-2 evaluation task solved by the no-TTT pipeline, shown as colour grids: the few-shot train pairs establish the rule, and the model produces the held-out test output exactly. Grids are rendered with the model's own 16-colour serialization (Appendix&nbsp;D).</figcaption>
+  <figcaption><span class="lab">Figure 1.</span> A real ARC-AGI-2 evaluation task solved by the no-TTT pipeline, shown as colour grids. The few-shot train pairs establish the rule, and the model produces the held-out test output exactly. Grids are rendered with the model's own 16-colour serialization (Appendix&nbsp;D).</figcaption>
 </figure>
 
 <h3 id="s1-2"><span class="sn">1.2</span>Contributions</h3>
@@ -238,7 +238,7 @@ table.book tbody tr:first-child td{padding-top:.5em;}
 <h2 id="s3"><span class="sn">3</span>System and Method</h2>
 
 <h3 id="s3-1"><span class="sn">3.1</span>Model and prompting</h3>
-<p>We use the NVARC <code>qwen3_4b_grids15_sft139</code> model, a Qwen3-4B [<a href="#refs">5</a>] with a 16-token vocabulary: the ten grid colours as digits, a newline, two role markers, and three specials (Appendix&nbsp;D). A grid is serialized one token per cell, and a colour value equals its token id. Because the role and special tokens cannot be produced by tokenizing text, we assemble every prompt at the token-id level as a ChatML few-shot sequence. Getting this byte-exact is the single most important correctness condition, since a one-token drift between training and inference silently destroys accuracy.</p>
+<p>We use the NVARC <code>qwen3_4b_grids15_sft139</code> model, a Qwen3-4B [<a href="#refs">5</a>] with a 16-token vocabulary, the ten grid colours as digits, a newline, two role markers, and three specials (Appendix&nbsp;D). A grid is serialized one token per cell, and a colour value equals its token id. Because the role and special tokens cannot be produced by tokenizing text, we assemble every prompt at the token-id level as a ChatML few-shot sequence. Getting this byte-exact is the single most important correctness condition, since a one-token drift between training and inference silently destroys accuracy.</p>
 
 <h3 id="s3-2"><span class="sn">3.2</span>The engine is the bottleneck</h3>
 <p>Our most consequential finding concerns throughput. Decoding a 4B model is memory-bound. Each token streams the full weight matrix from VRAM, so for a weight footprint <i class="v">M</i> on a card of bandwidth <i class="v">B</i> the decode rate is bounded by a first-order roofline</p>
@@ -251,7 +251,7 @@ table.book tbody tr:first-child td{padding-top:.5em;}
 
 <figure id="fig2">
   <div class="frame"><img src="fig_roofline.png" alt="Decode throughput versus the memory-bandwidth roofline"></div>
-  <figcaption><span class="lab">Figure 2.</span> Decode throughput versus the memory-bandwidth roofline of Eq.&nbsp;(1) (the ceiling is a first-order model, bytes/token &approx; weight bytes). Bars are <em>measured</em> tok/s; the shaded gap to each cap is framework overhead, not the card. The eager path fills only &approx;10% of its roof; moving decode to llama.cpp at Q8_0 recovers the 13&times;.</figcaption>
+  <figcaption><span class="lab">Figure 2.</span> Decode throughput versus the memory-bandwidth roofline of Eq.&nbsp;(1) (the ceiling is a first-order model, bytes/token &approx; weight bytes). Bars are <em>measured</em> tok/s, and the shaded gap to each cap is framework overhead, not the card. The eager path fills only &approx;10% of its roof, and moving decode to llama.cpp at Q8_0 recovers the 13&times;.</figcaption>
 </figure>
 
 <h3 id="s3-3"><span class="sn">3.3</span>AIRV: augment, infer, reverse, vote</h3>
@@ -278,7 +278,7 @@ table.book tbody tr:first-child td{padding-top:.5em;}
 
 <figure id="fig4">
   <div class="frame"><img src="fig_phases.png" alt="Three-phase VRAM schedule"><img src="fig_vram_wall.png" alt="The VRAM wall"></div>
-  <figcaption><span class="lab">Figure 4.</span> Top: the three-phase schedule keeps PyTorch and llama.cpp from sharing the 16&nbsp;GB at once (VRAM trace sampled live; peaks measured). Bottom: the VRAM wall, with each task placed by grid size and context length; tasks above the operational cutoff are excluded from TTT (the cutoff metric is the largest train pair, and any VRAM surface shown is a calibrated model).</figcaption>
+  <figcaption><span class="lab">Figure 4.</span> The top panel shows the three-phase schedule keeping PyTorch and llama.cpp from sharing the 16&nbsp;GB at once, with the VRAM trace sampled live and the peaks measured. The bottom panel shows the VRAM wall, with each task placed by grid size and context length, and tasks above the operational cutoff excluded from TTT (the cutoff metric is the largest train pair, and any VRAM surface shown is a calibrated model).</figcaption>
 </figure>
 
 <h2 id="s4"><span class="sn">4</span>Results</h2>
@@ -322,12 +322,12 @@ table.book tbody tr:first-child td{padding-top:.5em;}
   </table>
 </div>
 
-<h3 id="s4-4"><span class="sn">4.4</span>Ablations: scale, colour, and the big-grid wall</h3>
+<h3 id="s4-4"><span class="sn">4.4</span>Ablations on scale, colour, and the big-grid wall</h3>
 <p>Three further levers, each measured on the 84 trainable tasks (full per-scale numbers in Appendix&nbsp;B). The adapter <em>scale</em> matters. Accuracy peaks at 17.6% at scale 1.25, then declines (Figures&nbsp;5, 6). Colour permutation lifts the no-TTT baseline to 14.4% but does <em>not</em> stack with the already colour-robust adapter. Forcing TTT onto the big-grid tasks does not help. The VRAM exclusion is a genuine ceiling, not a missed opportunity. The best blend, TTT at scale 1.25 where trainable and no-TTT elsewhere, reaches <strong>16.28%</strong> on the full 120-task evaluation, up from 12.79%. The honest summary is that naive per-task TTT <em>ties</em> a strong no-TTT AIRV baseline, while a regularized, scale-tuned TTT <em>beats</em> it by a consistent if modest margin.</p>
 
 <figure id="fig6">
   <div class="frame"><img src="fig_scale_flip.png" alt="Which tasks TTT solves at each adapter scale"><img src="fig_airv_votes.png" alt="AIRV vote agreement predicts correctness"></div>
-  <figcaption><span class="lab">Figure 6.</span> Top: which tasks TTT solves at each adapter scale, with most gains concentrated at scale 1.25. Bottom: AIRV vote agreement (Eq.&nbsp;(2)) predicts correctness; full eight-way consensus is right far more often than split votes.</figcaption>
+  <figcaption><span class="lab">Figure 6.</span> The top panel shows which tasks TTT solves at each adapter scale, with most gains concentrated at scale 1.25. The bottom panel shows AIRV vote agreement (Eq.&nbsp;(2)) predicting correctness, where full eight-way consensus is right far more often than split votes.</figcaption>
 </figure>
 
 <h2 id="s5"><span class="sn">5</span>Discussion</h2>
@@ -336,11 +336,11 @@ table.book tbody tr:first-child td{padding-top:.5em;}
 <p>First, on a single GPU the inference engine is the dominant design choice. Quantization and sampling mattered far less than the 13&times; we recovered by moving decode off the eager path. Second, the real obstacle for TTT is the <em>serving bridge</em>. Training needs a gradient framework, fast generation needs an optimized engine, and per-task TTT produces a fresh adapter the engine must serve. We show this bridge is buildable on one card, and that once it exists the open question is not plumbing but <em>regularization</em>, because the small per-task training set overfits easily. Third, a 4B model is bimodal on these tasks. It solves or it misses with little partial credit, so the refinement family that defines the current frontier needs an external partial-credit signal to work at this scale. A method that only re-ranks the model's own outputs stalls (Section&nbsp;5.3).</p>
 
 <h3 id="s5-2"><span class="sn">5.2</span>Accuracy per GPU-hour</h3>
-<p>We argue the right framing for compute-poor ARC work is <strong>accuracy per GPU-hour</strong> (Figure&nbsp;7), and the map of walls reported here (the decode ceiling, the VRAM limit on large-grid TTT, and the overfitting of naive adapters, all in Figure&nbsp;7) is a first step toward it. The findings tell a practitioner with similar hardware exactly which problems to solve first: fix the engine before touching anything else, budget VRAM by largest-train-pair length, and regularize the per-task adapter rather than training it harder.</p>
+<p>We argue the right framing for compute-poor ARC work is <strong>accuracy per GPU-hour</strong> (Figure&nbsp;7), and the map of walls reported here (the decode ceiling, the VRAM limit on large-grid TTT, and the overfitting of naive adapters, all in Figure&nbsp;7) is a first step toward it. The findings tell a practitioner with similar hardware exactly which problems to solve first. Fix the engine before touching anything else, budget VRAM by largest-train-pair length, and regularize the per-task adapter rather than training it harder.</p>
 
 <figure id="fig7">
   <div class="frame"><img src="fig_cost_frontier.png" alt="Accuracy per GPU-hour"><img src="fig_levers.png" alt="What worked and what did not"></div>
-  <figcaption><span class="lab">Figure 7.</span> Top: accuracy per GPU-hour on one card; the TTT blend at 16.28% sits on the Pareto front (compute is measured wall-clock, and any eager "ghost" points are 13&times; projections, labelled in the source). Bottom: what worked and what did not. The engine swap and regularized TTT helped, while naive TTT, colour-perm stacking, and big-grid TTT did not.</figcaption>
+  <figcaption><span class="lab">Figure 7.</span> The top panel shows accuracy per GPU-hour on one card, where the TTT blend at 16.28% sits on the Pareto front (compute is measured wall-clock, and any eager "ghost" points are 13&times; projections, labelled in the source). The bottom panel shows what worked and what did not. The engine swap and regularized TTT helped, while naive TTT, colour-perm stacking, and big-grid TTT did not.</figcaption>
 </figure>
 
 <h3 id="s5-3"><span class="sn">5.3</span>Limitations and ongoing work</h3>
@@ -361,7 +361,7 @@ table.book tbody tr:first-child td{padding-top:.5em;}
 <section class="pagepad breakbefore">
 
 <h2 id="sa"><span class="sn">A</span>Reproducibility</h2>
-<p><span class="applab">Environment.</span> A single NVIDIA RTX&nbsp;5070&nbsp;Ti (16&nbsp;GB, Blackwell, &approx;896&nbsp;GB/s), native Windows 11. Inference: a prebuilt llama.cpp CUDA&nbsp;12.4 <code>llama-server</code>, run on Blackwell through PTX JIT. Training: PyTorch with a LoRA via PEFT, bf16 base, gradient checkpointing. The two frameworks are never co-resident in VRAM (Section&nbsp;3.4).</p>
+<p><span class="applab">Environment.</span> A single NVIDIA RTX&nbsp;5070&nbsp;Ti (16&nbsp;GB, Blackwell, &approx;896&nbsp;GB/s), native Windows 11. For inference, a prebuilt llama.cpp CUDA&nbsp;12.4 <code>llama-server</code>, run on Blackwell through PTX JIT. For training, PyTorch with a LoRA via PEFT, bf16 base, gradient checkpointing. The two frameworks are never co-resident in VRAM (Section&nbsp;3.4).</p>
 <p><span class="applab">The two GGUF converter patches.</span> The NVARC model has a 16-token <em>WordLevel</em> tokenizer, which trips the stock converter twice. (1)&nbsp;<em>Unknown tokenizer hash:</em> the loader does not recognize the tokenizer's hash and refuses to guess a pre-tokenizer. Its pre-tokenizer is in fact the <code>qwen2</code> regex, so we map the hash to <code>qwen2</code> explicitly. (2)&nbsp;<em>Empty merge list:</em> a WordLevel tokenizer has no byte-pair merges, but the loader requires a non-empty list, so we add two throwaway merges among the role tokens, which never fire on grid text. Both patches are in the repository's conversion script and are applied automatically by the Kaggle prep notebook.</p>
 <p><span class="applab">Serving flags.</span> <code>llama-server</code> is launched with full GPU offload (<code>-ngl 99</code>), a 16,384-token context, a single slot (<code>-np 1</code>), and the prompt cache disabled (<code>--no-cache-prompt</code>). Its own logs are redirected to a file so they never flood the notebook. Decoding is greedy (temperature 0) with <code>n_predict</code> sized to the target grid.</p>
 <p><span class="applab">Hyperparameters.</span> AIRV uses the eight D4 augmentations and votes to two attempts. Per-task TTT (regularized): rank 16 to 32, dropout 0.05 to 0.1, 8 to 20 steps, AdamW, a fresh random augmentation per step, leave-one-out target, context capped at &approx;1,600 tokens, applied at adapter scale 1.25 at inference. Exact values per experiment are in the development log.</p>
@@ -379,10 +379,10 @@ table.book tbody tr:first-child td{padding-top:.5em;}
   </table>
 </div>
 
-<p><span class="applab">Paired significance.</span> On the 84 trainable tasks, TTT and no-TTT disagree on seven test outputs: TTT is correct on six that no-TTT misses and incorrect on one that no-TTT gets. An exact two-sided McNemar test on a 6/1 split gives <i>p</i>&nbsp;&approx;&nbsp;0.13, so the lift is not individually significant. We report it as directional, corroborated by the configuration sweep (+1) and the representativeness check (no-TTT scores 12.8% on the subset versus 12.79% on the full set).</p>
+<p><span class="applab">Paired significance.</span> On the 84 trainable tasks, TTT and no-TTT disagree on seven test outputs. TTT is correct on six that no-TTT misses and incorrect on one that no-TTT gets. An exact two-sided McNemar test on a 6/1 split gives <i>p</i>&nbsp;&approx;&nbsp;0.13, so the lift is not individually significant. We report it as directional, corroborated by the configuration sweep (+1) and the representativeness check (no-TTT scores 12.8% on the subset versus 12.79% on the full set).</p>
 <p><span class="applab">Colour permutation.</span> Adding a random colour permutation to the augmentation set lifts the no-TTT baseline from 12.8% to 14.4% on the 84 tasks, but provides no further gain on top of the per-task adapter, which has already learned the task's colour mapping, so the two do not stack.</p>
 
-<h2 id="sc"><span class="sn">C</span>Engineering log: walls and dead ends</h2>
+<h2 id="sc"><span class="sn">C</span>Engineering log of walls and dead ends</h2>
 <p>We record the failures explicitly, because on this hardware they are most of the work.</p>
 <ul style="margin:.3em 0 .8em; padding-left:1.3em;">
   <li style="margin:.4em 0;"><strong>Eager decode is overhead-bound, and the usual fix is unavailable.</strong> Hugging Face eager decode runs at &approx;13 tok/s, about 10% of the bandwidth roofline. <code>torch.compile</code> would close the gap, but it needs Triton, which has no native-Windows backend. The resolution was to change engines, not to optimize the eager path.</li>

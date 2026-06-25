@@ -80,7 +80,7 @@ open source under MIT-0.
 
 \noindent\textbf{Reader's guide.} Section~\ref{sec:intro} motivates efficient ARC and states the
 contributions. Section~\ref{sec:related} places the work against the 2025 winning systems.
-Section~\ref{sec:method} is the method: the model and prompt format (\ref{sec:model}), the engine
+Section~\ref{sec:method} is the method, covering the model and prompt format (\ref{sec:model}), the engine
 bottleneck and its fix (\ref{sec:engine}), the AIRV selection rule (\ref{sec:airv}), and the per-task
 TTT bridge (\ref{sec:ttt}). Section~\ref{sec:results} reports the numbers. Section~\ref{sec:disc}
 draws the lessons. Readers who want to reproduce the system should go straight to
@@ -105,7 +105,7 @@ adapter on each test task, then sample many augmented candidates and vote.
 The recipe is effective but front-loaded with compute. The base models are pre-trained on clusters of
 H100 or GH200 GPUs, though the winning offline submission itself runs on four L4 GPUs. Most researchers do not have that hardware, and the ARC Prize's stated mission is
 \emph{efficient} skill acquisition, not skill bought with compute. We therefore characterize the
-recipe under a constraint we think is widely shared: a single RTX~5070~Ti with 16~GB, on the
+recipe under a constraint we think is widely shared, a single RTX~5070~Ti with 16~GB, on the
 Blackwell architecture, running native Windows. The aim on one card is not to top the leaderboard but to build a working, reproducible system, measure
 honest numbers, and map where the small model stops being enough. That map is the efficient floor of a
 larger climb. The same contest hands every entrant four L4 GPUs, 96~GB together, and the offline frontier
@@ -117,7 +117,7 @@ solves end to end.
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.92\linewidth]{fig_solve}
-\caption{A real ARC-AGI-2 evaluation task solved by the no-TTT pipeline, shown as colour grids: the
+\caption{A real ARC-AGI-2 evaluation task solved by the no-TTT pipeline, shown as colour grids. The
 few-shot train pairs establish the rule, and the model produces the held-out test output exactly.
 Grids are rendered with the model's own 16-colour serialization (Appendix~\ref{app:format}).}
 \label{fig:solve}
@@ -179,7 +179,7 @@ not the engine but the demonstration that the full TTT recipe, adapter serving i
 \subsection{Model and prompting}
 \label{sec:model}
 We use the NVARC \texttt{qwen3\_4b\_grids15\_sft139} model, a Qwen3-4B~\cite{qwen3} with a 16-token
-vocabulary: the ten grid colours as digits, a newline, two role markers, and three specials
+vocabulary, the ten grid colours as digits, a newline, two role markers, and three specials
 (Appendix~\ref{app:format}). A grid is serialized one token per cell, and a colour value equals its
 token id. Because the role and special tokens cannot be produced by tokenizing text, we assemble
 every prompt at the token-id level as a ChatML few-shot sequence. Getting this byte-exact is the
@@ -220,7 +220,7 @@ generation, so we disable it and run a single supervised stream.
 \caption{Decode throughput versus the memory-bandwidth roofline of Eq.~\eqref{eq:roofline} (the
 ceiling is a first-order model, bytes/token $\approx$ weight bytes). Bars are \emph{measured} tok/s;
 the shaded gap to each cap is framework overhead, not the card. The eager path fills only $\approx
-10\%$ of its roof; moving decode to llama.cpp at Q8\_0 recovers the $13\times$.}
+10\%$ of its roof, and moving decode to llama.cpp at Q8\_0 recovers the $13\times$.}
 \label{fig:roofline}
 \end{figure}
 
@@ -280,10 +280,11 @@ largest-train-pair token length (Figure~\ref{fig:vram}).
 \begin{minipage}{0.49\linewidth}\centering
 \includegraphics[width=\linewidth]{fig_vram_wall}
 \end{minipage}
-\caption{Left: the three-phase schedule keeps PyTorch and llama.cpp from sharing the 16~GB at once
-(VRAM trace sampled live; peaks measured). Right: the VRAM wall, with each task placed by grid size
-and context length; tasks above the operational cutoff are excluded from TTT (the cutoff metric is
-the largest train pair, and any VRAM surface shown is a calibrated model).}
+\caption{The left panel shows the three-phase schedule keeping PyTorch and llama.cpp from sharing the
+16~GB at once, with the VRAM trace sampled live and the peaks measured. The right panel shows the VRAM
+wall, with each task placed by grid size and context length, and tasks above the operational cutoff
+excluded from TTT (the cutoff metric is the largest train pair, and any VRAM surface shown is a
+calibrated model).}
 \label{fig:phases}
 \label{fig:vram}
 \end{figure}
@@ -367,7 +368,7 @@ no-TTT          & 16/125 & 12.8\% \\
 \end{tabular}
 \end{table}
 
-\subsection{Ablations: scale, colour, and the big-grid wall}
+\subsection{Ablations on scale, colour, and the big-grid wall}
 Three further levers, each measured on the 84 trainable tasks (full per-scale numbers in
 Appendix~\ref{app:results}). The adapter \emph{scale} matters. Accuracy peaks at 17.6\% at scale
 $1.25$, then declines (Figures~\ref{fig:results},~\ref{fig:flip}). Colour permutation lifts the
@@ -386,9 +387,9 @@ a consistent if modest margin.
 \begin{minipage}{0.42\linewidth}\centering
 \includegraphics[width=\linewidth]{fig_airv_votes}
 \end{minipage}
-\caption{Left: which tasks TTT solves at each adapter scale, with most gains concentrated at scale
-$1.25$. Right: AIRV vote agreement (Eq.~\eqref{eq:airv}) predicts correctness; full eight-way
-consensus is right far more often than split votes.}
+\caption{The left panel shows which tasks TTT solves at each adapter scale, with most gains
+concentrated at scale $1.25$. The right panel shows AIRV vote agreement (Eq.~\eqref{eq:airv})
+predicting correctness, where full eight-way consensus is right far more often than split votes.}
 \label{fig:flip}
 \label{fig:votes}
 \end{figure}
@@ -412,7 +413,7 @@ We argue the right framing for compute-poor ARC work is \textbf{accuracy per GPU
 (Figure~\ref{fig:cost}), and the map of walls reported here (the decode ceiling, the VRAM limit on
 large-grid TTT, and the overfitting of naive adapters, all in Figure~\ref{fig:levers}) is a first step
 toward it. The findings tell a practitioner with similar hardware exactly which problems to solve
-first: fix the engine before touching anything else, budget VRAM by largest-train-pair length, and
+first. Fix the engine before touching anything else, budget VRAM by largest-train-pair length, and
 regularize the per-task adapter rather than training it harder.
 
 \begin{figure}[H]
@@ -423,10 +424,10 @@ regularize the per-task adapter rather than training it harder.
 \begin{minipage}{0.46\linewidth}\centering
 \includegraphics[width=\linewidth]{fig_levers}
 \end{minipage}
-\caption{Left: accuracy per GPU-hour on one card; the TTT blend at 16.28\% sits on the Pareto front
-(compute is measured wall-clock, and any eager ``ghost'' points are $13\times$ projections, labelled
-in the source). Right: what worked and what did not. The engine swap and regularized TTT helped,
-while naive TTT, colour-perm stacking, and big-grid TTT did not.}
+\caption{The left panel shows accuracy per GPU-hour on one card, where the TTT blend at 16.28\% sits
+on the Pareto front (compute is measured wall-clock, and any eager ``ghost'' points are $13\times$
+projections, labelled in the source). The right panel shows what worked and what did not. The engine
+swap and regularized TTT helped, while naive TTT, colour-perm stacking, and big-grid TTT did not.}
 \label{fig:cost}
 \label{fig:levers}
 \end{figure}
@@ -522,8 +523,8 @@ every measurement and dead end behind these numbers.
 \label{app:repro}
 
 \textbf{Environment.} A single NVIDIA RTX~5070~Ti (16~GB, Blackwell, $\approx 896$~GB/s), native
-Windows 11. Inference: a prebuilt llama.cpp CUDA~12.4 \texttt{llama-server}, run on Blackwell through
-PTX JIT. Training: PyTorch with a LoRA via PEFT, bf16 base, gradient checkpointing. The two frameworks
+Windows 11. For inference, a prebuilt llama.cpp CUDA~12.4 \texttt{llama-server}, run on Blackwell through
+PTX JIT. For training, PyTorch with a LoRA via PEFT, bf16 base, gradient checkpointing. The two frameworks
 are never co-resident in VRAM (Section~\ref{sec:ttt}).
 
 \textbf{The two GGUF converter patches.} The NVARC model has a 16-token \emph{WordLevel} tokenizer,
@@ -565,7 +566,7 @@ accuracy (\%) & 12.8 & 12.0 & 12.8 & 15.2 & 16.8 & \textbf{17.6} & 16.0 & 16.8 &
 \end{table}
 
 \textbf{Paired significance.} On the 84 trainable tasks, TTT and no-TTT disagree on seven test
-outputs: TTT is correct on six that no-TTT misses and incorrect on one that no-TTT gets. An exact
+outputs. TTT is correct on six that no-TTT misses and incorrect on one that no-TTT gets. An exact
 two-sided McNemar test on a $6/1$ split gives $p\approx0.13$, so the lift is not individually
 significant. We report it as directional, corroborated by the configuration sweep ($+1$) and the
 representativeness check (no-TTT scores 12.8\% on the subset versus 12.79\% on the full set).
@@ -574,7 +575,7 @@ representativeness check (no-TTT scores 12.8\% on the subset versus 12.79\% on t
 no-TTT baseline from 12.8\% to 14.4\% on the 84 tasks, but provides no further gain on top of the
 per-task adapter, which has already learned the task's colour mapping, so the two do not stack.
 
-\section{Engineering log: walls and dead ends}
+\section{Engineering log of walls and dead ends}
 \label{app:log}
 We record the failures explicitly, because on this hardware they are most of the work.
 
