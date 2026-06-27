@@ -595,3 +595,11 @@ Artifacts: scripts/trm_eval_only.py, scripts/trm_coverage.py; TRM env on rig at 
 Forked the v3 multi-scale notebook down to two scales, 1.0 and 1.25, for margin under the marking wall. The three-scale v3 ran about 7h in dev and was still marking at 11h. Checked the rules. The Kaggle rerun gets a single 12-hour wall-clock window and fails with no score once it runs over, so v3 was genuinely close to timing out. v3.1 should land near 5.4h dev and about 9h marking. Built notebooks/arc_submission_v3_1.ipynb, ready to fire the moment v3 fails or a quota slot frees.
 
 One item for later. The ARC-AGI-2 page says most competitive offline submissions call out to third-party compute like Modal or Lambda, which sits oddly next to the no-internet rule and may be how the 50-something scores happen. Worth investigating before the next scaling push.
+
+## Compute-loophole research and the offline ceiling (2026-06-26)
+
+Ran the third-party-compute question to ground. ARC-AGI-2 has two tracks. The prize-eligible Kaggle competition is offline, internet disabled, no API systems, four L4s, 12h. The internet-and-$10k allowance (Modal, Lambda) belongs only to the Verified and Community leaderboards, which are not eligible for the Kaggle prize, so we cannot use external compute on our track.
+
+Pulled the live 2026 Kaggle public leaderboard from the API. Leader nvbanana at 50.56, the chasing pack at 32 to 35, all offline under our exact rules. So roughly 50 is achievable offline and the gap is method, not compute access. The 54 percent Gemini and the 70-plus frontier numbers are the internet-allowed track, a separate thing. Folded the dated leaderboard snapshot and the two-track framing into Section 5.4. Saved to memory as arc-agi-2-two-track-ceiling.
+
+Also confirmed v3 came back as a Kaggle system error with no score, so v2.1 at 13.61 stays the floor. v3.1 is built and parked on the weekly Kaggle GPU quota.
