@@ -1,4 +1,27 @@
-import sys, json, time, math, subprocess, urllib.request
+"""Robust rig AIRV validation harness on llama.cpp. This is the ONE harness for rig validation.
+
+Why llama.cpp and not HF eager: generation goes through llama-server, every request has a 300s cap plus
+retries plus ensure_server() recovery, so a single task can never hang the whole run (the failure mode
+that stalled the HF-eager scripts). It is also ~13x faster and far lighter on VRAM.
+
+Robustness: resumes from a partial OUT (skips done tasks), checkpoints after every task, guards every task
+with try/except, writes a heartbeat to eval_status.json (a stale ts means a stall), and aborts after 5
+dead tasks.
+
+More-candidates lever: K samples per D4 augmentation at temperature TEMP, all fed to the same
+consensus-and-NLL select_top2. K=1 TEMP=0 reproduces the greedy 8-augmentation baseline exactly.
+
+Usage: python run_airv_llamacpp.py [N_LIMIT] [WORKERS] [MODEL] [OUT] [K] [TEMP]
+  (N_LIMIT 0 = all tasks, K 1 = greedy baseline)
+
+Launch convention (so a job survives the session and is monitorable):
+  Start-Process -FilePath <...PythonSoftwareFoundation.Python.3.13...\\python.exe>
+    -ArgumentList "-u","D:\\arc\\run_airv_llamacpp.py",<args> -WorkingDirectory "D:\\arc"
+    -RedirectStandardOutput "D:\\arc\\airv.out" -RedirectStandardError "D:\\arc\\airv.err" -WindowStyle Hidden
+  Detect the job as python3.13 (not python) or read D:\\arc\\eval_status.json. Do not rely on a
+  laptop-side ssh monitor, read eval_status.json and OUT on demand instead.
+"""
+import sys, os, json, time, math, subprocess, urllib.request
 from concurrent.futures import ThreadPoolExecutor
 sys.path.insert(0, r"D:\arc")
 from src.arc.model import build_prompt_ids
@@ -9,12 +32,15 @@ from src.arc.eval import score_submission
 
 URL = "http://127.0.0.1:8080/completion"
 HEALTH = "http://127.0.0.1:8080/health"
+STATUS = r"D:\arc\eval_status.json"
 N_LIMIT = int(sys.argv[1]) if len(sys.argv) > 1 else 0    # 0 = all tasks
 WORKERS = int(sys.argv[2]) if len(sys.argv) > 2 else 1    # keep 1: single stream is stable
 CH = r"D:\arc\data\kaggle\arc-agi_evaluation_challenges.json"
 SOL = r"D:\arc\data\kaggle\arc-agi_evaluation_solutions.json"
 MODEL = sys.argv[3] if len(sys.argv) > 3 else r"D:\arc\models\arc-qwen4b-q8_0.gguf"
 OUT = sys.argv[4] if len(sys.argv) > 4 else r"D:\arc\experiments\airv_nottt_eval.json"
+K = int(sys.argv[5]) if len(sys.argv) > 5 else 1         # samples per augmentation (1 = greedy baseline)
+TEMP = float(sys.argv[6]) if len(sys.argv) > 6 else 0.0  # sampling temperature when K > 1
 SERVER_ARGS = [r"D:\arc\llamacpp\llama-server.exe", "-m", MODEL,
                "-ngl", "99", "-c", "16384", "-np", "1", "--host", "127.0.0.1", "--port", "8080",
                "--no-webui", "--no-cache-prompt", "--no-cache-idle-slots"]
@@ -46,9 +72,9 @@ def ensure_server():
     return False
 
 
-def query(prompt_ids, n_predict=1536, retries=4):
+def query(prompt_ids, n_predict=1536, retries=4, temperature=0.0):
     body = json.dumps({"prompt": prompt_ids, "n_predict": n_predict,
-                       "temperature": 0.0, "cache_prompt": False, "n_probs": 1}).encode()
+                       "temperature": temperature, "top_p": 0.95, "cache_prompt": False, "n_probs": 1}).encode()
     for attempt in range(retries):
         try:
             req = urllib.request.Request(URL, data=body, headers={"Content-Type": "application/json"})
@@ -85,45 +111,74 @@ def seq_logprob(resp):
 
 
 def candidates_for(task, ti):
+    """K samples per augmentation. K=1 TEMP=0 is the greedy 8-candidate baseline."""
     def one(aug):
         atask = apply_task(aug, task)
         pid = build_prompt_ids(atask["train"], atask["test"][ti]["input"])
-        resp = query(pid)
-        if resp is None:
-            return None
-        g = parse_grid(resp.get("content", ""))
-        if g is None:
-            return None
-        return (invert_grid(aug, g), seq_logprob(resp), resp.get("tokens_predicted", -1))
+        outs = []
+        for _ in range(K):
+            resp = query(pid, temperature=TEMP)
+            if resp is None:
+                continue
+            g = parse_grid(resp.get("content", ""))
+            if g is None:
+                continue
+            outs.append((invert_grid(aug, g), seq_logprob(resp), resp.get("tokens_predicted", -1)))
+        return outs
     with ThreadPoolExecutor(max_workers=WORKERS) as ex:
-        out = [r for r in ex.map(one, AUGS) if r is not None]
+        nested = list(ex.map(one, AUGS))
+    out = [r for sub in nested for r in sub]
     cands = [(g, lp) for g, lp, _ in out]
     max_out = max((n for _, _, n in out), default=0)
     return cands, max_out
 
 
+def heartbeat(idx, tid, ndone, ntotal):
+    try:
+        json.dump({"idx": idx, "tid": tid, "ts": time.time(), "done": ndone,
+                   "total": ntotal, "K": K, "out": OUT}, open(STATUS, "w"))
+    except Exception:
+        pass
+
+
 def main():
     ensure_server()
     tasks, sols = load_consolidated(CH, SOL, n=(N_LIMIT or None))
-    submission = {}
     tids = list(tasks.keys())
+    submission = {}
+    if os.path.exists(OUT):
+        try:
+            raw = json.load(open(OUT))
+            for t, att in raw.items():
+                if att and att[0].get("attempt_1") != [[0]]:   # keep real predictions, re-run padding/error defaults
+                    submission[t] = att
+            print("resume: %d/%d real tasks loaded from %s" % (len(submission), len(tids), OUT), flush=True)
+        except Exception:
+            submission = {}
     t0 = time.time()
     consec_zero = 0
     for i, tid in enumerate(tids):
+        if tid in submission:
+            continue
+        heartbeat(i, tid, len(submission), len(tids))
         task = tasks[tid]
-        attempts = []
         ncands = max_out = 0
-        for ti in range(len(task["test"])):
-            cands, mo = candidates_for(task, ti)
-            ncands, max_out = max(ncands, len(cands)), max(max_out, mo)
-            a1, a2 = select_top2(cands)
-            attempts.append({"attempt_1": a1, "attempt_2": a2})
-        submission[tid] = attempts
+        try:
+            attempts = []
+            for ti in range(len(task["test"])):
+                cands, mo = candidates_for(task, ti)
+                ncands, max_out = max(ncands, len(cands)), max(max_out, mo)
+                a1, a2 = select_top2(cands)
+                attempts.append({"attempt_1": a1, "attempt_2": a2})
+            submission[tid] = attempts
+        except Exception as e:
+            submission[tid] = [{"attempt_1": [[0]], "attempt_2": [[0]]} for _ in task["test"]]
+            print("[%d/%d] %s ERROR %s" % (i + 1, len(tids), tid, repr(e)[:100]), flush=True)
+        write_submission(submission, tasks, OUT)   # per-task checkpoint, so a crash never loses progress
         consec_zero = consec_zero + 1 if ncands == 0 else 0
         dt = time.time() - t0
-        print("[%d/%d] %s tests=%d cands=%d/%d max_out=%d t=%.1fs avg=%.1fs" % (
-            i + 1, len(tids), tid, len(attempts), ncands, len(AUGS), max_out, dt, dt / (i + 1)),
-            flush=True)
+        print("[%d/%d] %s tests=%d cands=%d max_out=%d t=%.1fs" % (
+            i + 1, len(tids), tid, len(task["test"]), ncands, max_out, dt), flush=True)
         if consec_zero >= 5:
             print("ABORT: 5 consecutive 0-candidate tasks (server unrecoverable).", flush=True)
             write_submission(submission, tasks, OUT)
@@ -131,7 +186,7 @@ def main():
     write_submission(submission, tasks, OUT)
     if sols:
         acc, c, n = score_submission(submission, sols)
-        print("SCORE acc=%.4f correct=%d total=%d" % (acc, c, n), flush=True)
+        print("SCORE acc=%.4f correct=%d total=%d K=%d TEMP=%s" % (acc, c, n, K, TEMP), flush=True)
 
 
 main()
