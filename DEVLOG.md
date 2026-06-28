@@ -603,3 +603,9 @@ Ran the third-party-compute question to ground. ARC-AGI-2 has two tracks. The pr
 Pulled the live 2026 Kaggle public leaderboard from the API. Leader nvbanana at 50.56, the chasing pack at 32 to 35, all offline under our exact rules. So roughly 50 is achievable offline and the gap is method, not compute access. The 54 percent Gemini and the 70-plus frontier numbers are the internet-allowed track, a separate thing. Folded the dated leaderboard snapshot and the two-track framing into Section 5.4. Saved to memory as arc-agi-2-two-track-ceiling.
 
 Also confirmed v3 came back as a Kaggle system error with no score, so v2.1 at 13.61 stays the floor. v3.1 is built and parked on the weekly Kaggle GPU quota.
+
+## Program-search disjoint coverage on ARC-2 (2026-06-28)
+
+Ran the DSL proposer over the 101 ARC-2 eval tasks the 4B-TTT misses, the only ones that can be disjoint. Result, proposer solved 0, disjoint coverage 0, with 2 of the biggest-grid tasks skipped on OOM. The 1.5B arc-dsl proposer adds nothing the 4B misses on ARC-2. Clean no-go. The arc-dsl primitives are ARC-1-designed and the proposer trained on ARC-1, so it does not express ARC-2's new concepts, and the 4B-missed tasks are disproportionately the biggest grids where generation is heaviest. ARC-1 held-out was about 1 in 9, ARC-2 disjoint is 0. Program search in this form is out, the 96 GB method work redirects to the refinement loop.
+
+Harness fixes needed along the way, the rig python binary is python3.13.exe so the python.exe process checks misread live jobs as dead, an OOM cap with fewer return sequences and expandable_segments, and a process-isolated executor (dsl_exec.py) that can actually kill infinite-loop generated programs since a thread cannot be killed.
