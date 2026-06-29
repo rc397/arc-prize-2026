@@ -617,3 +617,11 @@ Both heavy rig runs this session stalled a few tasks in and died, the program-se
 Fixed by hardening scripts/run_airv_llamacpp.py into the single rig validation harness. It runs through llama-server (the 13x, far lower VRAM) where every request has a 300s cap plus ensure_server recovery, so no task can hang the run. Added resume-from-partial (filtering the [[0]] padding write_submission emits for un-done tasks), per-task checkpoint, per-task try/except, a heartbeat eval_status.json so monitoring is a file read not a process guess, and a K/TEMP sampling knob for the more-candidates lever (K=1 = greedy baseline). Standard launch is Start-Process with the real python3.13 interpreter detached, monitored via eval_status.json, never a laptop-side ssh monitor.
 
 Verified end to end. Smoke, 3 tasks via llama.cpp in 64s including server start, with heartbeat, per-task checkpoint, and SCORE. Resume, killed at 3 of 8, relaunch loaded exactly 3 real tasks and re-ran the rest rather than restarting. The K=4 more-candidates verdict over the 120 eval now runs on it, compared against the recorded K=1 baseline airv_nottt_eval.json at 12.79.
+
+## v3.1 regression and the more-candidates win (2026-06-28)
+
+v3.1 scored 12.78 on the hidden set, a regression from v2.1's 13.61. Cause, v3.1 added scale 1.0 to the vote and 8 colour-perm augmentations on top of the proven single-scale-1.25 8-D4 config. AIRV is a popularity vote, so the weaker scale-1.0 outputs and noisier colour-perm views diluted the consensus. Matches the paper finding that colour-perm stacking did not help. v2.1 stays the best.
+
+The rig more-candidates verdict, the first run on the hardened llama.cpp harness that finished cleanly where the HF-eager runs stalled, is a win. K=4, sampling each of the 8 D4 augs 4 times at temp 0.8 for 32 candidates, scored 13.95 no-TTT (24/172) against the K=1 greedy baseline 12.79 (22/172), +1.16 and +2 tasks. So more candidates helps when they are more samples of the good D4 transforms and hurts when they are weaker different transforms. The lever is candidate quality, not raw count.
+
+Next, confirm more-candidates stacks with TTT (needs the TTT-on-llama.cpp validation), then v4 = v2.1's proven config plus more-candidates sampling, dropping multi-scale and colour-perm.
