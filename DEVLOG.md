@@ -631,3 +631,9 @@ Next, confirm more-candidates stacks with TTT (needs the TTT-on-llama.cpp valida
 Folded the session's results into the paper. The candidate-quality ablation (sampling each D4 view 4 times lifts no-TTT 12.79 to 13.95, while multi-scale and colour-perm dilute the vote) is in Section 4.4, the program-search 0 of 101 disjoint-coverage negative in Section 5.3, the robust llama.cpp validation harness in the engineering log, and the v3 error, the v3.1 regression to 12.78, and v4 in Section 4.1 plus the regenerated version-progress figures. PDF recompiled to 18 pages, HTML mirrored, no em-dashes or section symbols.
 
 Archived the superseded experiment scripts (the v3 and v3.1 builders, airv_morecand, grade, ttt_loo_select, and the closed dsl and trm harnesses) and the v3 and v3.1 notebooks into archive/, leaving scripts/ and notebooks/ holding only the active pipeline.
+
+## v4 more-candidates regressed (2026-06-28)
+
+v4 (the more-candidates lever, sampling each D4 view 4 times) scored 13.19 on the hidden set, below v2.1's 13.61 and slower. The +1.16 lift the lever gave the no-TTT base on the local eval did not transfer to the TTT submission, because the per-task adapter already concentrates the model on its best answer and the extra temperature-0.8 samples only add noise. Same pattern as colour permutation, helps no-TTT, does not stack with TTT.
+
+Third straight attempt to beat v2.1 that failed (v3 errored, v3.1 12.78, v4 13.19). v2.1's eight greedy D4 views at a single scale with TTT is a robust local optimum the candidate and voting side does not improve. The candidate-side levers on the 4B are exhausted, keep v2.1 as the entry. The only real lever left is a bigger non-bimodal base on the 96 GB. Corrected the paper (Sections 4.1 and 4.4) and the version figure.

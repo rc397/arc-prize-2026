@@ -40,7 +40,7 @@ VERSIONS = [
          ttt=232, note="TTT, maxpair 1500"),
     dict(tag="v3.1", score=12.78, hours=5.50, time_est=False, accel="L4 x4",
          ttt=232, note="+ multi-scale,\ncolour-perm"),
-    dict(tag="v4",   score=None,  hours=5.50, time_est=True,  accel="L4 x4",
+    dict(tag="v4",   score=13.19, hours=6.5,  time_est=True,  accel="L4 x4",
          ttt=232, note="more-candidates\nsampling"),
 ]
 

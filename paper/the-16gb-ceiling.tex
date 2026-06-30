@@ -300,12 +300,13 @@ test set (semi-private plus private), a roughly twofold drop from the public eva
 to the hidden set's greater difficulty, and possibly to per-task failures in the scored rerun
 (Section~\ref{sec:limits}). Adding per-task TTT roughly doubles this hidden score. A first TTT
 submission scored 11.94\%, and a scaled configuration (more trainable tasks, more augmentations, longer
-training context) reached \textbf{13.61\%}, ranking 468 of about 4000. Two further submissions probed whether more
-candidates help. A three-scale vote exceeded the runtime budget, and a two-scale vote that also added
-colour permutation regressed to 12.78\%, each diluting the consensus with weaker candidates. The current
-submission returns to the proven single-scale configuration and instead samples each view four times, the
-candidate-quality lever that lifts the no-TTT score to 13.95\% in the ablations. The TTT submissions run on
-the contest's four-L4 offline accelerator, which the bf16 per-task adapters require and across which the 240
+training context) reached \textbf{13.61\%}, ranking 468 of about 4000. Three further submissions probed whether more
+candidates help, and none beat it. A three-scale vote exceeded the runtime budget, a two-scale vote that
+also added colour permutation regressed to 12.78\%, and the more-candidates lever from the ablations
+(sampling each D4 view four times) regressed to 13.19\% once carried into the TTT pipeline. The lift those
+extra candidates give the unsure no-TTT base does not survive the already-sharpened adapter. The scaled
+single-scale configuration at 13.61\% is a local optimum that the candidate and voting side does not
+improve. The TTT submissions run on the contest's four-L4 offline accelerator, which the bf16 per-task adapters require and across which the 240
 tasks are sharded for throughput. The gain is the method rather than the hardware, as no single task
 needs more than one 16~GB card, the regime of every public-eval number here. For reference the 2025
 winner reached 24.0\% with TTT~\cite{arc2025} on the same Qwen3-4B base lineage with a more developed
@@ -378,12 +379,14 @@ Appendix~\ref{app:results}). The adapter \emph{scale} matters. Accuracy peaks at
 $1.25$, then declines (Figures~\ref{fig:results},~\ref{fig:flip}). Colour permutation lifts the
 no-TTT baseline to 14.4\% but does \emph{not} stack with the already colour-robust adapter. Forcing
 TTT onto the big-grid tasks does not help. The VRAM exclusion is a genuine ceiling, not a missed
-opportunity. The fourth lever is how many candidates the vote sees. Sampling each of the eight D4 views
-four times instead of decoding one greedy guess raises the no-TTT score from 12.79\% to 13.95\% on the full
-evaluation, because the vote sharpens when it has more strong candidates to agree on. The effect reverses
-when the added candidates are weaker. Stacking multi-scale voting and colour permutation onto the proven
-single-scale configuration diluted the same vote and dropped a hidden-set submission from 13.61\% to
-12.78\%, so the lever is candidate quality and not raw count. The best blend, TTT at scale $1.25$ where
+opportunity. The fourth lever is how many candidates the vote sees, and it cuts both ways. Sampling each of
+the eight D4 views four times raises the no-TTT score from 12.79\% to 13.95\% on the full evaluation, but
+like colour permutation it does not stack with the per-task adapter. Carried into a TTT submission those
+extra sampled candidates regressed the hidden score from 13.61\% to 13.19\%, and stacking multi-scale voting
+and colour permutation regressed it further to 12.78\%. The adapter already concentrates the model on its
+single best answer, so more candidates help only the unsure no-TTT base and dilute the confident TTT one.
+The eight greedy D4 views at a single scale are a local optimum that more votes do not beat. The best blend,
+TTT at scale $1.25$ where
 trainable and no-TTT elsewhere, reaches \textbf{16.28\%} on the full 120-task evaluation, up from 12.79\%.
 The honest summary is that naive per-task TTT \emph{ties} a strong no-TTT AIRV baseline, while a
 regularized, scale-tuned TTT \emph{beats} it by a consistent if modest margin.
