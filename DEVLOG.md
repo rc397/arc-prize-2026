@@ -625,3 +625,9 @@ v3.1 scored 12.78 on the hidden set, a regression from v2.1's 13.61. Cause, v3.1
 The rig more-candidates verdict, the first run on the hardened llama.cpp harness that finished cleanly where the HF-eager runs stalled, is a win. K=4, sampling each of the 8 D4 augs 4 times at temp 0.8 for 32 candidates, scored 13.95 no-TTT (24/172) against the K=1 greedy baseline 12.79 (22/172), +1.16 and +2 tasks. So more candidates helps when they are more samples of the good D4 transforms and hurts when they are weaker different transforms. The lever is candidate quality, not raw count.
 
 Next, confirm more-candidates stacks with TTT (needs the TTT-on-llama.cpp validation), then v4 = v2.1's proven config plus more-candidates sampling, dropping multi-scale and colour-perm.
+
+## Paper fold-in and workspace cleanup (2026-06-28)
+
+Folded the session's results into the paper. The candidate-quality ablation (sampling each D4 view 4 times lifts no-TTT 12.79 to 13.95, while multi-scale and colour-perm dilute the vote) is in Section 4.4, the program-search 0 of 101 disjoint-coverage negative in Section 5.3, the robust llama.cpp validation harness in the engineering log, and the v3 error, the v3.1 regression to 12.78, and v4 in Section 4.1 plus the regenerated version-progress figures. PDF recompiled to 18 pages, HTML mirrored, no em-dashes or section symbols.
+
+Archived the superseded experiment scripts (the v3 and v3.1 builders, airv_morecand, grade, ttt_loo_select, and the closed dsl and trm harnesses) and the v3 and v3.1 notebooks into archive/, leaving scripts/ and notebooks/ holding only the active pipeline.

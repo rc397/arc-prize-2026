@@ -300,8 +300,12 @@ test set (semi-private plus private), a roughly twofold drop from the public eva
 to the hidden set's greater difficulty, and possibly to per-task failures in the scored rerun
 (Section~\ref{sec:limits}). Adding per-task TTT roughly doubles this hidden score. A first TTT
 submission scored 11.94\%, and a scaled configuration (more trainable tasks, more augmentations, longer
-training context) reached \textbf{13.61\%}, ranking 468 of about 4000. The TTT submissions run on the
-contest's four-L4 offline accelerator, which the bf16 per-task adapters require and across which the 240
+training context) reached \textbf{13.61\%}, ranking 468 of about 4000. Two further submissions probed whether more
+candidates help. A three-scale vote exceeded the runtime budget, and a two-scale vote that also added
+colour permutation regressed to 12.78\%, each diluting the consensus with weaker candidates. The current
+submission returns to the proven single-scale configuration and instead samples each view four times, the
+candidate-quality lever that lifts the no-TTT score to 13.95\% in the ablations. The TTT submissions run on
+the contest's four-L4 offline accelerator, which the bf16 per-task adapters require and across which the 240
 tasks are sharded for throughput. The gain is the method rather than the hardware, as no single task
 needs more than one 16~GB card, the regime of every public-eval number here. For reference the 2025
 winner reached 24.0\% with TTT~\cite{arc2025} on the same Qwen3-4B base lineage with a more developed
@@ -369,15 +373,20 @@ no-TTT          & 16/125 & 12.8\% \\
 \end{table}
 
 \subsection{Ablations on scale, colour, and the big-grid wall}
-Three further levers, each measured on the 84 trainable tasks (full per-scale numbers in
+Four further levers, each measured on the 84 trainable tasks (full per-scale numbers in
 Appendix~\ref{app:results}). The adapter \emph{scale} matters. Accuracy peaks at 17.6\% at scale
 $1.25$, then declines (Figures~\ref{fig:results},~\ref{fig:flip}). Colour permutation lifts the
 no-TTT baseline to 14.4\% but does \emph{not} stack with the already colour-robust adapter. Forcing
 TTT onto the big-grid tasks does not help. The VRAM exclusion is a genuine ceiling, not a missed
-opportunity. The best blend, TTT at scale $1.25$ where trainable and no-TTT elsewhere, reaches
-\textbf{16.28\%} on the full 120-task evaluation, up from 12.79\%. The honest summary is that naive per-task
-TTT \emph{ties} a strong no-TTT AIRV baseline, while a regularized, scale-tuned TTT \emph{beats} it by
-a consistent if modest margin.
+opportunity. The fourth lever is how many candidates the vote sees. Sampling each of the eight D4 views
+four times instead of decoding one greedy guess raises the no-TTT score from 12.79\% to 13.95\% on the full
+evaluation, because the vote sharpens when it has more strong candidates to agree on. The effect reverses
+when the added candidates are weaker. Stacking multi-scale voting and colour permutation onto the proven
+single-scale configuration diluted the same vote and dropped a hidden-set submission from 13.61\% to
+12.78\%, so the lever is candidate quality and not raw count. The best blend, TTT at scale $1.25$ where
+trainable and no-TTT elsewhere, reaches \textbf{16.28\%} on the full 120-task evaluation, up from 12.79\%.
+The honest summary is that naive per-task TTT \emph{ties} a strong no-TTT AIRV baseline, while a
+regularized, scale-tuned TTT \emph{beats} it by a consistent if modest margin.
 
 \begin{figure}[H]
 \centering
@@ -481,6 +490,15 @@ the exception that proves the rule. It does not refine partial understanding. In
 capability for the task. The implication for compute-poor ARC is concrete. The next lever must supply
 an external, continuously-gradable signal that is valid even where the base is lost, a program checked
 against the train pairs being the cleanest, rather than another pass over the model's own grid outputs.
+
+We built that arm and measured it. A 1.5B model trained to emit programs in an executable DSL, sampled and
+kept only when a program reproduces every train pair, solved zero of the 101 ARC-2 evaluation tasks our
+transductive system misses. It generalized weakly on the easier ARC-1, about one held-out task in nine, but
+on ARC-2 the DSL cannot express the new compositional concepts, and the tasks the base misses are also the
+largest grids where the small proposer exhausts the card before it can search. The external-signal lever is
+therefore real but bounded by model scale on one GPU, the same wall the refinement family hits from the
+other side. The lever exists but needs a larger model to grip, which is exactly the move the full contest
+hardware allows (Section~\ref{sec:scale}).
 
 Finally, the significance of the TTT lift is directional
 rather than conclusive (Appendix~\ref{app:results}). A full-eval paired run is the obvious next
@@ -604,6 +622,11 @@ in bf16 inside 16~GB, we use a bf16 LoRA throughout and drop the 4-bit path enti
 \item \textbf{PyTorch decode can turn quadratic after a training step.} Generation in the gradient
 framework is not only slow but intermittently degrades after an optimizer step. This is precisely why
 the serving bridge exists, since we never generate in PyTorch in the scored pipeline.
+\item \textbf{Hugging Face eager stalls offline validation, the same engine lesson again.} The rig
+validation scripts that drove generation through eager had no per-task timeout, so one big-grid task could
+hang a whole multi-hour run with no way to resume. Moving validation onto the same \texttt{llama-server}
+path used for scoring, with a hard per-request cap, a heartbeat file, and per-task checkpoints, removed the
+stalls and made the runs resumable. The engine was the bottleneck for validation just as for inference.
 \item \textbf{The VRAM wall on large grids is real.} The largest-train-pair token length, not the
 test grid size, is the binding constraint. Tasks above the operational cutoff cannot train in 16~GB.
 Forcing TTT onto them by truncation did not recover accuracy, so they are excluded and served no-TTT.
