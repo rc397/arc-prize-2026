@@ -29,6 +29,7 @@ from src.arc.data import load_consolidated, write_submission
 from src.arc.augment import Augmentation, apply_task, invert_grid, D4_NAMES
 from src.arc.select import select_top2
 from src.arc.eval import score_submission
+from src.arc.filter import plausible
 
 URL = "http://127.0.0.1:8080/completion"
 HEALTH = "http://127.0.0.1:8080/health"
@@ -41,6 +42,7 @@ MODEL = sys.argv[3] if len(sys.argv) > 3 else r"D:\arc\models\arc-qwen4b-q8_0.gg
 OUT = sys.argv[4] if len(sys.argv) > 4 else r"D:\arc\experiments\airv_nottt_eval.json"
 K = int(sys.argv[5]) if len(sys.argv) > 5 else 1         # samples per augmentation (1 = greedy baseline)
 TEMP = float(sys.argv[6]) if len(sys.argv) > 6 else 0.0  # sampling temperature when K > 1
+FILTER = int(sys.argv[7]) if len(sys.argv) > 7 else 0    # 1 = white-box plausibility filter on candidates
 SERVER_ARGS = [r"D:\arc\llamacpp\llama-server.exe", "-m", MODEL,
                "-ngl", "99", "-c", "16384", "-np", "1", "--host", "127.0.0.1", "--port", "8080",
                "--no-webui", "--no-cache-prompt", "--no-cache-idle-slots"]
@@ -129,6 +131,9 @@ def candidates_for(task, ti):
         nested = list(ex.map(one, AUGS))
     out = [r for sub in nested for r in sub]
     cands = [(g, lp) for g, lp, _ in out]
+    if FILTER:
+        ti_input = task["test"][ti]["input"]
+        cands = [(g, lp) for (g, lp) in cands if plausible(g, task, ti_input)]
     max_out = max((n for _, _, n in out), default=0)
     return cands, max_out
 
