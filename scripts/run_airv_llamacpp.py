@@ -133,7 +133,8 @@ def candidates_for(task, ti):
     cands = [(g, lp) for g, lp, _ in out]
     if FILTER:
         ti_input = task["test"][ti]["input"]
-        cands = [(g, lp) for (g, lp) in cands if plausible(g, task, ti_input)]
+        filtered = [(g, lp) for (g, lp) in cands if plausible(g, task, ti_input)]
+        cands = filtered or cands   # mirror the v5 notebook select_top2(f or cs): keep the unfiltered set if the filter empties the list
     max_out = max((n for _, _, n in out), default=0)
     return cands, max_out
 
