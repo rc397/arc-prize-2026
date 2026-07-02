@@ -1,4 +1,4 @@
-"""Build notebooks/arc_submission_v5.ipynb: layered TTT + colour-perm, multi-GPU sharded.
+"""Build notebooks/arc_submission_v5.ipynb: TTT + white-box filter on the greedy single-scale D4 base, multi-GPU sharded.
 
 v2 over v1 (no-TTT AIRV): per-task test-time training on the small/trainable tasks (maxpair filter)
 plus colour-permutation augmentation, with a wall-clock budget and per-task try/except so a run always
@@ -29,9 +29,11 @@ md(r"""
 # ARC-AGI-2, v5 (TTT + white-box filter, single-scale D4 greedy), multi-GPU sharded
 
 Layered on the v1 AIRV pipeline: per-task test-time training on the small/trainable tasks at adapter
-scale 1.25, colour-perm on top of the 8 D4 augmentations, no-TTT + colour-perm on the rest. The
-serving phase shards across every available GPU (one `llama-server` per GPU); training runs on one GPU
-and fits the budget. A global wall-clock budget and per-task fallback keep a run from breaking.
+scale 1.25, the eight greedy D4 augmentations at a single scale (the proven v2.1 base), and a white-box
+plausibility filter (task colour palette, train-pair size rule) on the candidates before the vote,
+falling back to the unfiltered set if the filter empties it. The serving phase shards across every
+available GPU (one `llama-server` per GPU); training runs on one GPU and fits the budget. A global
+wall-clock budget and per-task fallback keep a run from breaking.
 
 All paper numbers are measured on the single consumer GPU (RTX 5070 Ti). This notebook is the
 leaderboard submission only, on Kaggle's provided hardware.
@@ -90,8 +92,8 @@ MAX_TTT_TASKS = 240                       # effectively no cap; 12h budget has l
 TTT_STEPS     = 20                        # regularized sweet spot; more steps overfit (do not raise)
 TTT_RANK      = 16
 TTT_DROPOUT   = 0.1
-SCALES        = [1.25]          # v3: multi-scale voting, apply the adapter at each scale and vote over the union
-N_COLORPERM   = 0                        # colour-permuted augmentations on top of the 8 D4 (16 total votes)
+SCALES        = [1.25]          # single scale, the proven v2.1 operating point (multi-scale diluted the vote, v3.1)
+N_COLORPERM   = 0                        # colour-perm off, it diluted the TTT vote (v3.1)
 BATCH         = 24                        # adapters loaded per server start
 TRAIN_BUDGET_H = 7.0                      # stop training new adapters after this many hours
 TOTAL_BUDGET_H = 11.0                     # leave headroom under the 12h cap
@@ -238,6 +240,8 @@ def parse(text):
     return rows or None
 
 def plausible(g, task, ti_in):
+    # mirrors src/arc/filter.py: colour subset, then ONE size rule, same-as-input taking
+    # precedence over constant (applying both rejects everything when they conflict)
     pal = set()
     for p in task['train']:
         for row in p['input']: pal |= set(row)
@@ -246,13 +250,10 @@ def plausible(g, task, ti_in):
     if not set(v for row in g for v in row) <= pal:
         return False
     if all(len(p['output']) == len(p['input']) and len(p['output'][0]) == len(p['input'][0]) for p in task['train']):
-        if len(g) != len(ti_in) or len(g[0]) != len(ti_in[0]):
-            return False
+        return len(g) == len(ti_in) and len(g[0]) == len(ti_in[0])
     outs = set((len(p['output']), len(p['output'][0])) for p in task['train'])
-    if len(outs) == 1:
-        h, w = next(iter(outs))
-        if (len(g), len(g[0])) != (h, w):
-            return False
+    if len(outs) == 1 and (len(g), len(g[0])) != next(iter(outs)):
+        return False
     return True
 
 def airv(task, port, adapter_idx=None, n_loaded=0):
