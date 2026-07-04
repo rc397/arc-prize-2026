@@ -56,23 +56,25 @@ with augment-infer-reverse-vote selection, on one 16~GB card\par}
 \end{titlepage}
 
 \begin{abstract}
-The 2025 ARC-AGI-2 contest was won offline by a small grid model with per-task test-time training
-(TTT), on four L4 GPUs and on top of a base pre-trained on GPU clusters. We ask how far that recipe
-goes on a single 16~GB consumer GPU, once the released base is taken as given. The recipe combines TTT
-with augment-infer-reverse-vote (AIRV) selection, which predicts under the grid's symmetries, inverts
-each prediction, and votes. Building on the NVARC Qwen3-4B grid model, we report a reproducible offline
-system. It scores \textbf{12.79\%} without TTT on the 120-task public evaluation set, and 6.53\% on the
-hidden main-track leaderboard. The binding constraint turns out to be generation throughput, not model
-quality or memory. The single largest lever is the inference engine, which buys a $13\times$ decode
-speedup and makes per-task TTT tractable by serving each task's adapter on the fast engine. The lift
-from TTT depends on regularization. A naive adapter overfits and ties the baseline, while a regularized,
-scale-tuned configuration reaches \textbf{17.6\%} on the 84 trainable tasks and lifts the full
-evaluation to a blended \textbf{16.28\%}. We give an honest accounting of what the recipe costs and
-where the effort should go for anyone working with one consumer GPU rather than the winner's hardware. The
-contest itself provides four L4 GPUs, 96~GB together, where the offline frontier already passes 50\% through
-refinement and program synthesis, so we read the 16~GB result as the efficient floor of a larger climb rather
-than a ceiling on the task. All code, the conversion recipe, and a development log of every measurement are
-open source under MIT-0.
+We run the 2025 ARC Prize winning recipe, a small grid model with per-task test-time training (TTT)
+and augment-infer-reverse-vote (AIRV) selection, on a single 16~GB consumer GPU, and ask what actually
+binds at that scale. The binding constraint is generation throughput, not model quality and not memory.
+Moving decode off the Hugging Face eager path onto llama.cpp buys a $13\times$ speedup, turns an
+overnight failure-prone evaluation into a sub-90-minute one, and is what makes per-task TTT tractable
+at all, by hot-swapping each task's adapter on the fast engine. Building on the NVARC Qwen3-4B grid
+model, the system scores \textbf{12.79\%} without TTT on the 120-task public evaluation set. The lift
+from TTT depends on regularization. A naive adapter overfits and ties the baseline, while a
+regularized, scale-tuned configuration reaches \textbf{17.6\%} on the 84 trainable tasks and lifts the
+full evaluation to a blended \textbf{16.28\%}. On the hidden main-track leaderboard the same recipe
+scores \textbf{13.61\%} with TTT and 6.53\% without, and the public-to-hidden transfer is itself a
+finding. The no-TTT baseline halves, and across the follow-on submissions every candidate-side lever
+that lifted or tied the public evaluation regressed the hidden score, so public-eval gains must be
+re-validated in the exact deployed condition before they are trusted. We give an honest accounting of
+what the recipe costs and where the effort should go for anyone working with one consumer GPU rather
+than the winner's hardware. The contest itself provides four L4 GPUs, 96~GB together, where the
+offline frontier already passes 50\% through refinement and program synthesis, so we read the 16~GB
+result as the efficient floor of a larger climb rather than a ceiling on the task. All code, the
+conversion recipe, and a development log of every measurement are open source under MIT-0.
 \end{abstract}
 
 {\small\tableofcontents}
@@ -137,6 +139,10 @@ on the fast engine, and a measured, regularization-dependent lift to a \textbf{1
 \item An ``accuracy per GPU-hour'' accounting that names the three walls a compute-poor practitioner
 hits first, the decode ceiling, the VRAM limit on large-grid TTT, and adapter overfitting
 (Section~\ref{sec:disc}).
+\item The measured finding that public-eval gains do not transfer to the hidden set. The no-TTT
+baseline halves from 12.79\% to 6.53\%, and across seven leaderboard submissions every candidate-side
+lever that lifted or tied the public evaluation regressed the hidden score when deployed
+(Section~\ref{sec:results}, \ref{sec:lessons}).
 \item A reading of why those walls are a property of a small model on one card rather than of the task,
 and a concrete path that scales the same verifier, TTT, and selection onto the full 96~GB the contest
 provides, where the offline frontier already passes 50\% (Section~\ref{sec:scale}).
@@ -283,8 +289,9 @@ largest-train-pair token length (Figure~\ref{fig:vram}).
 \caption{The left panel shows the three-phase schedule keeping PyTorch and llama.cpp from sharing the
 16~GB at once, with the VRAM trace sampled live and the peaks measured. The right panel shows the VRAM
 wall, with each task placed by grid size and context length, and tasks above the operational cutoff
-excluded from TTT (the cutoff metric is the largest train pair, and any VRAM surface shown is a
-calibrated model).}
+excluded from TTT. In the right panel only the per-task points and the cutoff are measured. The
+translucent VRAM surface is a calibrated model, not a measurement, drawn only to make the wall
+legible, and the cutoff metric is the largest train pair.}
 \label{fig:phases}
 \label{fig:vram}
 \end{figure}
@@ -292,25 +299,49 @@ calibrated model).}
 \section{Results}
 \label{sec:results}
 
-\subsection{No-TTT baseline}
-The AIRV pipeline without TTT scores \textbf{12.79\%} (22 of 172 test outputs) on the 120-task public
-evaluation set, a clean single-stream run completing in $\approx 78$ minutes. Submitted to the
-ARC-AGI-2 main-track leaderboard, the same pipeline scores \textbf{6.53\%} on the hidden 240-task
-test set (semi-private plus private), a roughly twofold drop from the public eval that we attribute
-to the hidden set's greater difficulty, and possibly to per-task failures in the scored rerun
-(Section~\ref{sec:limits}). Adding per-task TTT roughly doubles this hidden score. A first TTT
-submission scored 11.94\%, and a scaled configuration (more trainable tasks, more augmentations, longer
-training context) reached \textbf{13.61\%}, ranking 468 of about 4000. Three further submissions probed whether more
-candidates help, and none beat it. A three-scale vote exceeded the runtime budget, a two-scale vote that
-also added colour permutation regressed to 12.78\%, and the more-candidates lever from the ablations
-(sampling each D4 view four times) regressed to 13.19\% once carried into the TTT pipeline. The lift those
-extra candidates give the unsure no-TTT base does not survive the already-sharpened adapter. The scaled
-single-scale configuration at 13.61\% is a local optimum that the candidate and voting side does not
-improve. The TTT submissions run on the contest's four-L4 offline accelerator, which the bf16 per-task adapters require and across which the 240
-tasks are sharded for throughput. The gain is the method rather than the hardware, as no single task
-needs more than one 16~GB card, the regime of every public-eval number here. For reference the 2025
-winner reached 24.0\% with TTT~\cite{arc2025} on the same Qwen3-4B base lineage with a more developed
-recipe.
+\subsection{Two regimes, and the leaderboard progression}
+Two hardware regimes appear in this paper, and every number belongs to exactly one of them. Every
+public-eval number, the 12.79\% baseline, the 17.6\% trainable-task peak, and the 16.28\% blend, is
+measured on the single RTX~5070~Ti against the 120-task public evaluation set, and all method
+development ran there. Every leaderboard number is measured by Kaggle's offline scoring rerun on the
+contest's four-L4 node, against the hidden 240-task set (120 semi-private plus 120 private). The
+submissions use the four L4s only to shard tasks for throughput, since the bf16 per-task training does
+not fit the 12-hour budget on one card. No single task needs more than one 16~GB GPU, so the method
+under test is the single-card recipe throughout.
+
+The AIRV pipeline without TTT scores \textbf{12.79\%} (22 of 172 test outputs) on the public
+evaluation, a clean single-stream run completing in $\approx 78$ minutes, and \textbf{6.53\%} on the
+hidden set, a halving we return to in Sections~\ref{sec:lessons} and~\ref{sec:limits}. Adding per-task
+TTT roughly doubles the hidden score. Table~\ref{tab:versions} gives the full progression.
+
+\begin{table}[H]
+\centering
+\caption{Leaderboard submissions, scored on the hidden 240-task set on the four-L4 node.}
+\label{tab:versions}
+\begin{tabular}{llc}
+\toprule
+version & configuration & hidden score (\%) \\
+\midrule
+v1   & no-TTT AIRV, eight greedy D4 views            & 6.53 \\
+v2   & + per-task TTT (160 tasks) + colour-perm      & 11.94 \\
+v2.1 & scaled TTT (232 tasks), single scale, no colour-perm & \textbf{13.61} \\
+v3   & + three-scale vote                            & error \\
+v3.1 & + two-scale vote + colour-perm                & 12.78 \\
+v4   & + more-candidates sampling (four per view)    & 13.19 \\
+v5   & + white-box plausibility filter               & 12.78 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The scaled single-scale configuration (v2.1) reached \textbf{13.61\%}, ranking 468 of about 4000, and
+four later submissions failed to beat it. One errored in the scored rerun, and each of the three that
+scored carried exactly one lever that had lifted or tied the public evaluation, multi-scale voting
+with colour permutation, more-candidates sampling, and the white-box plausibility filter, and each
+regressed the hidden score (Section~\ref{sec:ablations} gives the levers and the mechanism). The eight
+greedy D4 views at a single adapter scale are a local optimum that the candidate and voting side does
+not improve, and the repeated public-to-hidden reversal is itself a finding (Section~\ref{sec:lessons}).
+For reference the 2025 winner reached 24.0\% with TTT~\cite{arc2025} on the same Qwen3-4B base lineage
+with a more developed recipe.
 
 \subsection{The engine speedup}
 The $13\times$ decode improvement from changing engines (Section~\ref{sec:engine},
@@ -373,10 +404,11 @@ no-TTT          & 16/125 & 12.8\% \\
 \end{tabular}
 \end{table}
 
-\subsection{Ablations on scale, colour, and the big-grid wall}
-Four further levers, each measured on the 84 trainable tasks (full per-scale numbers in
-Appendix~\ref{app:results}). The adapter \emph{scale} matters. Accuracy peaks at 17.6\% at scale
-$1.25$, then declines (Figures~\ref{fig:results},~\ref{fig:flip}). Colour permutation lifts the
+\subsection{Ablations on scale, colour, candidates, filtering, and the big-grid wall}
+\label{sec:ablations}
+Five further levers, each measured on the 84 trainable tasks or the full evaluation (full per-scale
+numbers in Appendix~\ref{app:results}). The adapter \emph{scale} matters. Accuracy peaks at 17.6\% at
+scale $1.25$, then declines (Figures~\ref{fig:results},~\ref{fig:flip}). Colour permutation lifts the
 no-TTT baseline to 14.4\% but does \emph{not} stack with the already colour-robust adapter. Forcing
 TTT onto the big-grid tasks does not help. The VRAM exclusion is a genuine ceiling, not a missed
 opportunity. The fourth lever is how many candidates the vote sees, and it cuts both ways. Sampling each of
@@ -385,11 +417,23 @@ like colour permutation it does not stack with the per-task adapter. Carried int
 extra sampled candidates regressed the hidden score from 13.61\% to 13.19\%, and stacking multi-scale voting
 and colour permutation regressed it further to 12.78\%. The adapter already concentrates the model on its
 single best answer, so more candidates help only the unsure no-TTT base and dilute the confident TTT one.
-The eight greedy D4 views at a single scale are a local optimum that more votes do not beat. The best blend,
-TTT at scale $1.25$ where
-trainable and no-TTT elsewhere, reaches \textbf{16.28\%} on the full 120-task evaluation, up from 12.79\%.
-The honest summary is that naive per-task TTT \emph{ties} a strong no-TTT AIRV baseline, while a
-regularized, scale-tuned TTT \emph{beats} it by a consistent if modest margin.
+
+The fifth lever is a white-box plausibility filter adapted from a small-model recipe~\cite{longt5arc},
+which drops candidates that violate the task's colour palette or the train pairs' size pattern before
+the vote. On the public evaluation it is exactly neutral. The eight greedy D4 candidates are already
+plausible, so filtering changes no attempt on any of the 120 tasks, and where its inferred size rule
+misfires, on tasks whose train pairs coincidentally share one output size while the true rule varies,
+it empties the candidate list and the pipeline falls back to the unfiltered vote. Submitted as v5, it
+regressed the hidden score from 13.61\% to 12.78\%, a roughly two-task loss consistent with that
+size-rule tail landing on hidden tasks where the filter kept a plausible wrong candidate instead of
+emptying, though run-to-run TTT variance cannot be excluded from outside. The asymmetry is the lesson.
+A lever that measures neutral on the public set has no upside and only tail risk on the hidden one.
+
+The eight greedy D4 views at a single scale are a local optimum that neither more votes nor
+vote filtering beats. The best blend, TTT at scale $1.25$ where trainable and no-TTT elsewhere,
+reaches \textbf{16.28\%} on the full 120-task evaluation, up from 12.79\%. The honest summary is that
+naive per-task TTT \emph{ties} a strong no-TTT AIRV baseline, while a regularized, scale-tuned TTT
+\emph{beats} it by a consistent if modest margin.
 
 \begin{figure}[H]
 \centering
@@ -409,7 +453,8 @@ predicting correctness, where full eight-way consensus is right far more often t
 \section{Discussion}
 \label{sec:disc}
 
-\subsection{Three lessons that generalize}
+\subsection{Four lessons that generalize}
+\label{sec:lessons}
 First, on a single GPU the inference engine is the dominant design choice. Quantization and sampling
 mattered far less than the $13\times$ we recovered by moving decode off the eager path. Second, the
 real obstacle for TTT is the \emph{serving bridge}. Training needs a gradient framework, fast
@@ -419,6 +464,16 @@ plumbing but \emph{regularization}, because the small per-task training set over
 4B model is bimodal on these tasks. It solves or it misses with little partial credit, so the
 refinement family that defines the current frontier needs an external partial-credit signal to work at
 this scale. A method that only re-ranks the model's own outputs stalls (Section~\ref{sec:limits}).
+
+Fourth, public-eval gains must be re-validated in the exact deployed condition, because they do not
+transfer on their own. The level drops, the no-TTT system halves from 12.79\% public to 6.53\% hidden.
+More telling, the deltas reverse. The three candidate-side levers that lifted or tied the public
+evaluation, colour permutation with multi-scale voting, more-candidates sampling, and the plausibility
+filter, each regressed the hidden TTT score when submitted (Table~\ref{tab:versions}). Two mechanisms
+compound. A lever validated on the no-TTT base meets a different system once the adapter has sharpened
+the vote, and a lever that measures neutral on one task distribution still carries tail risk on
+another. The operational rule this bought is that a lever counts as validated only in the exact
+submission condition, and a lever that measures neutral is never shipped.
 
 \subsection{Accuracy per GPU-hour}
 We argue the right framing for compute-poor ARC work is \textbf{accuracy per GPU-hour}
@@ -450,11 +505,13 @@ Our absolute accuracy is below NVARC's 24.0\% winning result, by design. That sc
 four L4 GPUs, not a cluster, by a more developed recipe on the same Qwen3-4B base lineage, so the gap
 reflects recipe sophistication (synthetic data, ensembling, TTT scale) more than hardware. We study the
 one-card inference-plus-TTT recipe rather than maximize a system.
-The public-to-hidden gap is itself a finding. The no-TTT system scores 12.79\% on the public eval but
-6.53\% on the hidden main-track set, a reminder that the public ARC-AGI-2 eval is more saturated than
-the held-out sets, so a lean single-GPU recipe carries less of its public accuracy across than a
-more developed system would. A scored rerun can also lose the heaviest-grid tasks to server stalls, which our
-next submission instruments (a per-task log) to separate empty answers from genuine misses.
+The public-to-hidden gap is a finding, not a caveat (Section~\ref{sec:lessons}). Levels drop, the
+no-TTT system carries 12.79\% public to 6.53\% hidden while the TTT blend carries 16.28\% to 13.61\%,
+and deltas reverse, with every public-validated candidate-side lever regressing when submitted
+(Table~\ref{tab:versions}). The public ARC-AGI-2 eval is the set every open recipe is tuned against,
+ours included, so the leaner the recipe the more of its public accuracy is public-specific. Part of
+the v1 drop may also be per-task failures in the scored rerun, which the later submissions instrument
+with a per-task log, and the TTT system's smaller gap is consistent with both readings.
 The 2025 analysis names verifier-guided selection and a refinement loop (check each candidate against
 the train pairs, then re-prompt on the discrepancy) as the central advance, so we built and tested it.
 It does not lift here. A passive form (weighting the augmentation vote by leave-one-out train fidelity)
@@ -516,35 +573,41 @@ those runs uses the same offline no-internet sandbox our system does. The higher
 ARC-AGI-2, a 54\% Gemini refinement harness and frontier scores above 70\%, come from a separate public
 track that allows internet and external compute, so they are not the bar we measure against~\cite{arc2025}.
 The offline bar is the leaderboard above. The field runs test-time adaptation and program search on the
-full 96~GB, and our 13.61\% leaderboard score sits below it on one 16~GB card. None of our negative results
-argues against that climb.
-Every wall we mapped belongs to a 4B model on a single card. That model is bimodal, solving or missing
-with nothing between, which is the exact reason refinement and verifier-guided selection found nothing to
-grip. A larger model run in the 96~GB the contest provides stops being bimodal. It yields partially-correct
-candidates that a verifier can rank and a refinement loop can improve, which converts the levers that
-stalled here into the levers the leading offline systems run. The same reasoning carries program synthesis,
-where a capable proposer can compose the precise transformations a small one cannot. We have a measurement
-that points the same way. On one card a second transductive model buys almost nothing, since our own
-fine-tuned variant solves only two tasks the stock 4B misses, and the released TRM model, the strongest
-small grid model available, scores far below our pipeline and needs more compute than a 16~GB card can give
-it. The diversity that pays is a larger model rather than a second small one, which is the move the 96~GB
-allows. We read the 16~GB result not as the limit of the task but as the point where the small-model recipe
-runs out and scaling takes over. The pieces transfer directly. The executable verifier we measured at about 250 programs per
-second, the per-task TTT harness, and the AIRV selection rule all gain power, not lose it, with more model
-and more compute behind them. Our next measurements move this same pipeline onto the full 96~GB and report
-where the curve goes, scheduled against the weekly compute budget so each run tests a bigger base, a
-second-model ensemble, and the refinement loop together rather than one at a time.
+full 96~GB, and our 13.61\% leaderboard score sits below it on one 16~GB card. None of our negative
+results argues against that climb, but none of them tests it either, so we state the scaling case as a
+falsifiable hypothesis for future work rather than as a claim.
+Every wall we mapped belongs to a 4B model on a single card, and the sharpest is bimodality. The model
+solves a task robustly or misses it entirely, which is the exact reason refinement and verifier-guided
+selection found nothing to grip. The hypothesis is that bimodality is a property of this model's scale
+and training rather than of the task. The falsifiable prediction is that a more capable base run in the
+96~GB produces partially-correct candidates on tasks it does not solve outright, a measurable non-empty
+near-miss band where ours is 1.5\%, and that this in turn reactivates the refinement and program-search
+levers that stalled here. Two of our measurements bound the hypothesis from below. A second small
+transductive model buys almost nothing, since our fine-tuned variant solves only two tasks the stock 4B
+misses, and the released TRM model, the strongest small grid model available, scores far below our
+pipeline while needing more compute than one card gives it, so any diversity that pays must come from
+capability rather than from a second small vote. One published result warns against reading the
+hypothesis as a bare parameter-count claim. A $\sim$200M encoder-decoder system with test-time training
+and white-box filtering reports 27\% on the ARC-AGI-2 semi-private set, ahead of the 4B-based 2025
+winner~\cite{longt5arc}, so method quality can dominate size, and our own four failed elaborations of
+the 4B's candidate machinery (Table~\ref{tab:versions}) sharpen the same point from below. We read the
+16~GB result as the place where this small-model recipe runs out. The prediction above is the test of
+what replaces it, and we leave it as stated, a hypothesis with a measurement that would falsify it,
+rather than as a promise.
 
 \section{Conclusion}
 \label{sec:conclusion}
 The 2025 winning recipe survives a single 16~GB consumer GPU, but only after the inference engine is
 fixed. That one change is worth more than every other knob, and it is what makes per-task TTT
 tractable through an adapter-serving bridge. The honest result is a 12.79\% no-TTT baseline and a
-16.28\% regularized-TTT blend, with the gains bounded by adapter overfitting and a hard VRAM wall on
-large grids. Those bounds belong to one small card, not to the task. The contest gives four L4 GPUs and
-96~GB, where the offline frontier already passes 50\%, and the verifier, the TTT bridge, and the selection
-rule we built all carry straight onto that hardware. The 16~GB number is where we start the climb, not
-where it ends. The full system is open source, the GGUF conversion recipe for the custom-vocabulary
+16.28\% regularized-TTT blend on the public evaluation, 13.61\% on the hidden leaderboard, with the
+gains bounded by adapter overfitting and a hard VRAM wall on large grids. The sharpest general lesson
+is that public-eval gains must be re-validated in the deployed condition, since every public-validated
+candidate lever we submitted regressed on the hidden set. Those bounds belong to one small card, not to
+the task. The contest gives four L4 GPUs and 96~GB, where the offline frontier already passes 50\%, and
+the verifier, the TTT bridge, and the selection rule we built are the pieces we would carry onto that
+hardware, with the scaling case stated as a falsifiable hypothesis rather than a promise
+(Section~\ref{sec:scale}). The 16~GB number is where the climb starts, not where it ends. The full system is open source, the GGUF conversion recipe for the custom-vocabulary
 model, the AIRV pipeline, the per-task TTT bridge and sweep harness, and a development log recording
 every measurement and dead end behind these numbers.
 
@@ -707,6 +770,8 @@ attribution are in the repository's \texttt{THIRD\_PARTY\_LICENSES.md} and \text
 \bibitem{qwen3} Qwen Team. Qwen3 Technical Report. 2025.
 \bibitem{rearc} M.~Hodel. Addressing the Abstraction and Reasoning Corpus via Procedural Example
 Generation. arXiv:2404.07353, 2024.
+\bibitem{longt5arc} W.~Lemes de Oliveira et al. ARC-AGI-2 Technical Report (LongT5-based system with
+test-time training). arXiv:2603.06590, 2026.
 \end{thebibliography}
 
 \end{document}
