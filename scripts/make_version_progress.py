@@ -42,6 +42,8 @@ VERSIONS = [
          ttt=232, note="+ multi-scale,\ncolour-perm"),
     dict(tag="v4",   score=13.19, hours=6.5,  time_est=True,  accel="L4 x4",
          ttt=232, note="more-candidates\nsampling"),
+    dict(tag="v5",   score=12.78, hours=3.9,  time_est=True,  accel="L4 x4",
+         ttt=232, note="+ white-box\nfilter"),
 ]
 
 BUDGET_H = 12.0
@@ -98,6 +100,7 @@ def fig_version_score():
     ax.text(0.5, 10.6, "+83%", ha="center", fontsize=9.5, color=GREEN, style="italic")
     ax.text(1.5, 14.4, "+14%", ha="center", fontsize=9.5, color=GREEN, style="italic")
     ax.text(2.5, 14.3, "-6%", ha="center", fontsize=9.5, color=FAIL, style="italic")
+    ax.text(4.5, 14.1, "-3%", ha="center", fontsize=9.5, color=FAIL, style="italic")
 
     ax.set_xticks(xs)
     ax.set_xticklabels([f"{v['tag']}\n{v['note']}" for v in VERSIONS], fontsize=9.5)
