@@ -52,7 +52,10 @@ FBS = ["airv_ttt_val_s125_eval.json", "airv_ttt_val_s100_eval.json", "airv_ttt_v
 
 MAX_PROMPT_CHARS = 36000   # ~12k tokens at ~3 chars/token, inside the 16k context with output room
 
-SYSTEM = "You are an expert puzzle solver who writes precise Python."
+# Default zero-shot system prompt. Set ARC_SYSTEM to a file to swap in a few-shot priming prompt
+# (worked example solvers) without touching the rest of the harness.
+SYSTEM = (open(os.environ["ARC_SYSTEM"], encoding="utf-8").read()
+          if os.environ.get("ARC_SYSTEM") else "You are an expert puzzle solver who writes precise Python.")
 
 INSTRUCTIONS = (
     "Study the transformation from each INPUT grid to its OUTPUT grid. The same single rule maps every "

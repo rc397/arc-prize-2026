@@ -631,12 +631,20 @@ That probe used a 1.5B model emitting a fixed ARC-1 domain-specific language and
 missed tasks. The arm here uses a 14B code model emitting unrestricted Python, which addresses both named
 causes at once, model capacity and an expressive target language.
 
-\textbf{Status.} This section is under active measurement and we report results as they land. The gate is
-a disjoint-coverage probe on the single card, the number of the 101 missed evaluation tasks a
-train-verified program solves. The threshold to build the full routed submission is five, because below
-that the expected transfer to the hidden set sits inside the noise the public-to-hidden gap has shown. We
-will report the probe count, the chosen routing threshold, and the routed system's public and hidden
-scores here as each is measured.
+\textbf{Status.} The first probe is a disjoint-coverage run on the single card. A 14B code model
+(Qwen2.5-Coder) samples sixteen programs per task at temperature 0.8, on exactly the 101 evaluation tasks
+the transductive system misses, and a program is kept only if it reproduces every train pair. It solved
+none of them. More telling than the zero, across roughly 1600 programs only one task saw a program
+reproduce even a single train pair, so the model is not close anywhere. The programs are not the failure
+mode the arc-dsl proposer was. They are fluent and sensible. On a task whose output size changes with
+every example the model wrote a clean routine that extracts and sorts rows, which crashed because its
+fixed-shape hypothesis cannot produce a variable-size output, and on a task with a narrower output it
+wrote correct code for the wrong rule and returned the input width. The 1.5B DSL proposer failed because
+it could not express the concepts. This larger model expresses them freely and still cannot infer the
+rule from a few examples. The bottleneck is inference, not expression, and a general coder does not close
+it zero-shot on one card. We are now testing whether priming the coder with a few worked example
+solutions moves the number, and will report that and, if it clears the gate, the routed system's public
+and hidden scores here as each is measured.
 
 \section{Conclusion}
 \label{sec:conclusion}
