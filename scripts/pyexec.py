@@ -28,6 +28,11 @@ def _norm(g):
 
 def _worker(q, src, inputs):
     try:
+        import os
+        import sys
+        devnull = open(os.devnull, "w")
+        sys.stdout = devnull   # generated code may print in a loop; keep the parent log clean
+        sys.stderr = devnull
         ns = {}
         exec(src, ns)
         f = ns["solve"]

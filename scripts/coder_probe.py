@@ -44,7 +44,7 @@ PORT = int(sys.argv[5]) if len(sys.argv) > 5 else 8090
 CHAT = "http://127.0.0.1:%d/v1/chat/completions" % PORT
 HEALTH = "http://127.0.0.1:%d/health" % PORT
 SERVER_ARGS = [SERVER_EXE, "-m", MODEL, "-ngl", "99", "-c", "16384", "-np", "1",
-               "--host", "127.0.0.1", "--port", str(PORT), "--no-webui"]
+               "--host", "127.0.0.1", "--port", str(PORT), "--no-webui", "--jinja"]
 
 # The 4B coverage envelope, the union over every recorded AIRV eval (identical to the arc-dsl probe).
 FBS = ["airv_ttt_val_s125_eval.json", "airv_ttt_val_s100_eval.json", "airv_ttt_val_s150_eval.json",
@@ -224,6 +224,7 @@ def main():
         sys.exit(2)
 
     t0 = time.time()
+    consec_dead = 0
     for i, tid in enumerate(missed, 1):
         if tid in results:
             continue
@@ -235,6 +236,13 @@ def main():
             text, _t = chat(prompt)
             if text:
                 texts.append(text)
+        if not texts:
+            consec_dead += 1
+            if consec_dead >= 5:
+                print("ABORT: 5 consecutive tasks with zero responses (server unrecoverable)", flush=True)
+                sys.exit(2)
+        else:
+            consec_dead = 0
         progs = []
         for t in texts:
             progs.extend(extract_programs(t))
@@ -254,15 +262,15 @@ def main():
             if npass == len(tr_out):
                 survivors.append(src)
         solved = False
-        winner = None
+        surv_records = []
         for src in survivors:
-            if pyexec.run_candidate(src, te_in, timeout=4.0) == te_out:
+            t_outs = pyexec.run_candidate(src, te_in, timeout=4.0)
+            surv_records.append({"src": src, "test_outputs": t_outs})
+            if t_outs == te_out:
                 solved = True
-                winner = src
-                break
         results[tid] = {"solved": solved, "survivors": len(survivors), "uniq": len(uniq),
                         "responses": len(texts), "best_train": best, "n_train": len(tr_out),
-                        "truncated": truncated, "winner": winner}
+                        "truncated": truncated, "survivor_records": surv_records}
         json.dump(results, open(OUT, "w"))
         print("[%d/%d] %s resp=%d uniq=%d surv=%d best_train=%d/%d SOLVED=%s t=%.0fs"
               % (i, len(missed), tid, len(texts), len(uniq), len(survivors), best, len(tr_out),
