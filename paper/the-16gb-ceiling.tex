@@ -595,6 +595,49 @@ the 4B's candidate machinery (Table~\ref{tab:versions}) sharpen the same point f
 what replaces it, and we leave it as stated, a hypothesis with a measurement that would falsify it,
 rather than as a promise.
 
+\subsection{A routed dual-arm system}
+\label{sec:dualarm}
+Section~\ref{sec:limits} argued that the next lever must supply an external, continuously-gradable signal
+that is valid where the base is lost, and Section~\ref{sec:scale} offered one escape, a larger
+non-bimodal base, as a falsifiable hypothesis. We are building a second escape that stays on the
+single-card efficiency budget rather than betting on scale, and it follows directly from two measurements
+already in this paper. The AIRV vote agreement predicts correctness (Figure~\ref{fig:votes}), so the grid
+model reports for free which tasks it has solved and which it has no grip on. And the base is bimodal, so
+on a missed task there is nothing to refine, only something to replace.
+
+The system routes on the first fact and fills the gap with a method that does not share the base's blind
+spot. High-consensus tasks are banked with the grid model's own answer, which is most of the current
+score at a fraction of the compute. Low-consensus tasks, where the transductive model scores near zero,
+are routed to an induction arm, a code model that writes plain-Python grid transforms which we execute
+against the train pairs. A program that reproduces every train pair is verified on observable data in a
+way no vote can be, so its output becomes the first attempt and the grid model's guess falls back to the
+second. The two arms are complementary by construction rather than by hope, induction expresses the
+precise compositional rules transduction misses.
+
+The design is deliberately do-no-harm. A banked task is byte-identical to the transductive submission,
+and a program is trusted only when it reproduces every train pair, so the arm can only add coverage on
+tasks the base was already missing. This is the property the five candidate-side levers lacked. Each of
+them rewrote the vote on every task including the ones already solved, and each regressed
+(Table~\ref{tab:versions}). The one loss channel, a program that fits every train pair yet is wrong on
+the test and displaces a correct second attempt, is measured on the local eval before any submission. The
+arm also inverts the engine economy of Section~\ref{sec:engine}. Verifying a program by running it is
+cheap, and where several programs survive we rank their outputs under the grid model's per-view
+likelihood, which is prefill-priced and about thirty times cheaper than the decode that produced them, so
+the system generates less and checks more. The whole arm runs inside the idle two-thirds of the offline
+budget the transductive submission leaves unspent.
+
+This is the same idea whose cheap form failed in Section~\ref{sec:limits}, and it is built to answer why.
+That probe used a 1.5B model emitting a fixed ARC-1 domain-specific language and solved none of the 101
+missed tasks. The arm here uses a 14B code model emitting unrestricted Python, which addresses both named
+causes at once, model capacity and an expressive target language.
+
+\textbf{Status.} This section is under active measurement and we report results as they land. The gate is
+a disjoint-coverage probe on the single card, the number of the 101 missed evaluation tasks a
+train-verified program solves. The threshold to build the full routed submission is five, because below
+that the expected transfer to the hidden set sits inside the noise the public-to-hidden gap has shown. We
+will report the probe count, the chosen routing threshold, and the routed system's public and hidden
+scores here as each is measured.
+
 \section{Conclusion}
 \label{sec:conclusion}
 The 2025 winning recipe survives a single 16~GB consumer GPU, but only after the inference engine is
