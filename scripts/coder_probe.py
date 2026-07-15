@@ -40,6 +40,8 @@ K = int(sys.argv[2]) if len(sys.argv) > 2 else 16
 OUT = sys.argv[3] if len(sys.argv) > 3 else os.path.join(EXP, "coder_probe.json")
 MODEL = sys.argv[4] if len(sys.argv) > 4 else os.path.join(BASE, "models", "qwen2.5-coder-14b-instruct-q4_k_m.gguf")
 PORT = int(sys.argv[5]) if len(sys.argv) > 5 else 8090
+MAXTOK = int(os.environ.get("ARC_MAXTOK", "1024"))   # raise for a reasoning model's think trace
+TEMP = float(os.environ.get("ARC_TEMP", "0.8"))
 
 CHAT = "http://127.0.0.1:%d/v1/chat/completions" % PORT
 HEALTH = "http://127.0.0.1:%d/health" % PORT
@@ -141,7 +143,7 @@ def ensure_server():
     return False
 
 
-def chat(prompt, temperature=0.8, max_tokens=1024, retries=4):
+def chat(prompt, temperature=TEMP, max_tokens=MAXTOK, retries=4):
     body = json.dumps({
         "messages": [{"role": "system", "content": SYSTEM}, {"role": "user", "content": prompt}],
         "temperature": temperature, "top_p": 0.95, "max_tokens": max_tokens, "cache_prompt": True,
