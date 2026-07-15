@@ -45,7 +45,8 @@ TEMP = float(os.environ.get("ARC_TEMP", "0.8"))
 
 CHAT = "http://127.0.0.1:%d/v1/chat/completions" % PORT
 HEALTH = "http://127.0.0.1:%d/health" % PORT
-SERVER_ARGS = [SERVER_EXE, "-m", MODEL, "-ngl", "99", "-c", "16384", "-np", "1",
+CTX = os.environ.get("ARC_CTX", "16384")   # raise for a long reasoner on big-grid prompts
+SERVER_ARGS = [SERVER_EXE, "-m", MODEL, "-ngl", "99", "-c", CTX, "-np", "1",
                "--host", "127.0.0.1", "--port", str(PORT), "--no-webui", "--jinja"]
 
 # The 4B coverage envelope, the union over every recorded AIRV eval (identical to the arc-dsl probe).
@@ -151,9 +152,13 @@ def chat(prompt, temperature=TEMP, max_tokens=MAXTOK, retries=4):
     for attempt in range(retries):
         try:
             req = urllib.request.Request(CHAT, data=body, headers={"Content-Type": "application/json"})
-            with urllib.request.urlopen(req, timeout=300) as r:
+            with urllib.request.urlopen(req, timeout=600) as r:
                 resp = json.loads(r.read())
-            return resp["choices"][0]["message"]["content"], resp.get("timings", {})
+            msg = resp["choices"][0]["message"]
+            text = msg.get("content") or ""
+            if msg.get("reasoning_content"):   # reasoning models split the think trace out of content, code may be inside it
+                text = text + "\n" + msg["reasoning_content"]
+            return (text or None), resp.get("timings", {})
         except Exception:
             if attempt < retries - 1:
                 ensure_server()

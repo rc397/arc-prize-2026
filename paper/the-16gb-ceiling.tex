@@ -647,9 +647,16 @@ variable-size crop aimed squarely at that failure, did not change the outcome. I
 and lifted the partial signal only from one task to two, with nothing reaching a near-miss. Two forms of
 a strong single-card coder, cold and primed, both come back empty, which is itself the result. The
 bottleneck is rule inference on the hardest tasks, and neither sampling more programs nor showing worked
-examples closes it at 14B on one card. The next test swaps the instruct coder for a reasoning-class model
-of the same size, which works through the transformation before it writes code, and we report its number
-and, if it clears the gate, the routed system's scores here as each is measured.
+examples closes it at 14B on one card. A same-size reasoning model, which works
+through the transformation at length before it writes code, does not change the verdict either. On a
+bounded run over twelve of the missed tasks it solved none and reproduced no train pair, at roughly four
+minutes of reasoning per sample. Three model classes, a small restricted proposer, a strong instruct
+coder cold and primed, and a reasoning model, all fail to induct these hardest tasks on a single card,
+and the near-miss band stays empty throughout. We read this as a decisive single-card result rather than
+a tuning gap. The router is sound, vote agreement does report which tasks the grid model has solved, but
+the arm it would route to cannot grip the tasks the grid model misses without more compute than one card
+provides. That is the same wall Section~\ref{sec:scale} predicts, now measured from the induction side,
+and it is where the second arm's value waits on the full contest hardware.
 
 \section{Conclusion}
 \label{sec:conclusion}
