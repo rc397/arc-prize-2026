@@ -46,7 +46,11 @@ ADAPTERS = os.path.join(BASE, "models", "sweep_%s" % TAG)
 OUT = os.path.join(EXP, "ttt_sweep_%s_s%s.json" % (TAG, str(SCALE).replace(".", "")))
 STATUS = os.path.join(BASE, "eval_status_sweep.json")
 PORT = 8080
-MAXPAIR = 1500
+# 1000, not the notebook's 1500. 1500 is the L4's 24GB budget. On the rig's 16GB it selects 111 tasks
+# and the big ones OOM, and a rank-32 or deeper config would OOM more often than a shallow one, dropping
+# different tasks per config and confounding the comparison. 1000 is the rig's validated limit and gives
+# the same 84 trainable tasks the recorded 17.6 baseline was measured on.
+MAXPAIR = 1000
 BATCH = 24
 CTX = "16384"
 
