@@ -30,6 +30,8 @@ RANK = int(sys.argv[3]) if len(sys.argv) > 3 else 16
 DROPOUT = float(sys.argv[4]) if len(sys.argv) > 4 else 0.1
 SCALE = float(sys.argv[5]) if len(sys.argv) > 5 else 1.25
 TAG = sys.argv[6] if len(sys.argv) > 6 else "cfg"
+MAXCTX = int(sys.argv[7]) if len(sys.argv) > 7 else 2000   # per-step few-shot context cap
+SEED = int(sys.argv[8]) if len(sys.argv) > 8 else 0        # TTT is stochastic, a new seed is a new solver
 
 MODEL_GGUF = os.path.join(BASE, "models", "arc-qwen4b-q8_0.gguf")
 SERVER = os.path.join(BASE, "llamacpp", "llama-server.exe")
@@ -198,7 +200,7 @@ def main():
                     PYTHONIOENCODING="utf-8")
         model, tok = load_model(BASE_HF, dtype=torch.bfloat16, device="cuda")
         peft_model, init = make_adapter(model, rank=RANK, alpha=RANK, dropout=DROPOUT)
-        rng = np.random.default_rng(0)
+        rng = np.random.default_rng(SEED)
         t0 = time.time()
         for i, tid in enumerate(todo):
             heartbeat("train", i, len(todo))
@@ -206,7 +208,7 @@ def main():
             gguf = os.path.join(ADAPTERS, tid + ".gguf")
             try:
                 test_time_train(peft_model, init, tasks[tid], rng, steps=STEPS,
-                                max_ctx_tokens=2000, time_budget=400)
+                                max_ctx_tokens=MAXCTX, time_budget=400)
                 peft_model.save_pretrained(adir)
                 subprocess.run([sys.executable, CONVERT, adir, "--base", BASE_HF, "--outfile", gguf,
                                 "--outtype", "f16"], env=cenv,
