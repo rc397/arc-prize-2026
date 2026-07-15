@@ -642,9 +642,14 @@ fixed-shape hypothesis cannot produce a variable-size output, and on a task with
 wrote correct code for the wrong rule and returned the input width. The 1.5B DSL proposer failed because
 it could not express the concepts. This larger model expresses them freely and still cannot infer the
 rule from a few examples. The bottleneck is inference, not expression, and a general coder does not close
-it zero-shot on one card. We are now testing whether priming the coder with a few worked example
-solutions moves the number, and will report that and, if it clears the gate, the routed system's public
-and hidden scores here as each is measured.
+it zero-shot on one card. Priming the coder with three verified worked-example solvers, one of them a
+variable-size crop aimed squarely at that failure, did not change the outcome. It solved none of the 101
+and lifted the partial signal only from one task to two, with nothing reaching a near-miss. Two forms of
+a strong single-card coder, cold and primed, both come back empty, which is itself the result. The
+bottleneck is rule inference on the hardest tasks, and neither sampling more programs nor showing worked
+examples closes it at 14B on one card. The next test swaps the instruct coder for a reasoning-class model
+of the same size, which works through the transformation before it writes code, and we report its number
+and, if it clears the gate, the routed system's scores here as each is measured.
 
 \section{Conclusion}
 \label{sec:conclusion}
