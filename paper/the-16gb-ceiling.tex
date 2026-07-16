@@ -732,6 +732,49 @@ representativeness check (no-TTT scores 12.8\% on the subset versus 12.79\% on t
 no-TTT baseline from 12.8\% to 14.4\% on the 84 tasks, but provides no further gain on top of the
 per-task adapter, which has already learned the task's colour mapping, so the two do not stack.
 
+\textbf{Deep test-time training and the training context.} The configuration sweep in
+Table~\ref{tab:sweep} conflated two variables. Its deeper cell ran 40 steps at rank 32 with no dropout
+and its shallow cell 20 steps at rank 16 with dropout, so more steps was only ever measured with the
+regularizer removed. Table~\ref{tab:deepttt} separates them on all 84 trainable tasks, trained at the
+2000-token context the submitted system uses. Depth alone does nothing. Sixty steps at rank 16 with
+dropout ties the twenty-step baseline at 24 of 125. Adding capacity while keeping the regularizer on is
+what moves the number. Sixty steps at rank 32 reaches 27 of 125, the best trainable-task result we have
+measured, and it prefers the same 1.25 inference scale. The honest caveat is variance. Two seeds of the
+baseline configuration score 24 and 22, so a single output sits inside the noise, and the deep result
+rests on one seed. A second seed is the confirmation and its verdict is in the status below. The same
+sweep isolates the training context as a real knob. The baseline trained at 1600 tokens scores 16.0\%
+against 19.2\% at 2000, a three-point gap wider than the seed noise. This reconciles a measurement
+detail. The trainable-task figure in Section~\ref{sec:ttt-results} and the blend it feeds were measured
+at the 1600-token context of the sweep harness, while every submission from v2 on trains at 2000, so
+those reported numbers describe a lighter configuration than the leaderboard one and are a conservative
+floor for it.
+
+\begin{table}[H]
+\centering
+\caption{Deep-regularized TTT sweep on the 84 trainable tasks (125 test outputs). Dropout is 0.1 and the
+training context is 2000 tokens except where noted.}
+\label{tab:deepttt}
+\begin{tabular}{lccccc}
+\toprule
+configuration & steps & rank & scale & context & correct/125 (\%) \\
+\midrule
+baseline (v2.1 config)  & 20 & 16 & 1.25 & 2000 & 24 (19.2) \\
+baseline, seed 1        & 20 & 16 & 1.25 & 2000 & 22 (17.6) \\
+deep                    & 60 & 16 & 1.25 & 2000 & 24 (19.2) \\
+deep                    & 60 & 16 & 1.00 & 2000 & 23 (18.4) \\
+\textbf{deep + rank}    & 60 & 32 & 1.25 & 2000 & \textbf{27 (21.6)} \\
+deep + rank             & 60 & 32 & 1.00 & 2000 & 25 (20.0) \\
+baseline, short context & 20 & 16 & 1.25 & 1600 & 20 (16.0) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Status.} The rank-32 deep configuration is the first candidate this project has measured that may
+clear the shipped 13.61\% hidden score, but on one seed it is not yet distinguishable from a high draw of
+the seed variance above. A second seed of it is queued next. If that lands near 27 the lift is real and
+it becomes a submission, and if it falls back near 23 the deeper adapter is a wash and the twenty-step
+operating point stands. Either outcome is reported here.
+
 \section{Engineering log of walls and dead ends}
 \label{app:log}
 We record the failures explicitly, because on this hardware they are most of the work.

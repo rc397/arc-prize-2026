@@ -414,6 +414,26 @@ table.book tbody tr:first-child td{padding-top:.5em;}
 <p><span class="applab">Paired significance.</span> On the 84 trainable tasks, TTT and no-TTT disagree on seven test outputs. TTT is correct on six that no-TTT misses and incorrect on one that no-TTT gets. An exact two-sided McNemar test on a 6/1 split gives <i>p</i>&nbsp;&approx;&nbsp;0.13, so the lift is not individually significant. We report it as directional, corroborated by the configuration sweep (+1) and the representativeness check (no-TTT scores 12.8% on the subset versus 12.79% on the full set).</p>
 <p><span class="applab">Colour permutation.</span> Adding a random colour permutation to the augmentation set lifts the no-TTT baseline from 12.8% to 14.4% on the 84 tasks, but provides no further gain on top of the per-task adapter, which has already learned the task's colour mapping, so the two do not stack.</p>
 
+<p><span class="applab">Deep test-time training and the training context.</span> The configuration sweep in Table&nbsp;1 conflated two variables. Its deeper cell ran 40 steps at rank 32 with no dropout and its shallow cell 20 steps at rank 16 with dropout, so more steps was only ever measured with the regularizer removed. The table below separates them on all 84 trainable tasks, trained at the 2000-token context the submitted system uses. Depth alone does nothing. Sixty steps at rank 16 with dropout ties the twenty-step baseline at 24 of 125. Adding capacity while keeping the regularizer on is what moves the number. Sixty steps at rank 32 reaches 27 of 125, the best trainable-task result we have measured, and it prefers the same 1.25 inference scale. The honest caveat is variance. Two seeds of the baseline configuration score 24 and 22, so a single output sits inside the noise, and the deep result rests on one seed. A second seed is the confirmation and its verdict is in the status below. The same sweep isolates the training context as a real knob. The baseline trained at 1600 tokens scores 16.0% against 19.2% at 2000, a three-point gap wider than the seed noise. This reconciles a measurement detail. The trainable-task figure in Section&nbsp;4.3 and the blend it feeds were measured at the 1600-token context of the sweep harness, while every submission from v2 on trains at 2000, so those reported numbers describe a lighter configuration than the leaderboard one and are a conservative floor for it.</p>
+
+<div class="tbl">
+  <div class="cap"><span class="lab">Table 5.</span> Deep-regularized TTT sweep on the 84 trainable tasks (125 test outputs). Dropout is 0.1 and the training context is 2000 tokens except where noted.</div>
+  <table class="book">
+    <thead><tr><th>configuration</th><th>steps</th><th>rank</th><th>scale</th><th>context</th><th>correct/125 (%)</th></tr></thead>
+    <tbody>
+      <tr><td>baseline (v2.1 config)</td><td>20</td><td>16</td><td>1.25</td><td>2000</td><td>24 (19.2)</td></tr>
+      <tr><td>baseline, seed 1</td><td>20</td><td>16</td><td>1.25</td><td>2000</td><td>22 (17.6)</td></tr>
+      <tr><td>deep</td><td>60</td><td>16</td><td>1.25</td><td>2000</td><td>24 (19.2)</td></tr>
+      <tr><td>deep</td><td>60</td><td>16</td><td>1.00</td><td>2000</td><td>23 (18.4)</td></tr>
+      <tr><td><strong>deep + rank</strong></td><td>60</td><td>32</td><td>1.25</td><td>2000</td><td><strong>27 (21.6)</strong></td></tr>
+      <tr><td>deep + rank</td><td>60</td><td>32</td><td>1.00</td><td>2000</td><td>25 (20.0)</td></tr>
+      <tr><td>baseline, short context</td><td>20</td><td>16</td><td>1.25</td><td>1600</td><td>20 (16.0)</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<p><span class="applab">Status.</span> The rank-32 deep configuration is the first candidate this project has measured that may clear the shipped 13.61% hidden score, but on one seed it is not yet distinguishable from a high draw of the seed variance above. A second seed of it is queued next. If that lands near 27 the lift is real and it becomes a submission, and if it falls back near 23 the deeper adapter is a wash and the twenty-step operating point stands. Either outcome is reported here.</p>
+
 <h2 id="sc"><span class="sn">C</span>Engineering log of walls and dead ends</h2>
 <p>We record the failures explicitly, because on this hardware they are most of the work.</p>
 <ul style="margin:.3em 0 .8em; padding-left:1.3em;">
@@ -427,10 +447,10 @@ table.book tbody tr:first-child td{padding-top:.5em;}
 </ul>
 
 <h2 id="sd"><span class="sn">D</span>Prompt and serialization format</h2>
-<p>The model's 16-token vocabulary is given in Table&nbsp;5. A grid is serialized row by row, one token per cell (the token id equals the colour), rows separated by the newline token. Prompts are assembled at the id level as a ChatML few-shot sequence of train pairs followed by the test input, ending at the <code>ASSISTANT</code> turn for the model to complete. Because the role and special tokens have no textual spelling, the whole sequence is built from ids directly, never by tokenizing a string, which is what guarantees parity between training and inference.</p>
+<p>The model's 16-token vocabulary is given in Table&nbsp;6. A grid is serialized row by row, one token per cell (the token id equals the colour), rows separated by the newline token. Prompts are assembled at the id level as a ChatML few-shot sequence of train pairs followed by the test input, ending at the <code>ASSISTANT</code> turn for the model to complete. Because the role and special tokens have no textual spelling, the whole sequence is built from ids directly, never by tokenizing a string, which is what guarantees parity between training and inference.</p>
 
 <div class="tbl">
-  <div class="cap"><span class="lab">Table 5.</span> The 16-token grid vocabulary.</div>
+  <div class="cap"><span class="lab">Table 6.</span> The 16-token grid vocabulary.</div>
   <table class="book">
     <thead><tr><th>token ids</th><th>meaning</th></tr></thead>
     <tbody>
