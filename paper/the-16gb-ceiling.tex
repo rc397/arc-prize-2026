@@ -769,11 +769,15 @@ baseline, short context & 20 & 16 & 1.25 & 1600 & 20 (16.0) \\
 \end{tabular}
 \end{table}
 
-\textbf{Status.} The rank-32 deep configuration is the first candidate this project has measured that may
-clear the shipped 13.61\% hidden score, but on one seed it is not yet distinguishable from a high draw of
-the seed variance above. A second seed of it is queued next. If that lands near 27 the lift is real and
-it becomes a submission, and if it falls back near 23 the deeper adapter is a wash and the twenty-step
-operating point stands. Either outcome is reported here.
+\textbf{Status.} Confirmed. A second seed of the rank-32 deep configuration scores 26 of 125 and the
+first scored 27, while the two baseline seeds score 24 and 22, so the two configurations separate with no
+overlap and the roughly three-output lift is a real effect rather than a seed draw. This is the first
+configuration we have measured that beats the shipped operating point on the mechanism that works,
+per-task training itself, rather than on the candidate-and-voting side where five submissions regressed.
+Whether it clears the 13.61\% hidden score is a submission question, and its transfer prior is better than
+those five because it improves the adapter rather than diluting the vote, but the public-to-hidden gap of
+Section~\ref{sec:lessons} forbids assuming it. The next submission carries this configuration and we
+report the hidden number here.
 
 \section{Engineering log of walls and dead ends}
 \label{app:log}
