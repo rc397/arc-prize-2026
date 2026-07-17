@@ -176,7 +176,11 @@ else:
     OUT = r'D:\arc\experiments\submission_v6.json'; WORK = r'D:\arc\experiments'
 
 sys.path.insert(0, REPO or '')
-ADAPTERS = os.path.join(WORK, 'loras_v6')
+# Adapters are SCRATCH, never output. v6 wrote them to /kaggle/working and hit its ~20GB quota at
+# exactly 159 of 232 adapters, because a rank-32 adapter is 126 MB (rank 16 is 63 MB, which is why v2.1
+# at 14.3GB always fit). 232 x 126MB = 28.6GB. /tmp is the container disk and is not saved as output.
+SCRATCH = '/tmp' if ON_KAGGLE else WORK
+ADAPTERS = os.path.join(SCRATCH, 'loras_v6')
 print('on_kaggle', ON_KAGGLE, 'n_limit', N_LIMIT, 'steps', TTT_STEPS, 'rank', TTT_RANK)
 for lbl, p in [('model', MODEL_GGUF), ('server', SERVER), ('base_hf', BASE_HF), ('convert', CONVERT), ('gguf-py', GGUF_PY), ('repo', REPO), ('challenges', CH)]:
     print('%-11s %-5s %s' % (lbl, 'OK' if p and os.path.exists(p) else 'MISSING', p))
@@ -292,6 +296,14 @@ tids = tids[:MAX_TTT_TASKS]
 print('Phase A: %d trainable tasks, deep TTT sharded across %d GPU(s)' % (len(tids), NGPU), flush=True)
 
 os.makedirs(ADAPTERS, exist_ok=True)
+# Disk check up front. A rank-32 adapter measures 126 MB, so this run needs len(tids)*126MB of scratch.
+# v6's first submission died silently on exactly this, so make it loud and early rather than at task 43.
+ADAPTER_MB = 126 if TTT_RANK >= 32 else 63
+need_gb = len(tids) * ADAPTER_MB / 1024.0
+free_gb = shutil.disk_usage(ADAPTERS).free / (1024 ** 3)
+print('Phase A disk: need ~%.1f GB of adapters, %.1f GB free on %s' % (need_gb, free_gb, SCRATCH), flush=True)
+if free_gb < need_gb * 1.15:
+    print('*** WARNING: scratch may not hold all adapters, expect FAIL "No space left on device" ***', flush=True)
 cfg = dict(REPO=REPO, CH=CH, BASE_HF=BASE_HF, CONVERT=CONVERT, GGUF_PY=GGUF_PY, ADAPTERS=ADAPTERS,
            N_LIMIT=N_LIMIT, MAXPAIR=MAXPAIR, MAX_TTT_TASKS=MAX_TTT_TASKS, STEPS=TTT_STEPS, RANK=TTT_RANK,
            DROPOUT=TTT_DROPOUT, MAXCTX=MAXCTX, TIME_BUDGET=TIME_BUDGET)
@@ -325,6 +337,17 @@ try:
 except Exception as e:
     print('Phase A failed (%r), all tasks serve no-TTT' % (str(e)[:120],), flush=True); MANIFEST = {}
 print('Phase A done: %d adapters ready, %.2fh' % (len(MANIFEST), elapsed_h()), flush=True)
+# Loud degradation check. Any task without an adapter serves no-TTT, which is STRICTLY WORSE than the
+# v2.1 baseline on that task, so a short count means this run will score below v2.1 no matter how good
+# the deep config is. v6's first submission shipped 159/232 and scored 12.36 against v2.1's 13.61, and
+# nothing flagged it. Do not submit a degraded run.
+missing = len(tids) - len(MANIFEST)
+if missing > 0:
+    print('*** DEGRADED: %d of %d tasks have NO adapter and will serve no-TTT, which is worse than the'
+          ' v2.1 baseline on those tasks. Check train_shard_*.log for FAIL lines. DO NOT SUBMIT unless'
+          ' this is 0. ***' % (missing, len(tids)), flush=True)
+else:
+    print('Phase A: all %d tasks have a deep adapter, no degradation' % len(tids), flush=True)
 """),
 
 md("## 3. Phase C: serve sharded and run AIRV, adapters hot-swapped"),
@@ -356,6 +379,10 @@ def worker(gpu, port, my_no_ttt, my_ttt):
             try: att = airv(tasks[tid], port, adapter_idx=(k if ok else None), n_loaded=(len(batch) if ok else 0))
             except Exception as e: att = empty(tasks[tid]); print('  gpu%d TTT %s ERR %r' % (gpu, tid, str(e)[:70]), flush=True)
             record(tid, att); print('[gpu%d %s] %s %.2fh' % (gpu, 'TTT' if ok else 'noTTT-fb', tid, elapsed_h()), flush=True)
+        # this batch is served, drop its adapters so peak scratch stays at ~BATCH adapters not all of them
+        for t in batch:
+            try: os.remove(MANIFEST[t])
+            except Exception: pass
     stop_server(proc)
 
 no_ttt = [t for t in tids if t not in MANIFEST]
