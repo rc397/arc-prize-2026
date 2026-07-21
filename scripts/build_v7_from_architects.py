@@ -13,9 +13,41 @@ claim on our model. The method is theirs and the paper attributes it; this only 
 import json
 import os
 import re
+import sys
+
+# Named variants. The pipeline is identical in every one, only the config cell differs, so a variant is
+# a documented set of knob values rather than a fork. v7.1 is the 30.56 submission and its knobs are the
+# upstream defaults. Anything else exists to answer one question and says so in its own header.
+VARIANTS = {
+    "v7.1": {
+        "file": "arc_submission_v7.ipynb",
+        "env": {},
+        "note": "The submitted configuration, scored 30.56 on the hidden set. Upstream defaults.",
+    },
+    "v7.2": {
+        "file": "arc_submission_v7_2.ipynb",
+        "env": {"ARC_DFS_FLOOR": "0.1"},
+        "note": ("Search-width arm. Halves the DFS probability floor from 0.2 to 0.1 so more branches "
+                 "survive, which buys candidates and costs time. Run it at ARC_N_EVAL=6 first and read "
+                 "seconds per task, since the hidden run has 240 tasks against a twelve-hour wall and "
+                 "v7.1 cleared that by roughly an hour. If the projection exceeds the wall this arm "
+                 "cannot be submitted whatever it scores."),
+    },
+    "v7.3": {
+        "file": "arc_submission_v7_3.ipynb",
+        "env": {"ARC_DFS_FLOOR": "0.35"},
+        "note": ("Narrow-search control for v7.2. Raising the floor prunes earlier and runs faster. Its "
+                 "purpose is the gradient rather than the score, since v7.2 and v7.3 either bracket the "
+                 "0.2 default or point consistently one way, and one batch then closes the lever."),
+    },
+}
+
+VARIANT = sys.argv[1] if len(sys.argv) > 1 else "v7.1"
+assert VARIANT in VARIANTS, "unknown variant %r, expected one of %s" % (VARIANT, sorted(VARIANTS))
+SPEC = VARIANTS[VARIANT]
 
 SRC = r"C:\Users\rchen\Downloads\learned-from-aimo.ipynb"
-DST = r"D:\ARC_AGI-2,3\notebooks\arc_submission_v7.ipynb"
+DST = os.path.join(r"D:\ARC_AGI-2,3\notebooks", SPEC["file"])
 
 DATA_DEFAULT = "/kaggle/input/competitions/arc-prize-2026-arc-agi-2"
 MODEL_DEFAULT = "/kaggle/input/models/sorokin/qwen3_4b_grids15_sft139/transformers/bfloat16/1"
@@ -190,9 +222,10 @@ config = code_cell(
     "#   ARC_DFS_FLOOR    search width, lower keeps more branches and costs time (default 0.2)\n"
     "#   ARC_TASK_TIMEOUT per-task seconds (default 1800, the 30.56 submission used 1200)\n"
     "#   ARC_RANK         LoRA rank (default 256)      ARC_MAXSEQ  training context (default 8192)\n"
-    '# os.environ["ARC_DFS_FLOOR"]    = "0.1"\n'
-    '# os.environ["ARC_TASK_TIMEOUT"] = "1200"\n'
-    "# ====================================================\n"
+    + ("".join('os.environ["%s"] = "%s"\n' % (k, v) for k, v in sorted(SPEC["env"].items()))
+       or '# os.environ["ARC_DFS_FLOOR"]    = "0.1"\n'
+          '# os.environ["ARC_TASK_TIMEOUT"] = "1200"\n')
+    + "# ====================================================\n"
     'print("MODEL ", os.environ["ARC_MODEL_PATH"], "exists:", os.path.isdir(os.environ["ARC_MODEL_PATH"]))\n'
     'print("DATA  ", os.environ["ARC_DATA_DIR"], "exists:", os.path.isdir(os.environ["ARC_DATA_DIR"]))\n'
     "# echo every knob so a smoke run proves the config landed instead of silently defaulting\n"
