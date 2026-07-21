@@ -80,6 +80,12 @@ def rewire(text):
         "            for offset in [10, 14]:\n"
         "                batch.extend(subkeys[offset:offset+2])\n"
         "            batches.append(batch)\n")
+    # DFS probability floor as an env knob. This is the single biggest search-budget dial, it sets how
+    # improbable a continuation may get before the tree search abandons it. Lower keeps more branches
+    # alive and costs time, so it trades directly against the per-task cap above.
+    text = text.replace(
+        "    max_score = -np.log(0.2)\n",
+        '    max_score = -np.log(float(os.environ.get("ARC_DFS_FLOOR", "0.2")))\n')
     # per-task time cap as an env knob. The aimo edit raised sorokin's 1200 to 1800; the stripped
     # pipeline needs the tighter cap to fit 240 hidden tasks inside the 12h rerun.
     text = text.replace(

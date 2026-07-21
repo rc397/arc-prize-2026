@@ -253,7 +253,7 @@ def worker(rank, queue, end_time):
 
     formatter = QwenFormatter(tokenizer=tokenizer)
     max_new_tokens = formatter.max_new_tokens()
-    max_score = -np.log(0.2)
+    max_score = -np.log(float(os.environ.get("ARC_DFS_FLOOR", "0.2")))
 
     if rerun_mode:
         test_path = os.path.join(os.environ.get("ARC_DATA_DIR", "/kaggle/input/competitions/arc-prize-2026-arc-agi-2"), "arc-agi_test_challenges.json")
