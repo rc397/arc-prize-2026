@@ -833,3 +833,35 @@ Exposed as ARC_SELECTOR, defaulting to probmul, with kgmon one env var away. Not
 upstream authors shipped kgmon as their default and may have had reasons we cannot see, and that three
 discordant cases is a sign test at p about 0.13, so the empirical evidence alone is moderate. The
 mechanism is what makes it worth taking, not the count.
+
+## 2026-07-21: the 120-task baseline, and the selector switch refuted
+
+The full 120-task public evaluation run of v7.1 at upstream defaults gives the baseline everything else
+now gets measured against.
+
+  score_kgmon           33.8 / 116
+  score_full_probmul_3  33.3 / 116
+  subkeys               412 / 2448
+
+Two things follow, and the second one is a correction of my own work from earlier today.
+
+The baseline. 33.83 task-credits. The harness prints 116 in the denominator because four of the 120
+tasks produced no decoded output at all, so the honest public-eval rate against all 120 is 28.2 percent
+rather than the 29.2 the log implies. Against 30.56 hidden, the flat-to-slightly-up transfer property
+holds a fourth time and now on a proper sample.
+
+The selector switch is refuted and has been reverted. This morning a 40-task read showed kgmon's solved
+set as a strict subset of probmul's, three discordant tasks all favouring probmul, and the formulas gave
+a clean mechanism, kgmon scores a candidate by len(guesses) and discards the beam probabilities while
+probmul weights each vote by confidence. On 120 tasks it reverses. kgmon 33.8 against probmul 33.3, each
+selector wins exactly one task the other loses, and kgmon's win is worth double because that task has one
+test output rather than two. Since the 120 contains the original 40, kgmon must be ahead by a full credit
+on the eighty tasks that were not in the slice.
+
+Worth naming the failure mode precisely, because it is the one this project keeps having to relearn.
+Three discordant cases is an anecdote. The mechanism argument was real and still did not make the
+conclusion true, and having a mechanism made a tuned result feel like engineering, which is exactly what
+made it persuasive enough to ship. Discarding information cannot help in principle, but in practice the
+extra signal probmul keeps is apparently as much noise as signal at this scale. Upstream shipped kgmon
+and upstream was right. The knob stays as ARC_SELECTOR for anyone who wants to re-test it, defaulting to
+kgmon again.

@@ -59,8 +59,8 @@ class ArcDecoder:
 
     def run_selection_algo(self, selection_algorithm=None):
         if selection_algorithm is None:
-            selection_algorithm = (score_kgmon if os.environ.get("ARC_SELECTOR", "probmul")
-                                   == "kgmon" else score_full_probmul_3)
+            selection_algorithm = (score_full_probmul_3 if os.environ.get("ARC_SELECTOR", "kgmon")
+                                   == "probmul" else score_kgmon)
         return {bk: selection_algorithm({k: g for k, g in v.items()}) for bk, v in self.decoded_results.items()}
 
     def benchmark_selection_algos(self):
