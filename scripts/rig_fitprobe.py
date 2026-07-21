@@ -1,18 +1,22 @@
-"""Measure what per-task TTT configurations actually fit on one 16 GB card.
+"""Map what per-task TTT configurations fit on one 16 GB card, and where the memory actually goes.
 
-The paper asserts that the heavy public-pipeline config (rank 256 at an eight-thousand-token context)
-does not fit 16 GB. The v7 Kaggle logs report 13011 MB allocated for exactly that config, which puts
-the claim in doubt, so this measures it directly instead of arguing about it.
+Supersedes a first version whose design was wrong in two ways. It varied rank and context together so a
+failure could not be attributed to either, and it drove sequence length by picking large real tasks, but
+max_ctx_tokens only stops packing further train pairs and never truncates, so the sequence length was an
+uncontrolled side effect of which task got chosen.
 
-Runs a ladder of (rank, max_ctx) configurations from the shipped v6.1 point up to the heavy point,
-training a few real steps on the largest evaluation tasks so the sequences are genuinely long. Each rung
-reports peak reserved VRAM, seconds per step and a fit verdict. An out-of-memory rung is recorded and
-the ladder continues, so one run produces the whole curve.
+Here sequence length is set exactly, using synthetic token batches. Memory and step time depend on tensor
+shapes rather than token values, so a synthetic sequence of length N costs the same as a real one, and it
+decouples the measurement from task selection entirely. The training setup mirrors src/arc/ttt.py exactly,
+gradient checkpointing on, cache off, input grads enabled, per-step clip and AdamW.
 
-No Unsloth and no CPU offload. Plain peft on the native loader, which is what our stack already runs.
+Each cell reports where the memory went, weights against adapter state against activations, because the
+interesting question is not whether a config fits but which term is blocking it. Two modes exist for that
+reason. std is our shipped path, peft's fp32 adapters with torch AdamW. lean casts adapters to bf16 and
+uses an 8-bit optimizer when bitsandbytes is present, which is roughly what Unsloth does on the four-L4
+runs that fit rank 256 into 13 GB.
 
-Usage: python rig_fitprobe.py [MODEL=4b] [STEPS=6] [N_TASKS=2]
-  MODEL  4b, 2b, or an explicit path to a HF model directory.
+Usage: python rig_fitprobe.py [MODEL=4b] [MODE=std|lean|both] [STEPS=3]
 """
 import gc
 import json
@@ -24,8 +28,8 @@ BASE = r"D:\arc"
 sys.path.insert(0, BASE)
 
 MODEL = sys.argv[1] if len(sys.argv) > 1 else "4b"
-STEPS = int(sys.argv[2]) if len(sys.argv) > 2 else 6
-N_TASKS = int(sys.argv[3]) if len(sys.argv) > 3 else 2
+MODE = sys.argv[2] if len(sys.argv) > 2 else "both"
+STEPS = int(sys.argv[3]) if len(sys.argv) > 3 else 3
 
 MODELS = {
     "4b": os.path.join(BASE, "models", "kagglehub", "models", "sorokin",
@@ -35,166 +39,187 @@ MODELS = {
 }
 MODEL_DIR = MODELS.get(MODEL, MODEL)
 
-CH = os.path.join(BASE, "data", "kaggle", "arc-agi_evaluation_challenges.json")
 EXP = os.path.join(BASE, "experiments")
 STATUS = os.path.join(BASE, "eval_status_fitprobe.json")
 RESULTS = os.path.join(EXP, "fitprobe_%s.json" % MODEL)
 
-# rank, max_ctx, label. The first rung is the shipped v6.1 point and anchors the curve.
-LADDER = [
-    (32, 2000, "v6.1 shipped"),
-    (64, 4096, "mid"),
-    (128, 8192, "heavy rank-128"),
-    (256, 8192, "v7.1 heavy"),
-]
+RANKS = [32, 64, 128, 256]
+SEQS = [2048, 4096, 8192]
+ATTN = "sdpa"
+LR = 1e-4
+GRAD_CLIP = 1.0
 
-# treat this as the usable budget. The card is 16 GB and Windows holds back roughly a gigabyte.
-FIT_GB = 14.5
-TIME_BUDGET = 600
+# a cell slower than this is spilling into host RAM rather than computing, which is a failure even
+# though nothing raised. Abort it immediately instead of paying minutes to confirm.
+THRASH_S = 8.0
+SPILL_FRAC = 0.95
 
-import numpy as np                                                    # noqa: E402
 import torch                                                          # noqa: E402
+from peft import LoraConfig, get_peft_model                           # noqa: E402
+from transformers import AutoModelForCausalLM                         # noqa: E402
 
-from src.arc.model import load_model, grid_to_ids                     # noqa: E402
-from src.arc.data import load_consolidated                            # noqa: E402
-from src.arc.ttt import make_adapter, test_time_train, _example       # noqa: E402
+from src.arc.ttt import LORA_TARGETS                                  # noqa: E402
+
+TOTAL_GB = 0.0
 
 
-def heartbeat(phase, i, n, extra=""):
+def heartbeat(phase, extra=""):
     tmp = STATUS + ".tmp"
     with open(tmp, "w") as f:
-        json.dump({"phase": phase, "i": i, "n": n, "ts": time.time(),
-                   "model": MODEL, "extra": extra}, f)
+        json.dump({"phase": phase, "ts": time.time(), "model": MODEL, "extra": extra}, f)
     os.replace(tmp, STATUS)
 
 
-def gpu_used_mb():
-    import subprocess
-    try:
-        out = subprocess.run(["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"],
-                             capture_output=True, text=True, timeout=15)
-        return int(out.stdout.strip().splitlines()[0])
-    except Exception:
-        return -1
+def gb(x):
+    return round(x / 1024 ** 3, 2)
 
 
-def maxpair_tokens(task):
-    return max(len(grid_to_ids(p["input"])) + len(grid_to_ids(p["output"])) for p in task["train"])
+def load_base():
+    model = AutoModelForCausalLM.from_pretrained(MODEL_DIR, dtype=torch.bfloat16,
+                                                 attn_implementation=ATTN)
+    model.to("cuda").eval()
+    return model
 
 
-def pick_tasks():
-    tasks, _ = load_consolidated(CH)
-    ranked = sorted(tasks.items(), key=lambda kv: -maxpair_tokens(kv[1]))
-    return ranked[:N_TASKS]
-
-
-def free_all(*objs):
-    for o in objs:
+def build_optimizer(params, lean):
+    if lean:
         try:
-            del o
+            import bitsandbytes as bnb
+            return bnb.optim.AdamW8bit(params, lr=LR), "adamw8bit"
         except Exception:
-            pass
-    gc.collect()
-    torch.cuda.empty_cache()
-    torch.cuda.reset_peak_memory_stats()
+            return torch.optim.AdamW(params, lr=LR), "adamw(no-bnb)"
+    return torch.optim.AdamW(params, lr=LR), "adamw"
 
 
-def run_rung(rank, maxctx, label, tasks):
-    print("\n=== rank %d  ctx %d  (%s) ===" % (rank, maxctx, label), flush=True)
-    heartbeat("rung", rank, maxctx, label)
-    rec = {"rank": rank, "max_ctx": maxctx, "label": label}
-    model = peft_model = None
+def run_cell(rank, seq, lean):
+    tag = "rank%d seq%d %s" % (rank, seq, "lean" if lean else "std")
+    heartbeat("cell", tag)
+    rec = {"rank": rank, "seq": seq, "mode": "lean" if lean else "std"}
+    model = peft_model = opt = None
     try:
+        torch.cuda.empty_cache()
+        torch.cuda.reset_peak_memory_stats()
+        model = load_base()
+        w = torch.cuda.memory_allocated()
+        rec["weights_gb"] = gb(w)
+
+        cfg = LoraConfig(r=rank, lora_alpha=rank, lora_dropout=0.1,
+                         target_modules=LORA_TARGETS, task_type="CAUSAL_LM")
+        peft_model = get_peft_model(model, cfg)
+        if lean:
+            for n, p in peft_model.named_parameters():
+                if "lora_" in n and p.dtype == torch.float32:
+                    p.data = p.data.to(torch.bfloat16)
+        params = [p for p in peft_model.parameters() if p.requires_grad]
+        rec["trainable_m"] = round(sum(p.numel() for p in params) / 1e6, 1)
+        rec["param_dtype"] = str(params[0].dtype).replace("torch.", "")
+        rec["adapter_gb"] = gb(torch.cuda.memory_allocated() - w)
+
+        # our TTT keeps a full clone of the adapter to reset between tasks. At high rank that copy is
+        # not free, so price it separately rather than hiding it in the activation residual.
+        snap = {k: v.detach().clone() for k, v in peft_model.named_parameters() if "lora_" in k}
+        rec["init_snapshot_gb"] = gb(sum(v.numel() * v.element_size() for v in snap.values()))
+
+        base = peft_model.get_base_model()
+        base.config.use_cache = False
+        base.gradient_checkpointing_enable()
+        base.enable_input_require_grads()
+        peft_model.train()
+        opt, opt_name = build_optimizer(params, lean)
+        rec["optimizer"] = opt_name
+
+        ids = torch.randint(0, 10, (1, seq), device="cuda")
+        labels = ids.clone()
+        labels[:, : seq // 2] = -100
+
+        pre_step = torch.cuda.memory_allocated()
+        torch.cuda.reset_peak_memory_stats()
         t0 = time.time()
-        model = load_model(MODEL_DIR)
-        rec["load_s"] = round(time.time() - t0, 1)
-        rec["weights_gb"] = round(torch.cuda.memory_allocated() / 1024 ** 3, 2)
-        print("  weights %.2f GB loaded in %.0fs" % (rec["weights_gb"], rec["load_s"]), flush=True)
+        for i in range(STEPS):
+            loss = peft_model(input_ids=ids, labels=labels).loss
+            loss.backward()
+            torch.nn.utils.clip_grad_norm_(params, GRAD_CLIP)
+            opt.step()
+            opt.zero_grad()
+            if i == 0 and (time.time() - t0) > THRASH_S:
+                rec["verdict"] = "THRASH"
+                rec["s_step"] = round(time.time() - t0, 2)
+                break
+        else:
+            wall = time.time() - t0
+            rec["s_step"] = round(wall / STEPS, 2)
+            rec["verdict"] = "THRASH" if rec["s_step"] > THRASH_S else "OK"
 
-        peft_model, init = make_adapter(model, rank=rank, alpha=rank, dropout=0.1)
-        trainable = sum(p.numel() for p in peft_model.parameters() if p.requires_grad)
-        rec["trainable_m"] = round(trainable / 1e6, 1)
-        print("  trainable %.1fM params" % rec["trainable_m"], flush=True)
-
-        per_task = []
-        for tid, task in tasks:
-            rng = np.random.default_rng([0, int(tid, 16) % (2 ** 31)])
-            ids, _ = _example(task, rng, max_ctx_tokens=maxctx)
-            seq = len(ids)
-            torch.cuda.reset_peak_memory_stats()
-            t1 = time.time()
-            loss = test_time_train(peft_model, init, task, rng, steps=STEPS,
-                                   max_ctx_tokens=maxctx, time_budget=TIME_BUDGET)
-            wall = time.time() - t1
-            row = {"task": tid, "maxpair": maxpair_tokens(task), "seq_len": seq,
-                   "loss": round(float(loss), 4), "s_step": round(wall / max(STEPS, 1), 2),
-                   "peak_alloc_gb": round(torch.cuda.max_memory_allocated() / 1024 ** 3, 2),
-                   "peak_reserved_gb": round(torch.cuda.max_memory_reserved() / 1024 ** 3, 2),
-                   "smi_mb": gpu_used_mb()}
-            per_task.append(row)
-            print("  %s seq=%d  %.2fs/step  peak_res %.2f GB  smi %d MB  loss %.4f"
-                  % (tid, seq, row["s_step"], row["peak_reserved_gb"], row["smi_mb"], row["loss"]),
-                  flush=True)
-        rec["tasks"] = per_task
-        rec["peak_reserved_gb"] = max(r["peak_reserved_gb"] for r in per_task)
-        rec["max_smi_mb"] = max(r["smi_mb"] for r in per_task)
-        rec["s_step"] = round(sum(r["s_step"] for r in per_task) / len(per_task), 2)
-        rec["fits"] = rec["peak_reserved_gb"] <= FIT_GB
-        rec["verdict"] = ("FITS" if rec["peak_reserved_gb"] <= FIT_GB - 1.5 else
-                          "TIGHT" if rec["fits"] else "OVER")
+        rec["peak_alloc_gb"] = gb(torch.cuda.max_memory_allocated())
+        rec["peak_reserved_gb"] = gb(torch.cuda.max_memory_reserved())
+        rec["optim_state_gb"] = gb(torch.cuda.memory_allocated() - pre_step)
+        rec["activations_gb"] = round(max(0.0, rec["peak_alloc_gb"] - gb(pre_step)
+                                          - rec["optim_state_gb"]), 2)
+        if rec["peak_reserved_gb"] > TOTAL_GB * SPILL_FRAC and rec["verdict"] == "OK":
+            rec["verdict"] = "SPILL"
     except torch.cuda.OutOfMemoryError as e:
-        rec["fits"] = False
         rec["verdict"] = "OOM"
-        rec["error"] = str(e).splitlines()[0][:200]
-        print("  OOM: %s" % rec["error"], flush=True)
+        rec["error"] = str(e).splitlines()[0][:160]
     except Exception as e:
-        rec["fits"] = False
         rec["verdict"] = "ERROR"
-        rec["error"] = "%s: %s" % (type(e).__name__, str(e)[:200])
-        print("  ERROR: %s" % rec["error"], flush=True)
+        rec["error"] = "%s: %s" % (type(e).__name__, str(e)[:160])
     finally:
-        free_all(peft_model, model)
-        rec["after_free_smi_mb"] = gpu_used_mb()
+        del opt, peft_model, model
+        gc.collect()
+        torch.cuda.empty_cache()
+        torch.cuda.reset_peak_memory_stats()
     return rec
 
 
 def main():
+    global TOTAL_GB
     assert os.path.isdir(MODEL_DIR), "model dir not found: %s" % MODEL_DIR
     os.makedirs(EXP, exist_ok=True)
-    baseline_mb = gpu_used_mb()
-    total_gb = torch.cuda.get_device_properties(0).total_memory / 1024 ** 3
-    print("model   %s" % MODEL_DIR)
-    print("device  %s  %.1f GB total  %d MB already used"
-          % (torch.cuda.get_device_name(0), total_gb, baseline_mb))
-    print("steps %d per task, %d tasks, fit budget %.1f GB" % (STEPS, N_TASKS, FIT_GB), flush=True)
+    TOTAL_GB = torch.cuda.get_device_properties(0).total_memory / 1024 ** 3
+    modes = [False, True] if MODE == "both" else [MODE == "lean"]
+    print("model  %s" % MODEL_DIR)
+    print("device %s  %.1f GB  attn=%s  steps=%d"
+          % (torch.cuda.get_device_name(0), TOTAL_GB, ATTN, STEPS), flush=True)
 
-    tasks = pick_tasks()
-    print("stress tasks: %s" % ", ".join("%s(%d)" % (t, maxpair_tokens(k)) for t, k in tasks), flush=True)
+    out = {"model": MODEL, "total_gb": round(TOTAL_GB, 1), "attn": ATTN,
+           "steps": STEPS, "cells": []}
+    for lean in modes:
+        label = "lean (bf16 adapters, 8-bit optim)" if lean else "std (fp32 adapters, AdamW)"
+        print("\n######## %s ########" % label, flush=True)
+        for rank in RANKS:
+            for seq in SEQS:
+                rec = run_cell(rank, seq, lean)
+                out["cells"].append(rec)
+                with open(RESULTS, "w") as f:
+                    json.dump(out, f, indent=1)
+                print("  rank %-4d seq %-5d  %-6s peak_res %-6s s/step %-7s "
+                      "[w %s + adapter %s + optim %s + act %s]"
+                      % (rank, seq, rec["verdict"], rec.get("peak_reserved_gb", "-"),
+                         rec.get("s_step", "-"), rec.get("weights_gb", "-"),
+                         rec.get("adapter_gb", "-"), rec.get("optim_state_gb", "-"),
+                         rec.get("activations_gb", "-")), flush=True)
+                if rec["verdict"] in ("OOM", "THRASH", "SPILL"):
+                    print("       longer sequences at this rank will not fit, skipping", flush=True)
+                    break
 
-    out = {"model": MODEL, "model_dir": MODEL_DIR, "steps": STEPS,
-           "total_gb": round(total_gb, 1), "baseline_mb": baseline_mb, "rungs": []}
-    for rank, maxctx, label in LADDER:
-        out["rungs"].append(run_rung(rank, maxctx, label, tasks))
-        with open(RESULTS, "w") as f:
-            json.dump(out, f, indent=1)
+    print("\n==== summary ====")
+    print("%-6s %-6s %-6s %-10s %-8s %s" % ("mode", "rank", "seq", "peak_res", "s/step", "verdict"))
+    for c in out["cells"]:
+        print("%-6s %-6d %-6d %-10s %-8s %s"
+              % (c["mode"], c["rank"], c["seq"], c.get("peak_reserved_gb", "-"),
+                 c.get("s_step", "-"), c["verdict"]))
 
-    print("\n==== ladder ====")
-    print("%-6s %-6s %-16s %10s %9s %8s" % ("rank", "ctx", "label", "peak_res_GB", "s/step", "verdict"))
-    for r in out["rungs"]:
-        print("%-6d %-6d %-16s %10s %9s %8s"
-              % (r["rank"], r["max_ctx"], r["label"],
-                 r.get("peak_reserved_gb", "-"), r.get("s_step", "-"), r["verdict"]))
-
-    heavy = [r for r in out["rungs"] if r["rank"] == 256]
-    if heavy and heavy[0].get("fits"):
-        h = heavy[0]
-        print("\nThe heavy config FITS at %.2f GB reserved, %.2f s/step." % (h["peak_reserved_gb"], h["s_step"]))
-        print("Projected 120-task eval train time at 128 steps: %.1f h"
-              % (h["s_step"] * 128 * 120 / 3600.0))
-        print("The paper's does-not-fit claim needs correcting.")
-    elif heavy:
-        print("\nThe heavy config does NOT fit (%s). The paper's claim stands." % heavy[0]["verdict"])
-    heartbeat("done", len(out["rungs"]), len(LADDER), "complete")
+    for mode in ("std", "lean"):
+        ok = [c for c in out["cells"] if c["mode"] == mode and c["verdict"] == "OK"]
+        if not ok:
+            continue
+        best = max(ok, key=lambda c: (c["rank"], c["seq"]))
+        print("\n%s best fitting cell: rank %d at seq %d, %.2f GB, %.2f s/step"
+              % (mode, best["rank"], best["seq"], best["peak_reserved_gb"], best["s_step"]))
+    heavy = [c for c in out["cells"] if c["rank"] == 256 and c["seq"] == 8192]
+    for c in heavy:
+        print("heavy config (rank 256, seq 8192) in %s mode: %s" % (c["mode"], c["verdict"]))
+    heartbeat("done", "complete")
     print("\nwrote %s" % RESULTS)
 
 

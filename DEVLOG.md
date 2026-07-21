@@ -768,3 +768,41 @@ contest's four-L4 node. Read against v6.1's 18.19, the best configuration that d
 pair prices the hardware constraint at roughly twelve points. That is now the paper's central
 quantitative claim, and it is a measurement rather than an argument, which is a much stronger position
 than the original "the ceiling is real, trust us" framing.
+
+## 2026-07-21: v7b retired unsubmitted, and the context wall measured
+
+Two things closed today.
+
+v7b is retired and archived to notebooks/archive/ with a README stating why, and the builder docstring
+was rewritten because it carried a claim the evidence had already refuted. It forked v6 to rank 128 on an
+early partial reading that higher rank helped. The full sweep scored 24, 27, 28 and 24 of 125 for ranks
+16, 32, 64 and 128, so rank 128 is joint worst and the build would be expected to land below the 18.19 it
+forked from. Retired before a slot was spent. Rank 64 leads rank 32 by one output, inside seed noise at
+double the adapter cost, so nothing on that curve is worth resubmitting for. The paper records this as the
+validate-before-submitting discipline working prospectively rather than in hindsight.
+
+The fit probe answered whether the heavy config could run on one card, and the answer is no, for a reason
+we had not identified. Sixteen cells, rank 32 to 256 against sequence 2048 and 4096, in two modes.
+
+  std   rank 32/64/128 fit at seq 2048 (11.2 to 14.5 GB), rank 256 thrashes at 21.3 GB
+  lean  rank 32 through 256 all fit at seq 2048, rank 256 in 14.46 GB at 2.14 s/step
+  both  every rank fails at seq 4096, activations 8.1 to 8.8 GB regardless of rank or dtype
+
+Sequence length is the binding constraint, not rank. Activations go from about 2.6 GB at 2048 to about
+8.5 GB at 4096, a factor of 3.3 for a doubling, which is attention materialising its score matrix. That
+puts 8192 tens of gigabytes past the card. Lean dtypes buy a full rank doubling at equal memory, which is
+a real result and corrects my earlier prediction that they would not help, but they do not touch the
+activation term so the context wall does not move.
+
+The important implication. The Kaggle runs fit the same config into 13 GB with FA2, where attention memory
+is linear rather than quadratic. So this wall is at least partly our software stack, not the card. Getting
+a working flash or memory-efficient attention path on this GPU is now the highest-value open question for
+the single-card thesis, and the first probe design was wrong in ways worth remembering, it varied two axes
+at once and let task selection drive sequence length instead of controlling it.
+
+Selection ceiling on the v7.1 eval run, measured offline from the Kaggle log with no GPU. Twenty test
+outputs had a correct grid somewhere in the pool, a ceiling of 12.33 task-credits, against 10.80 harvested
+by score_full_probmul_3 and 10.30 by score_kgmon. Headroom is 1.53 credits, about 4 points on this slice.
+It rests on three missed cases (142ca369_0, 20270e3b_0, 4c7dc4dd_0), which is far too thin to tune a
+selector against without repeating the v3 to v5 failure, so the next step is the full 120-task eval to get
+a real sample before touching anything.

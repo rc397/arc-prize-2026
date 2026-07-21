@@ -1,10 +1,15 @@
-"""Fork the v6 deep-TTT submission (18.19) into v7-B by pushing the LoRA rank, everything else identical.
+"""RETIRED. This built no submission and should not build one without a new rank sweep behind it.
 
-v6 changed only the per-task training over v2.1, 60 steps at rank 32 with dropout, and scored 18.19 on the
-hidden set. The rig then showed higher rank helps the greedy vote (rank 128 beat rank 32 on matched tasks),
-so v7-B pushes only the rank and keeps the proven v2.1 candidate-and-voting side untouched. The adapter-size
-guard scales with rank so the /tmp disk check stays honest, and the scratch dir is renamed so the two runs
-cannot collide. Set RANK to the rig-validated winner from rankval before submitting.
+It forks the v6 deep-TTT submission (18.19 hidden) into v7-B by pushing the LoRA rank to 128, everything
+else identical. The premise was an early partial reading that higher rank helped the greedy vote. The full
+sweep afterwards refuted it. At 60 steps the scores are 24, 27, 28 and 24 of 125 for ranks 16, 32, 64 and
+128, an inverted U peaking at the rank v6.1 already ships. Rank 128 is joint worst, so this build would be
+expected to score below the 18.19 it forked from, and it was retired without spending a submission slot.
+Rank 64 leads rank 32 by one output, inside seed noise at double the adapter cost, so no rank on the curve
+is worth resubmitting for either.
+
+Kept for the record and for the rank knob, since a future sweep at a different training context could move
+the peak. The notebook it produced is archived under notebooks/archive/.
 
 Usage: python build_v7b_from_v6.py [RANK=128]
 """

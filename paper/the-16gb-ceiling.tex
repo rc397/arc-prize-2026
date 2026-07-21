@@ -323,6 +323,21 @@ measure competition hardware rather than the card this work is about. They are k
 deliberately, because the distance between the best single-card entry and the best four-L4 entry is the
 most direct measurement we have of what the constraint costs.
 
+That exclusion is measured rather than assumed. Sweeping LoRA rank against sequence length on the single
+card, with training configured exactly as our shipped path, every rank from 32 to 256 fits comfortably at a
+two-thousand-token sequence and every one of them fails at four thousand. The blocking term is neither the
+adapter nor the optimizer, which together account for under a gigabyte at rank 32 and three at rank 256. It
+is activation memory, which grows from roughly 2.6~GB at two thousand tokens to roughly 8.5~GB at four
+thousand, a factor of 3.3 for a doubling of length. That superlinear growth is attention materializing its
+score matrix, and it places an eight-thousand-token sequence tens of gigabytes beyond the card. Leaner
+adapter dtypes buy a full rank doubling at equal memory, enough to run rank 256 at two thousand tokens in
+14.5~GB, but they leave the activation term untouched and so do not move the context wall at all. The heavy
+pipeline's advantage comes from long context and high rank together, and on this hardware the rank is
+affordable while the context is not. We note that the four-L4 runs fitting the same configuration into
+13~GB do so with a flash-attention kernel whose memory is linear rather than quadratic in sequence length,
+so this wall is at least partly a software limitation of our stack rather than a settled property of the
+card, and closing it is the most promising route we can identify.
+
 The AIRV pipeline without TTT scores \textbf{12.79\%} (22 of 172 test outputs) on the public
 evaluation, a clean single-stream run completing in $\approx 78$ minutes, and \textbf{6.53\%} on the
 hidden set, a halving we return to in Sections~\ref{sec:lessons} and~\ref{sec:limits}. Adding per-task
@@ -934,6 +949,15 @@ of 125 against rank 32's 27, one output and inside seed noise at double the adap
 to 24, an inverted U whose mechanism is the per-task adapter overfitting its tiny few-shot dataset once
 capacity outruns the signal. The shipped configuration sits at the peak of its own curve, so the depth-and-rank
 lever is closed at 18.19\% and further climb on this pipeline must come from elsewhere.
+
+That closure had a built artifact attached to it. A rank-128 submission had already been assembled from the
+v6 recipe on an early partial reading that higher rank helped the vote, and it was \textbf{retired without
+ever being submitted} once the full sweep placed rank 128 joint-last, below the rank 32 it forked from. Rank 64
+leads rank 32 by a single output out of 125, which is inside seed noise at twice the adapter cost, so no
+rank on the curve justifies a submission. The build is archived in the repository rather than deleted,
+because the episode is one of the paper's arguments made prospectively rather than in hindsight. Every
+candidate-side lever we submitted on a partial reading regressed on the hidden set. This one failed its
+validation first and cost a rig afternoon instead of a submission slot.
 
 \section{Engineering log of walls and dead ends}
 \label{app:log}
