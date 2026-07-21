@@ -112,6 +112,18 @@ def rewire(text):
         "            for offset in [10, 14]:\n"
         "                batch.extend(subkeys[offset:offset+2])\n"
         "            batches.append(batch)\n")
+    # Deployed selector as an env knob, defaulting to probmul rather than the upstream kgmon.
+    # kgmon scores a candidate by len(guesses), an integer tally of how many augmented views produced
+    # it, so it discards the beam probabilities entirely. probmul weights each vote by its confidence.
+    # On two paired 40-task runs kgmon's solved set was a strict subset of probmul's, three discordant
+    # tasks, all three to probmul, none the other way. Both are computed in the same pass already, so
+    # this costs nothing. Set ARC_SELECTOR=kgmon to restore the upstream default.
+    text = text.replace(
+        "    def run_selection_algo(self, selection_algorithm=score_kgmon):",
+        "    def run_selection_algo(self, selection_algorithm=None):\n"
+        "        if selection_algorithm is None:\n"
+        '            selection_algorithm = (score_kgmon if os.environ.get("ARC_SELECTOR", "probmul")\n'
+        "                                   == \"kgmon\" else score_full_probmul_3)")
     # DFS probability floor as an env knob. This is the single biggest search-budget dial, it sets how
     # improbable a continuation may get before the tree search abandons it. Lower keeps more branches
     # alive and costs time, so it trades directly against the per-task cap above.

@@ -806,3 +806,30 @@ by score_full_probmul_3 and 10.30 by score_kgmon. Headroom is 1.53 credits, abou
 It rests on three missed cases (142ca369_0, 20270e3b_0, 4c7dc4dd_0), which is far too thin to tune a
 selector against without repeating the v3 to v5 failure, so the next step is the full 120-task eval to get
 a real sample before touching anything.
+
+## 2026-07-21: the search-width lever is dead, and we were shipping the weaker selector
+
+Two paired 40-task runs, v7.1 baseline (floor 0.2, timeout 1800) against an arm at floor 0.35 and
+timeout 1200. Same tasks, so the flips matter more than the totals.
+
+Search width does nothing. The deployed selector solved an identical set in both runs, gained none and
+lost none, with Reload score 10.333 either way. The arm also took 7028s against the baseline's 6761s, so
+narrowing the search did not even buy time. The DFS floor is not a lever on this pipeline, closed.
+
+The real finding is that we have been deploying the weaker of two selectors the pipeline already
+computes. In both runs score_kgmon's solved set is a strict subset of score_full_probmul_3's. Three
+discordant tasks across the two runs, all three to probmul, zero to kgmon. Worth +0.5 credits on the
+baseline and +1.5 on the arm, roughly +2.5 points averaged, for zero compute since both scores come off
+the same candidate pool in the same pass.
+
+The mechanism is in the formulas rather than the numbers. kgmon scores a candidate as len(guesses), an
+integer tally of augmented views, minus the mean augmentation NLL, so it discards the beam probabilities
+completely. probmul weights each vote by 3 minus its beam score, keeping the confidence magnitudes. A
+grid found three times with high confidence therefore loses to one found four times with low confidence
+under kgmon, and wins under probmul. kgmon is close to a lossy projection of probmul, which is why it
+never wins a task probmul loses.
+
+Exposed as ARC_SELECTOR, defaulting to probmul, with kgmon one env var away. Noting honestly that the
+upstream authors shipped kgmon as their default and may have had reasons we cannot see, and that three
+discordant cases is a sign test at p about 0.13, so the empirical evidence alone is moderate. The
+mechanism is what makes it worth taking, not the count.
