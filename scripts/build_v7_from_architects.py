@@ -184,12 +184,22 @@ config = code_cell(
     '    cand = glob.glob("/kaggle/input/**/arc-agi_evaluation_challenges.json", recursive=True)\n'
     '    if cand:\n'
     '        os.environ["ARC_DATA_DIR"] = os.path.dirname(cand[0])\n'
-    "# Interactive eval tasks to score (non-rerun). 0 = all 120. Start 30-40 for a quick read.\n"
+    "# Interactive eval tasks to score (non-rerun). 0 = all 120. Use 6 for a smoke run.\n"
     'os.environ["ARC_N_EVAL"]     = "40"\n'
+    "# Experiment knobs. Defaults reproduce the 30.56 submission, change one at a time.\n"
+    "#   ARC_DFS_FLOOR    search width, lower keeps more branches and costs time (default 0.2)\n"
+    "#   ARC_TASK_TIMEOUT per-task seconds (default 1800, the 30.56 submission used 1200)\n"
+    "#   ARC_RANK         LoRA rank (default 256)      ARC_MAXSEQ  training context (default 8192)\n"
+    '# os.environ["ARC_DFS_FLOOR"]    = "0.1"\n'
+    '# os.environ["ARC_TASK_TIMEOUT"] = "1200"\n'
     "# ====================================================\n"
     'print("MODEL ", os.environ["ARC_MODEL_PATH"], "exists:", os.path.isdir(os.environ["ARC_MODEL_PATH"]))\n'
     'print("DATA  ", os.environ["ARC_DATA_DIR"], "exists:", os.path.isdir(os.environ["ARC_DATA_DIR"]))\n'
-    'print("N_EVAL", os.environ["ARC_N_EVAL"])\n'
+    "# echo every knob so a smoke run proves the config landed instead of silently defaulting\n"
+    'print("CONFIG N_EVAL=%s RANK=%s MAXSEQ=%s TIMEOUT=%s DFS_FLOOR=%s" % (\n'
+    '    os.environ.get("ARC_N_EVAL", "40"), os.environ.get("ARC_RANK", "256"),\n'
+    '    os.environ.get("ARC_MAXSEQ", "8192"), os.environ.get("ARC_TASK_TIMEOUT", "1800"),\n'
+    '    os.environ.get("ARC_DFS_FLOOR", "0.2")))\n'
     'assert os.path.isdir(os.environ["ARC_MODEL_PATH"]), "model not found under /kaggle/input, attach it"\n'
     'assert os.path.isdir(os.environ["ARC_DATA_DIR"]), "competition data not found, attach it"\n')
 
