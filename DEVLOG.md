@@ -701,3 +701,70 @@ Root cause, from train_shard_0.log, FAIL "[Errno 28] No space left on device: '/
 Three of my errors, all avoidable. I doubled the adapter size and never multiplied by 232. I wrote pure scratch adapters into the OUTPUT directory instead of temp, which is both what capped them at 20GB and what bloated the saved version. And nothing in the notebook flagged 159 != 232, so a catastrophic degradation printed as an ordinary log line and I read past it. Also note the validation gap that let it through, the deep config was swept on the rig at maxpair 1000 (84 tasks, the 16GB limit) and shipped at maxpair 1500 (232 tasks), and the N_LIMIT=3 dev run tests the three SMALLEST tasks because the list is sorted ascending, so neither could surface a whole-run disk exhaustion.
 
 Fixes in the v6 builder. Adapters now go to /tmp (container disk, and scratch does not belong in output). An up-front check prints adapters-needed versus free space and warns before training rather than failing at task 43. A loud DEGRADED banner after Phase A when any task lacks an adapter, naming that the run will score below v2.1 and saying do not submit. And each batch's adapters are deleted once served, so peak scratch is a batch not the whole set. The deep config itself is unchanged and still measured at a blended 18.9 vs v2.1's 17.44.
+
+## 2026-07-19: the rank sweep closes the depth-and-rank lever at its peak
+
+The rank validation for a possible v7-B ran overnight on the rig, the real llama.cpp AIRV pipeline at the
+deep config (60 steps, dropout 0.1, scale 1.25, 2000-token context) with only the LoRA rank varied, on the
+same 84 trainable tasks as every prior sweep. Results, rank 16 scores 24 of 125, rank 32 scores 27, rank 64
+scores 28, rank 128 scores 24. An inverted U peaking at 32 to 64. Rank 64's one extra output is inside seed
+noise at double the adapter cost, and rank 128 loses three outright, the per-task adapter overfits its tiny
+few-shot dataset once capacity outruns the signal. So the shipped v6.1 configuration (rank 32) sits at the
+peak of its own curve, v7-B is not submitted, and the depth-and-rank lever is closed at 18.19 hidden.
+
+One operational bug surfaced and fixed mid-sweep. The harness serves adapters in batches of 24, and a
+rank-128 GGUF adapter is about 504 MB, so 24 of them plus the 4.3 GB model spilled past 16 GB and llama.cpp
+fell off the card, decode crawled at 7 minutes a task against rank-64's 45 seconds. Killed the stalled serve
+by its specific PID, capped the serve batch at 6 for ranks above 64, relaunched, and the manifest resume kept
+all 84 adapters and the 21 scored tasks. The remaining 63 tasks served in under an hour. Lesson recorded in
+the sweep script, adapter VRAM while serving scales with rank times batch and must be budgeted like model
+weights.
+
+## 2026-07-20: full-context TTT doubles the big-grid count, the ceiling was a truncation artifact
+
+The all-36 offload run finished. Paired on the same tasks in one serving session, the unadapted system
+solves 4 of the excluded set's 47 test outputs and the full-context adapters solve 8, five tasks flipping
+to solved against one flipping away (62593bfd, where the adapter displaced a no-TTT solve, a loss the
+two-attempt format removes in deployment by carrying both arms). Among the flips is 7c66cb00, which
+thrashed into Windows shared-memory overcommit at the 6 GiB resident-weight budget, was retracted, and
+retrained clean at 2 GiB. Four of the 1858-token monsters remain flagged undertrained at even the 5400s
+cap, so 8 of 47 is a floor. Mechanism confirmed end to end, the frozen base streams from host RAM,
+activations own the card, adapters converge to near-zero loss at full 8000-token context on tasks that
+never fit before. The paper's original "genuine ceiling" claim is now quantified as substantially a
+truncation artifact of the old 600-token cap. Practical note for any deployment, serve big-grid tasks
+with the TTT answer in attempt_1 and the no-TTT answer in attempt_2, which keeps the displacement loss
+at zero by construction.
+
+## 2026-07-20: the restoration pays, 16.2 to 27.2 on the same slice
+
+The reproduction's rerun with both inherited mutations removed, the AIF symbolic arm stripped and
+sorokin's four-view DFS batching restored, scores 10.33 of 38 task-credits (27.2 percent) on the same
+40-task evaluation slice that the mutated variant scored 16.2 on. Zero AIF preemptions, zero timeouts,
+155 correct answers present in the beams against 105 before, the restored batching buys deeper search
+inside the same caps. Eleven points of the gap to the exemplar's claimed 32.22 were the community port's
+own edits. The probmul selector edges kgmon 10.8 to 10.3 on this slice, we keep the published kgmon
+default rather than pick selectors off one sample. Hidden submission of the restored variant follows with
+ARC_TASK_TIMEOUT=1200, the pace math says 240 stripped tasks run about 11.3h against the 11.8h wall and
+the tighter cap widens a 33-minute margin to about an hour. Projection at flat transfer, mid twenties
+against our 18.19.
+
+## 2026-07-21: 30.56 on the hidden set, and a price tag for the 16GB constraint
+
+The restored sorokin pipeline (v7.1) scored 30.56 on the hidden 240-task set. Progression for the
+record, 13.61 (v2.1), 18.19 (v6.1), 16.81 (v7 as the community port shipped it), 30.56 (v7.1 with both
+port defects repaired). The run completed inside the twelve-hour budget, so the 1200-second per-task cap
+did its job and the tail-truncation risk never materialised.
+
+Three findings worth keeping. The transfer property held a third time, 27.2 on the evaluation slice
+against 30.56 hidden, so this pipeline carries its public number across the same gap that swallowed
+every candidate-side lever we built ourselves. The original author's claimed tier is credible, since a
+faithful restoration lands close to it while the ported form did not, which retires the "claimed not
+verified" caveat we had been carrying since 2026-07-18. And the eleven-point eval gap between ported
+and restored was entirely the port's own edits, the AIF arm and the halved DFS batching.
+
+The important bookkeeping, 30.56 is NOT a single-card result and the paper now says so in five places.
+Its per-task training runs rank 256 at 8000 context, which does not fit 16GB at all, so it measures the
+contest's four-L4 node. Read against v6.1's 18.19, the best configuration that does fit one card, the
+pair prices the hardware constraint at roughly twelve points. That is now the paper's central
+quantitative claim, and it is a measurement rather than an argument, which is a much stronger position
+than the original "the ceiling is real, trust us" framing.

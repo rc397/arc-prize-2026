@@ -69,11 +69,20 @@ full evaluation to a blended \textbf{16.28\%}. On the hidden main-track leaderbo
 scores \textbf{13.61\%} with TTT and 6.53\% without, and the public-to-hidden transfer is itself a
 finding. The no-TTT baseline halves, and across the follow-on submissions every candidate-side lever
 that lifted or tied the public evaluation regressed the hidden score, so public-eval gains must be
-re-validated in the exact deployed condition before they are trusted. We give an honest accounting of
+re-validated in the exact deployed condition before they are trusted. The climb then came from the training side rather than the vote. Deepening the
+regularized adapter lifted the hidden score to \textbf{18.19\%}, a 4.58-point gain and the first
+configuration to beat the shipped operating point. The number is not a wall but climbs under the 16~GB
+ceiling as the per-task training deepens, while the methods that reach the field's level, heavy rank-256
+test-time training at an eight-thousand-token context, do not fit under 16~GB at all. We then measure
+that gap rather than assert it. Reproducing one such public pipeline on the contest's own four-L4 node,
+and repairing two defects the community port had introduced into it, scores \textbf{30.56\%}. That
+number is a reproduction of named public work and is not a single-card result, and we report it as the
+measured price of the constraint, roughly twelve points against the best configuration that does fit. We give an honest
+accounting of
 what the recipe costs and where the effort should go for anyone working with one consumer GPU rather
 than the winner's hardware. The contest itself provides four L4 GPUs, 96~GB together, where the
 offline frontier already passes 50\% through refinement and program synthesis, so we read the 16~GB
-result as the efficient floor of a larger climb rather than a ceiling on the task. All code, the
+result as the efficient floor of a larger climb, and the ceiling in our title is the 16~GB card itself, the hardware wall that shapes every choice here and not a limit on the task. All code, the
 conversion recipe, and a development log of every measurement are open source under MIT-0.
 \end{abstract}
 
@@ -110,7 +119,7 @@ H100 or GH200 GPUs, though the winning offline submission itself runs on four L4
 recipe under a constraint we think is widely shared, a single RTX~5070~Ti with 16~GB, on the
 Blackwell architecture, running native Windows. The aim on one card is not to top the leaderboard but to build a working, reproducible system, measure
 honest numbers, and map where the small model stops being enough. That map is the efficient floor of a
-larger climb. The same contest hands every entrant four L4 GPUs, 96~GB together, and the offline frontier
+larger climb. The ceiling in the title is the hardware, 16~GB of VRAM, not a score, and the number climbs beneath it as the method deepens, from 13.61 to 18.19 on the hidden set (Section~\ref{sec:results}). We also put a number on the ceiling itself. Reproducing a public pipeline that cannot fit one card, on the hardware the contest provides, reaches 30.56\% on the same hidden set, so the constraint is worth roughly twelve points rather than an unknown amount. The same contest hands every entrant four L4 GPUs, 96~GB together, and the offline frontier
 on that hardware has already passed 50\% with refinement loops and program synthesis~\cite{arc2025}. We
 read the 16~GB walls not as the limit of the task but as the exact places scaling up has to break, and
 Section~\ref{sec:scale} lays out that path. Figure~\ref{fig:solve} shows a representative task our system
@@ -305,9 +314,14 @@ public-eval number, the 12.79\% baseline, the 17.6\% trainable-task peak, and th
 measured on the single RTX~5070~Ti against the 120-task public evaluation set, and all method
 development ran there. Every leaderboard number is measured by Kaggle's offline scoring rerun on the
 contest's four-L4 node, against the hidden 240-task set (120 semi-private plus 120 private). The
-submissions use the four L4s only to shard tasks for throughput, since the bf16 per-task training does
-not fit the 12-hour budget on one card. No single task needs more than one 16~GB GPU, so the method
-under test is the single-card recipe throughout.
+submissions through v6.1 use the four L4s only to shard tasks for throughput, since the bf16 per-task
+training does not fit the 12-hour budget on one card. No single task there needs more than one 16~GB
+GPU, so the method under test is the single-card recipe. The v7 entries are the one exception and this
+paper marks them as such wherever they appear. They reproduce a public pipeline whose per-task training
+runs at rank 256 over an eight-thousand-token context, which does not fit 16~GB at all, so those numbers
+measure competition hardware rather than the card this work is about. They are kept in the same table
+deliberately, because the distance between the best single-card entry and the best four-L4 entry is the
+most direct measurement we have of what the constraint costs.
 
 The AIRV pipeline without TTT scores \textbf{12.79\%} (22 of 172 test outputs) on the public
 evaluation, a clean single-stream run completing in $\approx 78$ minutes, and \textbf{6.53\%} on the
@@ -316,7 +330,9 @@ TTT roughly doubles the hidden score. Table~\ref{tab:versions} gives the full pr
 
 \begin{table}[H]
 \centering
-\caption{Leaderboard submissions, scored on the hidden 240-task set on the four-L4 node.}
+\caption{Leaderboard submissions, scored on the hidden 240-task set on the four-L4 node. Entries
+through v6.1 are the single-card recipe sharded for throughput. The v7 entries reproduce a public
+pipeline that does not fit one 16~GB card and are not single-card results.}
 \label{tab:versions}
 \begin{tabular}{llc}
 \toprule
@@ -329,19 +345,40 @@ v3   & + three-scale vote                            & error \\
 v3.1 & + two-scale vote + colour-perm                & 12.78 \\
 v4   & + more-candidates sampling (four per view)    & 13.19 \\
 v5   & + white-box plausibility filter               & 12.78 \\
+v6   & deep-regularized TTT (60 steps, rank 32), disk-exhausted & 12.36 \\
+v6.1 & deep-regularized TTT, all 232 tasks trained   & \textbf{18.19} \\
+v7   & sorokin reproduction as ported (Section~\ref{sec:architects}), needs $>16$~GB & 16.81 \\
+v7.1 & same pipeline with both port defects repaired, needs $>16$~GB & \textbf{30.56} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 The scaled single-scale configuration (v2.1) reached \textbf{13.61\%}, ranking 468 of about 4000, and
-four later submissions failed to beat it. One errored in the scored rerun, and each of the three that
+four candidate-side submissions failed to beat it. One errored in the scored rerun, and each of the three that
 scored carried exactly one lever that had lifted or tied the public evaluation, multi-scale voting
 with colour permutation, more-candidates sampling, and the white-box plausibility filter, and each
 regressed the hidden score (Section~\ref{sec:ablations} gives the levers and the mechanism). The eight
 greedy D4 views at a single adapter scale are a local optimum that the candidate and voting side does
 not improve, and the repeated public-to-hidden reversal is itself a finding (Section~\ref{sec:lessons}).
-For reference the 2025 winner reached 24.0\% with TTT~\cite{arc2025} on the same Qwen3-4B base lineage
+The break came from the other side of the pipeline. A deep-regularized adapter that trains longer at a
+higher rank (60 steps, rank 32, Table~\ref{tab:deepttt}), moving the per-task training rather than the
+vote, lifted the hidden score to \textbf{18.19\%} in v6.1, a 4.58-point gain and the first configuration
+to beat v2.1. Its intermediate form v6 scored 12.36\% as the same recipe crippled by a disk-exhaustion
+bug that left 73 of 232 tasks with no adapter, and fixing the scratch path recovered the full lift. This
+is the paper's thesis made concrete, the candidate and voting side is saturated and the per-task training
+side is where the hidden number moves. For reference the 2025 winner reached 24.0\% with TTT~\cite{arc2025} on the same Qwen3-4B base lineage
 with a more developed recipe.
+
+The two v7 entries then measure the constraint itself. Reproducing the public pipeline of
+Section~\ref{sec:architects} on the four-L4 node scored 16.81\% as the community port shipped it, and
+\textbf{30.56\%} once two defects introduced by that port were repaired. The second number is the
+highest this project has produced and it is not a single-card result, since its per-task training needs
+more memory than the card this paper is about. Read against v6.1, the best configuration that does fit,
+the pair gives the cleanest figure in this work. The same author, the same base model, the same hidden
+set and the same twelve-hour budget yield \textbf{18.19\%} under 16~GB and \textbf{30.56\%} on the
+contest's 96~GB, so roughly twelve points separate what one consumer card reaches from what the
+provided hardware reaches on a method built for it. That gap is the honest size of the ceiling in the
+title, measured rather than argued, and it is the paper's central quantitative claim.
 
 \subsection{The engine speedup}
 The $13\times$ decode improvement from changing engines (Section~\ref{sec:engine},
@@ -410,8 +447,9 @@ Five further levers, each measured on the 84 trainable tasks or the full evaluat
 numbers in Appendix~\ref{app:results}). The adapter \emph{scale} matters. Accuracy peaks at 17.6\% at
 scale $1.25$, then declines (Figures~\ref{fig:results},~\ref{fig:flip}). Colour permutation lifts the
 no-TTT baseline to 14.4\% but does \emph{not} stack with the already colour-robust adapter. Forcing
-TTT onto the big-grid tasks does not help. The VRAM exclusion is a genuine ceiling, not a missed
-opportunity. The fourth lever is how many candidates the vote sees, and it cuts both ways. Sampling each of
+TTT onto the big-grid tasks does not help. We recorded the VRAM exclusion as a genuine ceiling rather than
+a missed opportunity, a conclusion Section~\ref{sec:biggrid} re-examines, since that early run trained under
+a 600-token context cap that admits a single demonstration on these tasks. The fourth lever is how many candidates the vote sees, and it cuts both ways. Sampling each of
 the eight D4 views four times raises the no-TTT score from 12.79\% to 13.95\% on the full evaluation, but
 like colour permutation it does not stack with the per-task adapter. Carried into a TTT submission those
 extra sampled candidates regressed the hidden score from 13.61\% to 13.19\%, and stacking multi-scale voting
@@ -658,19 +696,128 @@ the arm it would route to cannot grip the tasks the grid model misses without mo
 provides. That is the same wall Section~\ref{sec:scale} predicts, now measured from the induction side,
 and it is where the second arm's value waits on the full contest hardware.
 
+\subsection{A stronger public decoder, and its coupling to training}
+\label{sec:architects}
+The clearest evidence that the gap in Section~\ref{sec:results} is method rather than model arrived from
+outside the project. A public notebook ports the 2024 ARC-Prize-winning pipeline, the ARChitects', onto our
+exact base and reports a score in the low thirties on ARC-AGI-2, more than double our operating point on the
+same weights. The port's lineage deserves naming. The pipeline is published by Ivan Sorokin, the author of
+the NVARC base model itself, as the notebook \texttt{arc2\_qwen3\_unsloth\_flash\_lora\_batch4\_queue}, and
+the variant we study is its community re-target to the 2026 contest. Everything we report about this system
+is reproduction and measurement of that public work, credited to its authors, and our contribution is
+confined to the analysis around it. It bundles two changes against our recipe. The per-task training is an order of magnitude
+heavier, a rank-256 adapter that also trains the embeddings and the output head at an eight-thousand-token
+context, where ours is rank sixteen at two thousand. And the decoder is not our greedy vote. In its place it
+runs a depth-first search over every completion whose running probability stays above a fixed floor, then
+selects among the survivors by the product of their likelihoods across fresh augmentations rather than by a
+majority.
+
+We had named this decoder as the untried lever ourselves and never built it, so the first question is whether
+it is a separable part we could capture on one 16~GB card without the heavy training it ships with. We test it
+directly. Holding the adapter fixed at our rig-feasible configuration, we decode each task twice on the
+identical trained model, once with our greedy vote and once with the search-and-select, and score both against
+the solution. Only the decoder moves.
+
+On our light adapter the search loses, and it loses for a reason that names the coupling. Over eighteen of the
+trainable tasks the greedy vote scored the equivalent of 5.17 solved tasks to the search's 3.33, 28.7 percent
+against 18.5. The mechanism is visible in the candidate counts. On task after task the search returns nothing
+at all, because no whole-grid completion clears the probability floor. A grid runs to about nine hundred
+tokens, and a little uncertainty at each cell compounds across all of them, so an adapter that is not sharply
+peaked pushes the probability of even its best completion under the floor. That floor is calibrated for a model
+trained hard enough to stay almost certain across the whole grid. Ours is not, so the search starves and
+forfeits tasks the greedy path still lands. The decoder is not a model-agnostic component we can lift. It is
+tuned to the sharp adapter the heavy training produces, and the two are one system rather than two levers. This
+is also why we could never have reached the field's level by swapping decoders on the pipeline we already had.
+
+\textbf{Status.} Resolved, and the coupling did not save the decoder. Over thirty trainable tasks the rank-128
+adapter, with the embeddings and output head trained as far toward their configuration as a 16~GB card holds,
+gives the greedy vote \textbf{24.4\%} against the search's \textbf{13.3\%}. The search fell further behind than
+it was at rank 32, not closer, because the sharper adapter still starves the probability floor on most tasks
+while the heavier training only helped the vote. On every configuration a 16~GB card can run, rank 32 and
+rank 128, the search loses to the vote. We read this as the decoder being inseparable from the full rank-256,
+eight-thousand-token training it ships with, which does not fit one card, so the reach to the field's low
+thirties stays a claim to be settled on the contest hardware rather than a lever we could capture here. The
+lift we did capture, from 13.61 to 18.19, came from the training depth alone. A first hidden-set submission
+of the reproduction itself, run faithfully with the community port's bolted-on symbolic arm still active,
+scored 16.81\%. Two facts inside that number matter more than its size. The public-to-hidden transfer is
+flat, 16.2\% on the evaluation slice against 16.81\% hidden, where every candidate-side lever we built
+ourselves lost points crossing that gap. And the symbolic arm is measured poison, on the evaluation slice
+it preempted twelve of thirty-nine tasks with its own answer and got none of them right, so the faithful
+reproduction understates the pipeline. The arm is stripped and the corrected variant is measured next. That measurement is in, and it also surfaced
+a second inherited defect, the community port had split the decoder's four-view batches into pairs, halving
+search throughput. With the symbolic arm removed and the original batching restored, the same evaluation
+slice rises from 16.2\% to \textbf{27.2\%}, no tasks preempted, no timeouts, and half again more correct
+answers present in the search beams. Eleven points of the gap between the reproduction and its source's
+claim were the port's own mutations. Submitted to the hidden set, the restored variant scored
+\textbf{30.56\%}, against 16.81\% for the same pipeline as ported and 18.19\% for our own best
+single-card configuration. Three things follow. The transfer property held a third time, 27.2\% on the
+evaluation slice against 30.56\% hidden, so this pipeline carries its public number across the gap that
+every candidate-side lever of ours fell through. The original author's claimed tier is credible, since
+a faithful restoration lands within striking distance of it while the ported form did not. And the
+result is a reproduction, not a contribution of ours. What this work adds around it is the measurement,
+the isolation of the two port defects, the paired evaluation that priced each one, and the placement of
+the restored number against a single-card baseline so the hardware gap becomes visible.
+
+\subsection{Revisiting the big-grid wall with the host's memory}
+\label{sec:biggrid}
+The journey of one cap tells this subsection's story. Thirty-six of the 120 evaluation tasks have a train
+pair larger than a thousand tokens, and their per-task training runs out of memory on 16~GB, so from the
+first TTT submission onward they were excluded and served without adaptation. We tested that exclusion once,
+early, by forcing TTT onto them with the training context capped at 600 tokens, the most that then fit. It
+scored 10.6\% against 12.8\% without, and we recorded the loss as ``the VRAM exclusion is a genuine ceiling,
+not a missed opportunity.'' That sentence survived every draft since. Rereading the measurement now, it does
+not support the sentence. A single train pair on these tasks is at least 1010 tokens, so a 600-token cap
+admits exactly one demonstration into the training context, and the adapter learned each step from a single
+example where the small tasks see several. What we measured was truncation, not the ceiling.
+
+The second look came from turning away from the card. The rig carries 64~GB of system memory that sits idle
+while the 16~GB of VRAM starves, and during TTT the base model is frozen, only the small adapter trains, so
+the 7.5~GB of frozen weights never need to live on the GPU at all. Streaming them from host memory through
+a device map, with a 6~GiB resident-weight budget on the card, frees the VRAM for what actually grows with
+grid size, the activations, and those stay small here because the 16-token vocabulary keeps the output layer
+tiny even at long sequence lengths. Under that arrangement the training context rises from the old 600-token
+cap to 8000 tokens, above the 7471-token worst case across all thirty-six tasks, which is to say literally
+full context, the same leave-one-out signal the small tasks have always had. The cost is streaming time, the
+frozen weights cross the PCIe bus every step, which is unaffordable inside a contest budget and nearly free
+on the rig.
+
+\textbf{Status.} The staged probe has run its first two gates and the ceiling sentence is already refuted
+in its strong form. The smoke stage trained the single largest excluded task end to end, 14.6~GB peak on
+the 16~GB card with the base streaming from host memory, every mechanical check passing. The six-task
+stratified panel then produced the first solve this excluded set has ever yielded, task 8e5c0c38 moves from
+zero of two test outputs without adaptation to one of two with its full-context adapter, and no panel task
+got worse. So at least one of the thirty-six is winnable, and what was recorded as a genuine ceiling was,
+at least in part, the truncation artifact Section~\ref{sec:ablations} now flags. Training losses tell the
+mechanism, adapters on these tasks now converge to near zero where the 600-token cap never could. One
+operational wrinkle surfaced, on the longest-context tasks Windows silently overcommits GPU memory into
+host RAM rather than failing, which crawls training, and the affected adapters were retracted and retrained
+at a lower resident-weight budget. The full thirty-six run is complete and the count is decisive. Across the
+excluded set's 47 test outputs, the unadapted system solves 4 in this paired harness and the full-context
+adapters solve \textbf{8}, five tasks flipping to solved against one flipping away, that one a displacement
+the two-attempt format removes in deployment by carrying both arms. Four of the largest tasks remain
+honestly flagged undertrained where even the reduced-budget training exceeded its time cap, so the 8 is a
+floor with headroom. The doubled count settles the question this subsection opened. What we recorded as a
+genuine ceiling was in substantial part a truncation artifact, and the excluded third of the evaluation is
+partially winnable on this card with the host's memory carrying the frozen weights.
+
 \section{Conclusion}
 \label{sec:conclusion}
 The 2025 winning recipe survives a single 16~GB consumer GPU, but only after the inference engine is
 fixed. That one change is worth more than every other knob, and it is what makes per-task TTT
 tractable through an adapter-serving bridge. The honest result is a 12.79\% no-TTT baseline and a
-16.28\% regularized-TTT blend on the public evaluation, 13.61\% on the hidden leaderboard, with the
-gains bounded by adapter overfitting and a hard VRAM wall on large grids. The sharpest general lesson
+16.28\% regularized-TTT blend on the public evaluation, 13.61\% and then 18.19\% on the hidden leaderboard as the per-task training deepened, with the
+gains bounded by adapter overfitting and by a VRAM wall on large grids that later proved to be partly a
+context-truncation artifact rather than a true limit. Against that single-card ceiling we set one
+measurement from above. A faithful reproduction of a public pipeline that does not fit 16~GB, run on the
+contest's own four-L4 node and repaired of two defects its community port had introduced, scores 30.56\%
+on the same hidden set. That result is not ours and not single-card, and its value here is that it
+prices the constraint at roughly twelve points instead of leaving it an open question. The sharpest general lesson
 is that public-eval gains must be re-validated in the deployed condition, since every public-validated
 candidate lever we submitted regressed on the hidden set. Those bounds belong to one small card, not to
 the task. The contest gives four L4 GPUs and 96~GB, where the offline frontier already passes 50\%, and
 the verifier, the TTT bridge, and the selection rule we built are the pieces we would carry onto that
 hardware, with the scaling case stated as a falsifiable hypothesis rather than a promise
-(Section~\ref{sec:scale}). The 16~GB number is where the climb starts, not where it ends. The full system is open source, the GGUF conversion recipe for the custom-vocabulary
+(Section~\ref{sec:scale}). The 16~GB card is where the climb starts, not where it ends, and the number beneath it keeps moving. The full system is open source, the GGUF conversion recipe for the custom-vocabulary
 model, the AIRV pipeline, the per-task TTT bridge and sweep harness, and a development log recording
 every measurement and dead end behind these numbers.
 
@@ -764,6 +911,8 @@ deep                    & 60 & 16 & 1.25 & 2000 & 24 (19.2) \\
 deep                    & 60 & 16 & 1.00 & 2000 & 23 (18.4) \\
 \textbf{deep + rank}    & 60 & 32 & 1.25 & 2000 & \textbf{27 (21.6)} \\
 deep + rank             & 60 & 32 & 1.00 & 2000 & 25 (20.0) \\
+deep + rank             & 60 & 64 & 1.25 & 2000 & 28 (22.4) \\
+deep + rank             & 60 & 128 & 1.25 & 2000 & 24 (19.2) \\
 baseline, short context & 20 & 16 & 1.25 & 1600 & 20 (16.0) \\
 \bottomrule
 \end{tabular}
@@ -774,10 +923,17 @@ first scored 27, while the two baseline seeds score 24 and 22, so the two config
 overlap and the roughly three-output lift is a real effect rather than a seed draw. This is the first
 configuration we have measured that beats the shipped operating point on the mechanism that works,
 per-task training itself, rather than on the candidate-and-voting side where five submissions regressed.
-Whether it clears the 13.61\% hidden score is a submission question, and its transfer prior is better than
-those five because it improves the adapter rather than diluting the vote, but the public-to-hidden gap of
-Section~\ref{sec:lessons} forbids assuming it. The next submission carries this configuration and we
-report the hidden number here.
+It cleared it. Shipped as v6.1 with the deep-regularized adapter trained on all 232 tasks, it scored
+\textbf{18.19\%} on the hidden set, a 4.58-point gain over v2.1's 13.61\% and the first submission to beat
+the shipped operating point (Table~\ref{tab:versions}). The transfer held because this lever improves the
+adapter rather than diluting the vote, so the local sweep lift predicted a real hidden gain rather than the
+public-to-hidden reversal that sank the candidate-side levers. An intermediate v6 scored 12.36\% as the same
+recipe starved by a disk-exhaustion bug that left 73 tasks without an adapter, and fixing the scratch path
+recovered the lift. The rank dimension is now swept to its ceiling. At the same 60 steps, rank 64 scores 28
+of 125 against rank 32's 27, one output and inside seed noise at double the adapter cost, and rank 128 falls
+to 24, an inverted U whose mechanism is the per-task adapter overfitting its tiny few-shot dataset once
+capacity outruns the signal. The shipped configuration sits at the peak of its own curve, so the depth-and-rank
+lever is closed at 18.19\% and further climb on this pipeline must come from elsewhere.
 
 \section{Engineering log of walls and dead ends}
 \label{app:log}

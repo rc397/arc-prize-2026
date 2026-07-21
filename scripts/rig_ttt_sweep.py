@@ -53,7 +53,10 @@ PORT = 8080
 # different tasks per config and confounding the comparison. 1000 is the rig's validated limit and gives
 # the same 84 trainable tasks the recorded 17.6 baseline was measured on.
 MAXPAIR = 1000
-BATCH = 24
+# adapter GGUFs live in VRAM while serving: rank-16 f16 is ~63MB so 24 fit, but a rank-128 adapter is
+# ~504MB and 24 of them (12GB) plus the 4.3GB model spills past 16GB and decode crawls. Cap the batch
+# so adapters stay under ~3GB.
+BATCH = 24 if RANK <= 64 else 6
 CTX = "16384"
 
 from src.arc.model import build_prompt_ids, grid_to_ids                      # noqa: E402
