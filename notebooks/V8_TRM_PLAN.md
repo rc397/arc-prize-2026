@@ -1,5 +1,33 @@
 # v8, the TRM ensemble arm
 
+## SHELVED 2026-07-21, refuted by the authors before we built it
+
+The NVARC first-place writeup, by the authors of the exact model we run, reports the TRM ensemble result
+directly and it kills this plan. Their numbers.
+
+- TRM standalone is weak. The ARC Prize organisation got 6.9 percent on three nodes of 8xH100, compute we
+  cannot use. NVARC reached 7.5 percent on Kaggle and 10 percent post-deadline.
+- TRM added to their Qwen3 2B lifted it from 21.53 to 22.50, about one point.
+- TRM added to their Qwen3 4B lifted 27.22 to 27.22, exactly zero.
+
+Their mechanism, quoted. "Most of the puzzles solved by TRM were solved by Qwen3, hence TRM added nothing
+there. However, about 2 or 3 puzzles solved by TRM were not solved by Qwen3. Unfortunately, these were not
+always picked by Qwen3 scoring." That is the selection-ceiling problem we already measured on our own
+pipeline, confirmed independently on theirs. The disjoint coverage barely exists and the selector cannot
+reliably keep it.
+
+We run the 4B, at 30.56, above their 4B's 27.22. TRM adds a bit only to a weak base, and going to the 2B
+to obtain that bit would drop us from 30.56 to the low twenties to chase one point. The bet this document
+was built on, disjoint coverage, is real in principle and measured near zero in practice for a strong 4B.
+The plan below is kept for the record and for the reasoning, not as work to do.
+
+Source, NVARC solution writeup, ARC Prize 2025, authors ivan/sorokin and CPMP/cpmpml,
+https://www.kaggle.com/competitions/arc-prize-2025/writeups/nvarc
+
+---
+
+## Original plan, retained for the record
+
 Design document, not a runnable artifact yet. Unlike v7, we do not hold the source notebook, so this
 records the plan, the integration point, and the honest unknowns, and names the one action that unblocks
 a real build.
