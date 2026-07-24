@@ -897,3 +897,23 @@ offline only with an execution or consistency signal and a real build). Paper Se
 were updated with the current numbers and this framing. All web figures are single-source reads, not
 adversarially verified, but they triangulate across the NVIDIA blog, the ARC Prize 2025 report, and the
 ARChitects writeup.
+
+## 2026-07-22: the v6.1 + v7.1 union is dead, measured, +1 task and it is a selection artifact
+
+Tested the cheaper of the two remaining levers, disjoint coverage between our own two systems, for free
+from data already on the rig (v6.1 predictions in ttt_sweep_deep60r32_s125.json) against v7.1's kgmon
+solved set from the 120-task Kaggle log. On the 125 subkeys v6.1 attempted, v7.1 solves 35 and v6.1 solves
+27, with 26 shared. The union gains exactly one subkey, 8f3a5a89_0, which v6.1 solves and v7.1's selection
+missed. But 8f3a5a89 already had a correct grid in v7.1's own candidate pool (visible in the run log), so
+the one gain is another instance of the selection leak, not new coverage. True disjoint capability gain is
+zero. The solved sets are nested, v6.1 almost a subset of v7.1.
+
+This is a third direct measurement of the paper's Section 5.7 claim that diversity must come from
+capability, not from a second decoding of the same 4B, alongside the fine-tuned-variant-solves-2 and the
+TRM-plus-4B-is-zero results. Added to the paper. Also note the union is budget-infeasible anyway, running
+both full pipelines in one submission blows the wall v7.1 already nearly fills.
+
+Standing state after this: every card-side and inference-side lever is now measured dead or capped. Search
+width 0, attempt split 0, selector kgmon is best, TRM 0 (frontier-confirmed), union +1 selection-artifact,
+verifier capped near 5 points and needs an instrumented re-run plus a new signal. The only remaining real
+lever is a more capable base model, the compute-and-data moat that is the paper's thesis.

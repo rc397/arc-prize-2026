@@ -646,9 +646,13 @@ selection found nothing to grip. The hypothesis is that bimodality is a property
 and training rather than of the task. The falsifiable prediction is that a more capable base run in the
 96~GB produces partially-correct candidates on tasks it does not solve outright, a measurable non-empty
 near-miss band where ours is 1.5\%, and that this in turn reactivates the refinement and program-search
-levers that stalled here. Two of our measurements bound the hypothesis from below. A second small
+levers that stalled here. Three of our measurements bound the hypothesis from below. A second small
 transductive model buys almost nothing, since our fine-tuned variant solves only two tasks the stock 4B
-misses, and the Tiny Recursive Model family, the strongest small grid models available, scores far below
+misses. A union of our own two pipelines buys as little. The deep-TTT greedy vote and the restored DFS
+decoder share the same 4B and produce nested solved sets, the greedy arm adding exactly one task the
+decoder missed over the tasks both attempt, and that task already sat in the decoder's own candidate pool
+and was merely lost at selection, so the apparent diversity is a selection artifact rather than new
+capability. The Tiny Recursive Model family, the strongest small grid models available, scores far below
 our pipeline while needing more compute than one card gives it. That gap has not closed with time. The
 original TRM reports 8\% on ARC-AGI-2, its 2026 denoising-recursion successor reaches only about
 9.6\%~\cite{arc2025}, and the winning team's own ensemble measured a TRM arm as adding nothing to a strong
