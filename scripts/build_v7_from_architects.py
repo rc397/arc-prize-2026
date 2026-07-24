@@ -125,6 +125,33 @@ def rewire(text):
         "        if selection_algorithm is None:\n"
         '            selection_algorithm = (score_full_probmul_3 if os.environ.get("ARC_SELECTOR", "kgmon")\n'
         "                                   == \"probmul\" else score_kgmon)")
+    # dump the full candidate pool for offline selection analysis. Piggybacks on the benchmark method,
+    # where every candidate is already loaded with its beam score, per-augmentation NLLs and correctness.
+    # Writes /kaggle/working/pool_dump.json, which survives the output pull. Eval mode only, harmless in
+    # the hidden rerun where there are no labels.
+    text = text.replace(
+        "            print(f\" acc: {score:5.1f}/{num_puzzles:3} ('{name}')\")",
+        "            print(f\" acc: {score:5.1f}/{num_puzzles:3} ('{name}')\")\n"
+        "\n"
+        "        import json as _json\n"
+        "        _pool = {}\n"
+        "        for _bk, _subs in self.decoded_results.items():\n"
+        "            _lab = labels.get(_bk)\n"
+        "            _cands = {}\n"
+        "            for _sk, _s in _subs.items():\n"
+        "                _grid = [list(map(int, _r)) for _r in _s[\"solution\"]]\n"
+        "                _key = _json.dumps(_grid)\n"
+        "                _c = _cands.setdefault(_key, {\"grid\": _grid, \"count\": 0, \"beam\": [], \"aug\": [],\n"
+        "                    \"correct\": bool(np.array_equal(_s[\"solution\"], _lab)) if _lab is not None else False})\n"
+        "                _c[\"count\"] += 1\n"
+        "                _c[\"beam\"].append(float(_s[\"beam_score\"]))\n"
+        "                _c[\"aug\"].append([float(_x) for _x in _s[\"score_aug\"]])\n"
+        "            _pool[_bk] = list(_cands.values())\n"
+        "        try:\n"
+        "            _json.dump(_pool, open(\"/kaggle/working/pool_dump.json\", \"w\"))\n"
+        "            print(\"POOL DUMP: %d outputs -> /kaggle/working/pool_dump.json\" % len(_pool))\n"
+        "        except Exception as _e:\n"
+        "            print(\"pool dump failed:\", _e)\n")
     # DFS probability floor as an env knob. This is the single biggest search-budget dial, it sets how
     # improbable a continuation may get before the tree search abandons it. Lower keeps more branches
     # alive and costs time, so it trades directly against the per-task cap above.

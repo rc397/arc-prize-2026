@@ -114,3 +114,23 @@ class ArcDecoder:
             print(correct_puzzles)
             score = sum(1/num_tasks_per_puzzle[k.split("_")[0]] for k in correct_puzzles)
             print(f" acc: {score:5.1f}/{num_puzzles:3} ('{name}')")
+
+        import json as _json
+        _pool = {}
+        for _bk, _subs in self.decoded_results.items():
+            _lab = labels.get(_bk)
+            _cands = {}
+            for _sk, _s in _subs.items():
+                _grid = [list(map(int, _r)) for _r in _s["solution"]]
+                _key = _json.dumps(_grid)
+                _c = _cands.setdefault(_key, {"grid": _grid, "count": 0, "beam": [], "aug": [],
+                    "correct": bool(np.array_equal(_s["solution"], _lab)) if _lab is not None else False})
+                _c["count"] += 1
+                _c["beam"].append(float(_s["beam_score"]))
+                _c["aug"].append([float(_x) for _x in _s["score_aug"]])
+            _pool[_bk] = list(_cands.values())
+        try:
+            _json.dump(_pool, open("/kaggle/working/pool_dump.json", "w"))
+            print("POOL DUMP: %d outputs -> /kaggle/working/pool_dump.json" % len(_pool))
+        except Exception as _e:
+            print("pool dump failed:", _e)
