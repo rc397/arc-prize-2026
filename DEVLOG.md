@@ -865,3 +865,35 @@ made it persuasive enough to ship. Discarding information cannot help in princip
 extra signal probmul keeps is apparently as much noise as signal at this scale. Upstream shipped kgmon
 and upstream was right. The knob stays as ARC_SELECTOR for anyone who wants to re-test it, defaulting to
 kgmon again.
+
+## 2026-07-22: deep research on the 2026 frontier, done by hand, and the paper updated
+
+Ran a proper source-read pass (direct fetches, no agents) after an earlier agent workflow burned budget
+and died on its verification phase without confirming anything. Verified from primary sources.
+
+The 2026 leader nvbanana (~65.8, second ~38.6) is on the available evidence the NVIDIA Kaggle Grandmasters
+lineage (KGMON, the source of our score_kgmon selector) that won 2025, one year on. Their stated thesis,
+quoted from NVIDIA, is to move all complex reasoning offline into a large synthetic-data pipeline and train
+a small fast model. The ARC Prize 2025 Technical Report attributes the offline-to-application gap to
+"knowledge coverage and verifier-guided optimization, not fundamental scientific breakthroughs", which is
+the paper's thesis stated by the field itself, so it went into Section 5.7 as a citation.
+
+TRM currency settled and shelving reconfirmed on current evidence. TRM 8% on ARC-AGI-2 in the 2025 report,
+the 2026 denoising-recursion successor DRM only ~9.6%, and TRM collapses to zero without memorized task IDs.
+Still far below our 30.56.
+
+Selection ceiling. The strongest published selector, holistic trace judging (one judge weighs all
+candidates together), reaches 72.9% ARC-AGI-2 semi-private but at $39/task with a frontier judge model,
+not offline-feasible. The idea is a real insight for our leak; the implementation is not within our compute.
+
+Novel disjoint arms exist but score below us standalone. ARChitects pivoted 2025 to a masked-diffusion LLM
+(LLaDA-8B) with soft-masking self-refinement and most-visited-count selection (~26%). LLM code-evolution /
+DreamCoder library learning reaches ~26%. Both disjoint, both big builds, both below 30.56 so they would
+only pay via disjoint coverage that survives selection, the same wall TRM hit.
+
+Net: 30.56 is near the card-side method ceiling. The frontier gap is training-data scale (compute moat,
+data partly public as nvidia/Nemotron-SFT-ARC-AGI-v1) plus verifier-guided refinement (a method, feasible
+offline only with an execution or consistency signal and a real build). Paper Section 5.7 and the abstract
+were updated with the current numbers and this framing. All web figures are single-source reads, not
+adversarially verified, but they triangulate across the NVIDIA blog, the ARC Prize 2025 report, and the
+ARChitects writeup.
