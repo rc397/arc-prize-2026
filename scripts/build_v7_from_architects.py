@@ -26,21 +26,16 @@ VARIANTS = {
     },
     "v7.2": {
         "file": "arc_submission_v7_2.ipynb",
-        "env": {"ARC_DFS_FLOOR": "0.1"},
-        "note": ("Search-width arm. Halves the DFS probability floor from 0.2 to 0.1 so more branches "
-                 "survive, which buys candidates and costs time. Run it at ARC_N_EVAL=6 first and read "
-                 "seconds per task, since the hidden run has 240 tasks against a twelve-hour wall and "
-                 "v7.1 cleared that by roughly an hour. If the projection exceeds the wall this arm "
-                 "cannot be submitted whatever it scores."),
-    },
-    "v7.3": {
-        "file": "arc_submission_v7_3.ipynb",
-        "env": {"ARC_DFS_FLOOR": "0.35"},
-        "note": ("Narrow-search control for v7.2. Raising the floor prunes earlier and runs faster. Its "
-                 "purpose is the gradient rather than the score, since v7.2 and v7.3 either bracket the "
-                 "0.2 default or point consistently one way, and one batch then closes the lever."),
+        "env": {"ARC_DUMP_POOL": "1"},
+        "note": ("Selection-analysis build. Identical pipeline to v7.1 plus a candidate-pool dump, gated "
+                 "on ARC_DUMP_POOL so only this build writes it. Run at ARC_N_EVAL=40, it writes "
+                 "pool_dump.json with every candidate's grid, beam score, per-augmentation NLLs, visit "
+                 "count and correctness, so any selector or verifier can then be tested offline for free "
+                 "against the ~5-point selection ceiling. Not for submission, it is a measurement run."),
     },
 }
+# The search-width arms (old v7.2 at floor 0.1, v7.3 at floor 0.35) were measured dead, the DFS floor
+# changed the deployed output by nothing, so their notebooks are removed. The finding is in the DEVLOG.
 
 VARIANT = sys.argv[1] if len(sys.argv) > 1 else "v7.1"
 assert VARIANT in VARIANTS, "unknown variant %r, expected one of %s" % (VARIANT, sorted(VARIANTS))
@@ -125,33 +120,33 @@ def rewire(text):
         "        if selection_algorithm is None:\n"
         '            selection_algorithm = (score_full_probmul_3 if os.environ.get("ARC_SELECTOR", "kgmon")\n'
         "                                   == \"probmul\" else score_kgmon)")
-    # dump the full candidate pool for offline selection analysis. Piggybacks on the benchmark method,
-    # where every candidate is already loaded with its beam score, per-augmentation NLLs and correctness.
-    # Writes /kaggle/working/pool_dump.json, which survives the output pull. Eval mode only, harmless in
-    # the hidden rerun where there are no labels.
+    # candidate-pool dump for offline selection analysis, gated on ARC_DUMP_POOL so only the v7.2 build
+    # writes it. Piggybacks on the benchmark method where every candidate is already loaded with its beam
+    # score, per-augmentation NLLs and correctness. Writes pool_dump.json, which survives the output pull.
     text = text.replace(
         "            print(f\" acc: {score:5.1f}/{num_puzzles:3} ('{name}')\")",
         "            print(f\" acc: {score:5.1f}/{num_puzzles:3} ('{name}')\")\n"
         "\n"
-        "        import json as _json\n"
-        "        _pool = {}\n"
-        "        for _bk, _subs in self.decoded_results.items():\n"
-        "            _lab = labels.get(_bk)\n"
-        "            _cands = {}\n"
-        "            for _sk, _s in _subs.items():\n"
-        "                _grid = [list(map(int, _r)) for _r in _s[\"solution\"]]\n"
-        "                _key = _json.dumps(_grid)\n"
-        "                _c = _cands.setdefault(_key, {\"grid\": _grid, \"count\": 0, \"beam\": [], \"aug\": [],\n"
-        "                    \"correct\": bool(np.array_equal(_s[\"solution\"], _lab)) if _lab is not None else False})\n"
-        "                _c[\"count\"] += 1\n"
-        "                _c[\"beam\"].append(float(_s[\"beam_score\"]))\n"
-        "                _c[\"aug\"].append([float(_x) for _x in _s[\"score_aug\"]])\n"
-        "            _pool[_bk] = list(_cands.values())\n"
-        "        try:\n"
-        "            _json.dump(_pool, open(\"/kaggle/working/pool_dump.json\", \"w\"))\n"
-        "            print(\"POOL DUMP: %d outputs -> /kaggle/working/pool_dump.json\" % len(_pool))\n"
-        "        except Exception as _e:\n"
-        "            print(\"pool dump failed:\", _e)\n")
+        "        if os.environ.get(\"ARC_DUMP_POOL\"):\n"
+        "            import json as _json\n"
+        "            _pool = {}\n"
+        "            for _bk, _subs in self.decoded_results.items():\n"
+        "                _lab = labels.get(_bk)\n"
+        "                _cands = {}\n"
+        "                for _sk, _s in _subs.items():\n"
+        "                    _grid = [list(map(int, _r)) for _r in _s[\"solution\"]]\n"
+        "                    _key = _json.dumps(_grid)\n"
+        "                    _c = _cands.setdefault(_key, {\"grid\": _grid, \"count\": 0, \"beam\": [], \"aug\": [],\n"
+        "                        \"correct\": bool(np.array_equal(_s[\"solution\"], _lab)) if _lab is not None else False})\n"
+        "                    _c[\"count\"] += 1\n"
+        "                    _c[\"beam\"].append(float(_s[\"beam_score\"]))\n"
+        "                    _c[\"aug\"].append([float(_x) for _x in _s[\"score_aug\"]])\n"
+        "                _pool[_bk] = list(_cands.values())\n"
+        "            try:\n"
+        "                _json.dump(_pool, open(\"/kaggle/working/pool_dump.json\", \"w\"))\n"
+        "                print(\"POOL DUMP: %d outputs -> /kaggle/working/pool_dump.json\" % len(_pool))\n"
+        "            except Exception as _e:\n"
+        "                print(\"pool dump failed:\", _e)\n")
     # DFS probability floor as an env knob. This is the single biggest search-budget dial, it sets how
     # improbable a continuation may get before the tree search abandons it. Lower keeps more branches
     # alive and costs time, so it trades directly against the per-task cap above.

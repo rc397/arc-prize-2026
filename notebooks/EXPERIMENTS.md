@@ -3,7 +3,7 @@
 Every variant runs the same restored pipeline. Only the config cell differs, so a variant is a documented
 set of knob values rather than a fork. Build any of them with
 
-    python scripts/build_v7_from_architects.py [v7.1|v7.2|v7.3]
+    python scripts/build_v7_from_architects.py [v7.1|v7.2]
 
 The config cell prints its knobs on startup. Line one of every log should read
 
@@ -13,28 +13,24 @@ If that line does not say what you intended, kill the run rather than discoverin
 
 ## Variants
 
-| variant | file | change from v7.1 | question it answers | hidden score |
+| variant | file | change from v7.1 | purpose | score |
 |---|---|---|---|---|
-| v7.1 | arc_submission_v7.ipynb | none, upstream defaults | baseline | **30.56** |
-| v7.2 | arc_submission_v7_2.ipynb | `ARC_DFS_FLOOR=0.1` | does wider search buy solves | not run |
-| v7.3 | arc_submission_v7_3.ipynb | `ARC_DFS_FLOOR=0.35` | does narrower search lose them | not run |
+| v7.1 | arc_submission_v7.ipynb | none, upstream defaults | the submission | **30.56** hidden |
+| v7.2 | arc_submission_v7_2.ipynb | `ARC_DUMP_POOL=1` | dump the candidate pool for selection analysis | measurement run, not submitted |
 
-v7.2 and v7.3 exist as a pair on purpose. One variant gives a point, two either bracket the 0.2 default or
-point consistently in one direction, and the search-budget lever then closes in a single batch instead of
-three sequential guesses.
+v7.1 is what you submit. v7.2 is identical plus a gated candidate-pool dump, run once at `ARC_N_EVAL=40`
+to write `pool_dump.json`, which lets any selector or verifier be tested offline against the roughly
+five-point selection ceiling without further quota. It is a measurement build, never a submission.
+
+The two search-width arms that used to sit here (floor 0.1 and floor 0.35) were measured dead, the DFS
+floor changed the deployed output by nothing, so their notebooks were removed. The finding is in the
+DEVLOG. `ARC_DFS_FLOOR` remains a knob for anyone who wants to re-open it.
 
 ## Procedure
 
-Smoke first. Set `ARC_N_EVAL = 6` and run all arms concurrently, roughly fifteen minutes each. The score
-is meaningless at six tasks. What matters is that the CONFIG line is right, that nothing crashes, and the
-wall-clock per task.
-
-Project before promoting. Take total seconds, divide by six, multiply by 240, divide by four workers. Under
-about eleven hours leaves submission headroom against the twelve-hour wall. v7.1 cleared it by roughly an
-hour at floor 0.2, so v7.2 is the arm at risk, and a wider floor slows the tasks that previously finished
-early, which makes the slowdown worse than proportional.
-
-Then promote survivors to `ARC_N_EVAL = 120`, paired against the v7.1 baseline on the same task set.
+For v7.2, upload it, keep the defaults (`ARC_N_EVAL=40`, `ARC_DUMP_POOL=1` are already set), Save & Run All,
+roughly two hours. Confirm the log ends with `POOL DUMP: N outputs -> pool_dump.json`, then the pool is
+pulled and analysed offline. No promotion or submission from this build.
 
 ## Reading the results honestly
 
