@@ -314,7 +314,7 @@ config = code_cell(
     '    if cand:\n'
     '        os.environ["ARC_DATA_DIR"] = os.path.dirname(cand[0])\n'
     "# Interactive eval tasks to score (non-rerun). 0 = all 120. Use 6 for a smoke run.\n"
-    'os.environ["ARC_N_EVAL"]     = "40"\n'
+    + ('' if "ARC_N_EVAL" in SPEC["env"] else 'os.environ["ARC_N_EVAL"]     = "40"\n') +
     "# Experiment knobs. Defaults reproduce the 30.56 submission, change one at a time.\n"
     "#   ARC_DFS_FLOOR    search width, lower keeps more branches and costs time (default 0.2)\n"
     "#   ARC_TASK_TIMEOUT per-task seconds (default 1800, the 30.56 submission used 1200)\n"

@@ -26,7 +26,6 @@ if not os.path.isdir(os.environ["ARC_DATA_DIR"]):
     if cand:
         os.environ["ARC_DATA_DIR"] = os.path.dirname(cand[0])
 # Interactive eval tasks to score (non-rerun). 0 = all 120. Use 6 for a smoke run.
-os.environ["ARC_N_EVAL"]     = "40"
 # Experiment knobs. Defaults reproduce the 30.56 submission, change one at a time.
 #   ARC_DFS_FLOOR    search width, lower keeps more branches and costs time (default 0.2)
 #   ARC_TASK_TIMEOUT per-task seconds (default 1800, the 30.56 submission used 1200)
