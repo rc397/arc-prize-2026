@@ -86,11 +86,45 @@ def rewire(text):
     # disable the AIF arm: on the 40-task eval slice it fast-pathed 12 tasks with zero correct,
     # sacrificing the LLM pipeline on each. One neutered dict kills the early-exit, the beam
     # pruning, and keeps the confidence print alive. Reverts behavior to sorokin's original.
+    # Strip the launch too, not just the result. Neutering the result left the thread pool spawning and
+    # the CPU analysis running on every task with its answer thrown away, which is waste on a shared CPU
+    # and a difference from the 33.89 public build that deletes the arm outright. The stub keeps the
+    # three downstream readers (the confidence print, expected_count, the early-exit test) valid, and
+    # expected_count of -1 keeps the object-count beam pruning permanently off.
     text = text.replace(
+        "        # ================================================================\n"
+        "        # LAUNCH AIF IN BACKGROUND THREAD\n"
+        "        # ================================================================\n"
+        "        aif_future = None\n"
+        "        executor = ThreadPoolExecutor(max_workers=1)\n"
+        "        try:\n"
+        "            raw_train_data = puzzle_ds.queries[key]['train']\n"
+        "            raw_test_input = puzzle_ds.queries[key]['test'][0]['input']\n"
+        "            aif_future = executor.submit(\n"
+        "                run_aif_analysis,\n"
+        "                raw_train_data,\n"
+        "                raw_test_input\n"
+        "            )\n"
+        "            print(f\"[Rank {rank}] AIF background analysis launched for {key}...\")\n"
+        "        except Exception as e:\n"
+        "            print(f\"[Rank {rank}] Failed to launch AIF: {e}\")\n"
+        "            aif_future = None\n",
+        "        # AIF arm removed. It fast-pathed 12 of 39 tasks with zero correct on the eval slice,\n"
+        "        # so the arm is not launched at all and this stub stands in for its result.\n")
+    text = text.replace(
+        "        # ================================================================\n"
+        "        # GET AIF RESULT (should be ready, runs <0.1s on CPU)\n"
+        "        # ================================================================\n"
+        "        aif_result = None\n"
+        "        if aif_future is not None:\n"
+        "            try:\n"
+        "                aif_result = aif_future.result(timeout=1.0)  # safe, should be instant\n"
+        "            except Exception as e:\n"
+        "                print(f\"[Rank {rank}] AIF retrieval error: {e}\")\n"
         "        executor.shutdown(wait=False)\n",
-        "        executor.shutdown(wait=False)\n"
-        "        # AIF arm disabled: measured 12/39 fast-paths with zero correct on the eval slice\n"
         "        aif_result = {'confidence': 0.0, 'grid': None, 'expected_count': -1, 'is_solved': False}\n")
+    text = text.replace("from arc_aif import run_aif_analysis  # <-- NEW IMPORT\n", "")
+    text = text.replace("from concurrent.futures import ThreadPoolExecutor  # <-- NEW\n", "")
     # restore sorokin's DFS batching. The aimo edit split his 4-view batches into pairs, halving
     # decode throughput at zero semantic benefit. Same views, same order, grouped 4 per DFS call.
     text = text.replace(

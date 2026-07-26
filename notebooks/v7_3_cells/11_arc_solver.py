@@ -1,7 +1,6 @@
 %%writefile arc_solver.py
 from unsloth import FastLanguageModel, UnslothTrainingArguments, UnslothTrainer
 from arc_loader import ArcDataset, QwenFormatter
-from arc_aif import run_aif_analysis  # <-- NEW IMPORT
 
 import gc
 import os
@@ -19,7 +18,6 @@ from contextlib import redirect_stdout, redirect_stderr
 from peft import get_peft_model_state_dict, set_peft_model_state_dict
 import bz2
 import pickle
-from concurrent.futures import ThreadPoolExecutor  # <-- NEW
 from scipy.ndimage import label  # <-- NEW for pruning
 
 logging.disable(logging.WARNING)
@@ -289,23 +287,8 @@ def worker(rank, queue, end_time):
         train_ds = puzzle_ds.augment(n=16, shfl_keys=True, seed=1)
         train_ds = train_ds.cut_to_len(formatter=formatter, name="text", max_len=max_seq_length)
 
-        # ================================================================
-        # LAUNCH AIF IN BACKGROUND THREAD
-        # ================================================================
-        aif_future = None
-        executor = ThreadPoolExecutor(max_workers=1)
-        try:
-            raw_train_data = puzzle_ds.queries[key]['train']
-            raw_test_input = puzzle_ds.queries[key]['test'][0]['input']
-            aif_future = executor.submit(
-                run_aif_analysis,
-                raw_train_data,
-                raw_test_input
-            )
-            print(f"[Rank {rank}] AIF background analysis launched for {key}...")
-        except Exception as e:
-            print(f"[Rank {rank}] Failed to launch AIF: {e}")
-            aif_future = None
+        # AIF arm removed. It fast-pathed 12 of 39 tasks with zero correct on the eval slice,
+        # so the arm is not launched at all and this stub stands in for its result.
 
         # ================================================================
         # TRAINING PHASE (GPU busy for ~3.5 minutes)
@@ -331,17 +314,6 @@ def worker(rank, queue, end_time):
         print(f"[Rank {rank}] allocated {memory_allocated}MB for training | stats: {stats}")
         final_loss = float(getattr(stats, "training_loss", 0.0) or 0.0)
 
-        # ================================================================
-        # GET AIF RESULT (should be ready, runs <0.1s on CPU)
-        # ================================================================
-        aif_result = None
-        if aif_future is not None:
-            try:
-                aif_result = aif_future.result(timeout=1.0)  # safe, should be instant
-            except Exception as e:
-                print(f"[Rank {rank}] AIF retrieval error: {e}")
-        executor.shutdown(wait=False)
-        # AIF arm disabled: measured 12/39 fast-paths with zero correct on the eval slice
         aif_result = {'confidence': 0.0, 'grid': None, 'expected_count': -1, 'is_solved': False}
 
         # ================================================================
