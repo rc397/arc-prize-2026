@@ -27,14 +27,27 @@ v7.3 carries the two scheduler rules priced on the v7.2 measurement run, where 7
 went to tasks yielding nothing. A task whose adapter finishes training above loss 0.05 skips the half-hour
 search and is served by a greedy decode instead, which reclaimed 2330s on the measurement slice while
 touching nothing the selector harvests. A task whose search returns empty gets the same greedy fill, which
-can only add answers to otherwise-forfeited slots, four per 120 tasks. The pipeline is otherwise
-byte-identical to v7.2 minus the dump.
+can only add answers to otherwise-forfeited slots, four per 120 tasks.
+
+v7.3 is also rebased onto the 33.89 deployment condition, and the attachment is not optional. The public
+notebook koushikrudra/failed-in-aimo is byte-equivalent to our v7.1 in every module, loader, starter,
+decoder and solver all cancel in diff, yet it scores 33.89 where our v7.1 scored 30.56 at the same 1200s
+cap. Its kernel metadata shows the one difference. It mounts sorokin's original
+pip-install-unsloth-flash-patch wheel tree and sorokin's own model upload, where our builds mount the
+rc7530 slim fork whose pins predate the current Kaggle image, and our own run logs carry the warning,
+Skipping import of cpp extensions due to incompatible torch version. Identical code submitted twice
+prices the environment at 3.33 points, about eight tasks. So when uploading v7.3, attach
+`sorokin/pip-install-unsloth-flash-patch` as the utility source and `sorokin/qwen3_4b_grids15_sft139` as
+the model, not the rc7530 fork and not the mirzamilanfarabi mirror. The cap is 1200 to match the 33.89
+condition exactly, so any delta against 33.89 belongs to the scheduler.
 
 Run v7.3 once at `ARC_N_EVAL=6` as a smoke, about forty minutes. Task 136b0064 trains to loss 0.09, so the
 log must show `skipping search for 136b0064` followed by `greedy fallback filled 136b0064_0...`, which
-exercises both new paths end to end. Then flip to `ARC_N_EVAL=0` for the full 120, about six hours, and
-gate on the public read. At or above v7.1's 33.8 credits on the same 116-output denominator, submit. Below
-it, the do-no-harm claim failed and the build does not go out.
+exercises both new paths end to end. Watch the version prints at startup, unsloth should NOT report
+2025.9.7 if sorokin's tree mounted correctly, and the cpp-extensions warning should be gone. Then flip to
+`ARC_N_EVAL=0` for the full 120, about six hours, and gate on the public read against v7.1's 33.8 credits
+on the same denominator. The hidden gate is 33.89, at or above it the scheduler paid, below 30.97 the
+rebase itself failed and the attachment is the first suspect.
 
 The two search-width arms that used to sit here (floor 0.1 and floor 0.35) were measured dead, the DFS
 floor changed the deployed output by nothing, so their notebooks were removed. The finding is in the

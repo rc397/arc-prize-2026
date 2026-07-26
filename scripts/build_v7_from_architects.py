@@ -36,15 +36,19 @@ VARIANTS = {
     },
     "v7.3": {
         "file": "arc_submission_v7_3.ipynb",
-        "env": {"ARC_LOSS_CUT": "0.05", "ARC_GREEDY_FALLBACK": "1", "ARC_N_EVAL": "0"},
-        "note": ("Scheduling build. The pipeline is v7.2's unchanged, plus two do-no-harm scheduler "
-                 "rules priced on the v7.2 measurement run, where 71 percent of task-seconds went to "
-                 "tasks yielding nothing. A task whose adapter finishes above ARC_LOSS_CUT skips the "
-                 "half-hour search and serves a greedy decode instead, which reclaimed 2330s on the "
-                 "measurement slice while touching no harvested task. A task whose search returns "
-                 "nothing is filled by a greedy decode under its trained adapter, which can only fill "
-                 "otherwise-forfeited slots, about four per 120 tasks. Timeout stays at the upstream "
-                 "1800, which the 30.97 run validated end to end."),
+        "env": {"ARC_LOSS_CUT": "0.05", "ARC_GREEDY_FALLBACK": "1", "ARC_N_EVAL": "0",
+                "ARC_TASK_TIMEOUT": "1200"},
+        "note": ("Scheduling build, rebased onto the 33.89 deployment condition. The public notebook "
+                 "koushikrudra/failed-in-aimo is byte-equivalent to our v7.1 restoration in every module "
+                 "yet scores 33.89 to our 30.56 at the same 1200s cap, and its kernel metadata shows the "
+                 "one difference, it mounts sorokin's original pip-install-unsloth-flash-patch wheel tree "
+                 "and model upload where ours mounts the rc7530 slim fork built for an older image. Same "
+                 "code twice on the hidden set prices the environment at 3.33 points. So v7.3 must be "
+                 "uploaded with sorokin/pip-install-unsloth-flash-patch and sorokin's model attached, NOT "
+                 "the rc7530 fork, and runs cap 1200 to match. On top of that condition it adds the two "
+                 "do-no-harm scheduler rules priced on the v7.2 measurement run, the loss-gated search "
+                 "skip and the greedy fill of search-empty slots, so any delta against 33.89 is the "
+                 "scheduler's."),
     },
 }
 # The search-width arms (old v7.2 at floor 0.1, v7.3 at floor 0.35) were measured dead, the DFS floor
