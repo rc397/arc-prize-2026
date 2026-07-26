@@ -15,12 +15,26 @@ If that line does not say what you intended, kill the run rather than discoverin
 
 | variant | file | change from v7.1 | purpose | score |
 |---|---|---|---|---|
-| v7.1 | arc_submission_v7.ipynb | none, upstream defaults | the submission | **30.56** hidden |
-| v7.2 | arc_submission_v7_2.ipynb | `ARC_DUMP_POOL=1` | dump the candidate pool for selection analysis | measurement run, not submitted |
+| v7.1 | arc_submission_v7.ipynb | none, upstream defaults, cap 1200 | the first submission | 30.56 hidden |
+| v7.2 | arc_submission_v7_2.ipynb | `ARC_DUMP_POOL=1`, cap at the 1800 default | pool dump for selection analysis | **30.97** hidden |
+| v7.3 | arc_submission_v7_3.ipynb | `ARC_LOSS_CUT=0.05`, `ARC_GREEDY_FALLBACK=1` | the scheduler build | pending |
 
-v7.1 is what you submit. v7.2 is identical plus a gated candidate-pool dump, run once at `ARC_N_EVAL=40`
-to write `pool_dump.json`, which lets any selector or verifier be tested offline against the roughly
-five-point selection ceiling without further quota. It is a measurement build, never a submission.
+v7.2's dump wrote `pool_dump.json` for offline selection analysis, and its submission doubled as the cap
+read. The 0.41 over v7.1 is the 1200-to-1800 cap change, proven by the sixty-way public-notebook tie at
+exactly 30.97.
+
+v7.3 carries the two scheduler rules priced on the v7.2 measurement run, where 71 percent of task-seconds
+went to tasks yielding nothing. A task whose adapter finishes training above loss 0.05 skips the half-hour
+search and is served by a greedy decode instead, which reclaimed 2330s on the measurement slice while
+touching nothing the selector harvests. A task whose search returns empty gets the same greedy fill, which
+can only add answers to otherwise-forfeited slots, four per 120 tasks. The pipeline is otherwise
+byte-identical to v7.2 minus the dump.
+
+Run v7.3 once at `ARC_N_EVAL=6` as a smoke, about forty minutes. Task 136b0064 trains to loss 0.09, so the
+log must show `skipping search for 136b0064` followed by `greedy fallback filled 136b0064_0...`, which
+exercises both new paths end to end. Then flip to `ARC_N_EVAL=0` for the full 120, about six hours, and
+gate on the public read. At or above v7.1's 33.8 credits on the same 116-output denominator, submit. Below
+it, the do-no-harm claim failed and the build does not go out.
 
 The two search-width arms that used to sit here (floor 0.1 and floor 0.35) were measured dead, the DFS
 floor changed the deployed output by nothing, so their notebooks were removed. The finding is in the

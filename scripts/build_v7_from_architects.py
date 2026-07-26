@@ -31,7 +31,20 @@ VARIANTS = {
                  "on ARC_DUMP_POOL so only this build writes it. Run at ARC_N_EVAL=40, it writes "
                  "pool_dump.json with every candidate's grid, beam score, per-augmentation NLLs, visit "
                  "count and correctness, so any selector or verifier can then be tested offline for free "
-                 "against the ~5-point selection ceiling. Not for submission, it is a measurement run."),
+                 "against the ~5-point selection ceiling. Not for submission, it is a measurement run. "
+                 "Submitted anyway as a cap read, scored 30.97 at the default 1800s cap."),
+    },
+    "v7.3": {
+        "file": "arc_submission_v7_3.ipynb",
+        "env": {"ARC_LOSS_CUT": "0.05", "ARC_GREEDY_FALLBACK": "1", "ARC_N_EVAL": "0"},
+        "note": ("Scheduling build. The pipeline is v7.2's unchanged, plus two do-no-harm scheduler "
+                 "rules priced on the v7.2 measurement run, where 71 percent of task-seconds went to "
+                 "tasks yielding nothing. A task whose adapter finishes above ARC_LOSS_CUT skips the "
+                 "half-hour search and serves a greedy decode instead, which reclaimed 2330s on the "
+                 "measurement slice while touching no harvested task. A task whose search returns "
+                 "nothing is filled by a greedy decode under its trained adapter, which can only fill "
+                 "otherwise-forfeited slots, about four per 120 tasks. Timeout stays at the upstream "
+                 "1800, which the 30.97 run validated end to end."),
     },
 }
 # The search-width arms (old v7.2 at floor 0.1, v7.3 at floor 0.35) were measured dead, the DFS floor
@@ -173,6 +186,51 @@ def rewire(text):
                         '    max_seq_length = int(os.environ.get("ARC_MAXSEQ", "8192"))')
     text = text.replace('    dir_outputs = "/kaggle/inference_outputs"',
                         '    dir_outputs = os.environ.get("ARC_OUT_DIR", "/kaggle/inference_outputs")')
+    # scheduler rules, both inert unless their env knob is set so every variant shares one codebase.
+    # Priced on the v7.2 measurement run, where 71 percent of task-seconds bought nothing.
+    text = text.replace(
+        '\n        print(f"[Rank {rank}] allocated {memory_allocated}MB for training | stats: {stats}")',
+        '\n        print(f"[Rank {rank}] allocated {memory_allocated}MB for training | stats: {stats}")\n'
+        '        final_loss = float(getattr(stats, "training_loss", 0.0) or 0.0)')
+    # adapters finishing above the cut never produced a harvested answer on the measurement run, so
+    # the half-hour search is skipped and the greedy fallback below serves the task instead
+    text = text.replace(
+        "\n        model = FastLanguageModel.for_inference(model)\n"
+        "        known_scores = {}",
+        "\n        model = FastLanguageModel.for_inference(model)\n"
+        '        _loss_cut = float(os.environ.get("ARC_LOSS_CUT", "0") or 0)\n'
+        "        if _loss_cut and final_loss > _loss_cut:\n"
+        '            print(f"[Rank {rank}] loss {final_loss:.4f} above cut {_loss_cut}, skipping search for {key}")\n'
+        "            batches = []\n"
+        "        known_scores = {}")
+    # a task whose search returned nothing forfeits its slot for free, so fill empty outputs with one
+    # greedy decode per view under the already-trained adapter. Runs after the DFS loop and touches only
+    # tasks with no output file, so it cannot displace a searched answer.
+    text = text.replace(
+        '\n        print(f"[Rank {rank}] allocated {memory_allocated}MB for inference")',
+        '\n        if os.environ.get("ARC_GREEDY_FALLBACK"):\n'
+        '            _done = {fn.split(".")[0] for fn in os.listdir(dir_outputs)}\n'
+        "            _missing = [k2 for k2 in sorted(puzzle_ds_multi.keys) if k2 not in _done]\n"
+        "            with torch.inference_mode():\n"
+        "                for k2 in _missing:\n"
+        "                    if time.time() > end_time:\n"
+        "                        break\n"
+        '                    _sks = [s2 for s2 in sorted(eval_ds.keys) if s2.split(".")[0] == k2][:2]\n'
+        "                    for s2 in _sks:\n"
+        "                        try:\n"
+        '                            _toks = tokenizer.encode(eval_ds.get(s2, formatter)["input"])\n'
+        '                            _inp = torch.tensor([_toks], device="cuda")\n'
+        "                            _out = model.generate(input_ids=_inp, max_new_tokens=max_new_tokens, do_sample=False)\n"
+        "                            _arr = formatter.convert_tokens_to_array(_out[0, _inp.shape[1]:].tolist())\n"
+        "                            if _arr is None:\n"
+        "                                continue\n"
+        "                            _sol = puzzle_ds_multi.invert_mod(_arr, s2, inv_perm=True)\n"
+        '                            with bz2.BZ2File(os.path.join(dir_outputs, s2 + ".gfb"), "w") as f:\n'
+        '                                pickle.dump([{"beam_score": 3.0, "score_aug": [3.0], "solution": _sol}], f)\n'
+        '                            print(f"[Rank {rank}] greedy fallback filled {s2}")\n'
+        "                        except Exception as _e:\n"
+        '                            print(f"[Rank {rank}] greedy fallback failed {s2}: {_e}")\n'
+        '        print(f"[Rank {rank}] allocated {memory_allocated}MB for inference")')
     return text
 
 
@@ -257,6 +315,8 @@ config = code_cell(
     "#   ARC_DFS_FLOOR    search width, lower keeps more branches and costs time (default 0.2)\n"
     "#   ARC_TASK_TIMEOUT per-task seconds (default 1800, the 30.56 submission used 1200)\n"
     "#   ARC_RANK         LoRA rank (default 256)      ARC_MAXSEQ  training context (default 8192)\n"
+    "#   ARC_LOSS_CUT     skip the search when training loss ends above this, 0 disables (v7.3: 0.05)\n"
+    "#   ARC_GREEDY_FALLBACK  fill search-empty tasks with a greedy decode (v7.3: 1)\n"
     + ("".join('os.environ["%s"] = "%s"\n' % (k, v) for k, v in sorted(SPEC["env"].items()))
        or '# os.environ["ARC_DFS_FLOOR"]    = "0.1"\n'
           '# os.environ["ARC_TASK_TIMEOUT"] = "1200"\n')
@@ -264,10 +324,11 @@ config = code_cell(
     'print("MODEL ", os.environ["ARC_MODEL_PATH"], "exists:", os.path.isdir(os.environ["ARC_MODEL_PATH"]))\n'
     'print("DATA  ", os.environ["ARC_DATA_DIR"], "exists:", os.path.isdir(os.environ["ARC_DATA_DIR"]))\n'
     "# echo every knob so a smoke run proves the config landed instead of silently defaulting\n"
-    'print("CONFIG N_EVAL=%s RANK=%s MAXSEQ=%s TIMEOUT=%s DFS_FLOOR=%s" % (\n'
+    'print("CONFIG N_EVAL=%s RANK=%s MAXSEQ=%s TIMEOUT=%s DFS_FLOOR=%s LOSS_CUT=%s GFB=%s" % (\n'
     '    os.environ.get("ARC_N_EVAL", "40"), os.environ.get("ARC_RANK", "256"),\n'
     '    os.environ.get("ARC_MAXSEQ", "8192"), os.environ.get("ARC_TASK_TIMEOUT", "1800"),\n'
-    '    os.environ.get("ARC_DFS_FLOOR", "0.2")))\n'
+    '    os.environ.get("ARC_DFS_FLOOR", "0.2"), os.environ.get("ARC_LOSS_CUT", "0"),\n'
+    '    os.environ.get("ARC_GREEDY_FALLBACK", "0")))\n'
     'assert os.path.isdir(os.environ["ARC_MODEL_PATH"]), "model not found under /kaggle/input, attach it"\n'
     'assert os.path.isdir(os.environ["ARC_DATA_DIR"]), "competition data not found, attach it"\n')
 
@@ -291,6 +352,9 @@ install = code_cell(
 nb["cells"] = [intro, config, nb["cells"][0], nb["cells"][1], install] + nb["cells"][2:]
 
 assert "src.arc" not in alltext and "from src" not in alltext, "v7 must not import our repo"
+assert alltext.count("final_loss = float(") == 1, "loss capture not patched exactly once"
+assert alltext.count("ARC_LOSS_CUT") >= 1, "loss-cut gate missed"
+assert alltext.count("ARC_GREEDY_FALLBACK") >= 1, "greedy fallback missed"
 
 json.dump(nb, open(DST, "w", encoding="utf-8"), indent=1)
 print("wrote", DST)

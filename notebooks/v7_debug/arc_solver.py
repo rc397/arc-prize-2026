@@ -328,6 +328,7 @@ def worker(rank, queue, end_time):
 
         memory_allocated = torch.cuda.max_memory_allocated() // 1024**2
         print(f"[Rank {rank}] allocated {memory_allocated}MB for training | stats: {stats}")
+        final_loss = float(getattr(stats, "training_loss", 0.0) or 0.0)
 
         # ================================================================
         # GET AIF RESULT (should be ready, runs <0.1s on CPU)
@@ -395,6 +396,10 @@ def worker(rank, queue, end_time):
             batches.append(batch)
 
         model = FastLanguageModel.for_inference(model)
+        _loss_cut = float(os.environ.get("ARC_LOSS_CUT", "0") or 0)
+        if _loss_cut and final_loss > _loss_cut:
+            print(f"[Rank {rank}] loss {final_loss:.4f} above cut {_loss_cut}, skipping search for {key}")
+            batches = []
         known_scores = {}
         expected_count = aif_result.get('expected_count', -1) if aif_result else -1
 
@@ -465,5 +470,27 @@ def worker(rank, queue, end_time):
                             pickle.dump(decoded_result, f)
 
         memory_allocated = torch.cuda.max_memory_allocated() // 1024**2
+        if os.environ.get("ARC_GREEDY_FALLBACK"):
+            _done = {fn.split(".")[0] for fn in os.listdir(dir_outputs)}
+            _missing = [k2 for k2 in sorted(puzzle_ds_multi.keys) if k2 not in _done]
+            with torch.inference_mode():
+                for k2 in _missing:
+                    if time.time() > end_time:
+                        break
+                    _sks = [s2 for s2 in sorted(eval_ds.keys) if s2.split(".")[0] == k2][:2]
+                    for s2 in _sks:
+                        try:
+                            _toks = tokenizer.encode(eval_ds.get(s2, formatter)["input"])
+                            _inp = torch.tensor([_toks], device="cuda")
+                            _out = model.generate(input_ids=_inp, max_new_tokens=max_new_tokens, do_sample=False)
+                            _arr = formatter.convert_tokens_to_array(_out[0, _inp.shape[1]:].tolist())
+                            if _arr is None:
+                                continue
+                            _sol = puzzle_ds_multi.invert_mod(_arr, s2, inv_perm=True)
+                            with bz2.BZ2File(os.path.join(dir_outputs, s2 + ".gfb"), "w") as f:
+                                pickle.dump([{"beam_score": 3.0, "score_aug": [3.0], "solution": _sol}], f)
+                            print(f"[Rank {rank}] greedy fallback filled {s2}")
+                        except Exception as _e:
+                            print(f"[Rank {rank}] greedy fallback failed {s2}: {_e}")
         print(f"[Rank {rank}] allocated {memory_allocated}MB for inference")
         print(f"[Rank {rank}] finished {key} in {time.time() - start_time:.1f}s")

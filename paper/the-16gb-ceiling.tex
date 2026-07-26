@@ -477,6 +477,20 @@ anyone reading the leaderboard rather than the method. A single task credit sepa
 cluster, so on this board the cheapest available gain is not a better model but a better use of the twelve
 hours.
 
+The measurement run's own log then priced that claim. Of its 24821 task-seconds, 71 percent went to tasks
+that yielded nothing, no solve and no correct grid anywhere in the candidate pool, and the two longest
+tasks each burned to within sight of the 1800-second cap for nothing. One task in the forty trained
+normally and then decoded no output at all, a forfeited slot that scales to about four on the public 120
+and plausibly eight on the hidden 240. Final training loss predicts these dead tasks weakly but usably at
+the extreme, cutting every task whose adapter finished above a loss of 0.05 reclaims 2330 seconds while
+touching no task the selector harvests, since the one such task with a correct grid in its pool was being
+lost at selection anyway. Three scheduler changes follow, none touching the method. A task whose search
+returns nothing falls back to a plain greedy decode with its already-trained adapter, which can only fill
+otherwise-empty slots. A task whose training loss ends above the cut serves the cheap greedy answer and
+skips the expensive search. And the time both changes reclaim becomes margin for the per-task cap, the one
+knob already measured to buy a task credit. The next submission carries these as a scheduling variant of
+the unchanged pipeline.
+
 \subsection{The engine speedup}
 The $13\times$ decode improvement from changing engines (Section~\ref{sec:engine},
 Figure~\ref{fig:roofline}) is the single most important result for this hardware class. It turned an
@@ -1027,12 +1041,33 @@ more strongly to a contradictory demonstration. We report the number as a floor 
 a floor we expect to lift far, because the failure is systematic rather than weak, and a complexity bias
 does not dissolve under better adaptation.
 
-We stop here rather than tune, and the stopping is the finding. The leak is the largest measured gap in
-this system, 6.4 points on this slice and roughly fifteen task credits at contest scale, and it has now
-turned back two attacks with unrelated mechanisms, sixteen reweightings of the pool's own statistics and an
-out-of-pool consistency score that ranks the answers backwards. Together they say something neither says
-alone. A candidate pool can contain the right answer while the information needed to identify it is absent
-both from the pool and from the model that produced it.
+Two further attacks followed, on the attempt slots and on the grids themselves, and both close the same
+way. The first observed that our two attempts come off a single ranking, so when the top two candidates are
+near-duplicates the second slot restates the first, and tested spending attempt two on the highest-ranked
+candidate at least $k$ cells away from attempt one. At every $k$ tried the rule loses one output and gains
+none, because the geometry runs opposite to its premise. On \texttt{4c3d4a41\_1} the correct grid is rank
+two, one cell from rank one, so any diversity requirement skips it, and on \texttt{3dc255db\_0} the correct
+grid ranks sixth while sitting two cells from the chosen wrong answer. When this pipeline misses, its miss
+is a near-duplicate of the truth, and the distant candidates a diversity rule promotes are noise.
+
+That anatomy suggested the opposite mechanism, fusing the near-duplicates instead of avoiding them. A
+per-cell weighted vote across same-shape candidates can emit a grid that appears in no candidate, which
+grid-level voting cannot do by construction. It emits nineteen novel grids on this pool and not one of them
+is correct. Count-weighted fusion in the second attempt slot is exactly neutral, and every other weighting
+regresses. The failure case is the informative part. On \texttt{3dc255db\_0} thirteen same-shape candidates
+fuse to a grid two cells from the truth, and they are the same two cells the selected answer gets wrong.
+The candidates' errors are correlated, so no vote among them can cancel what they all agree on.
+
+We stop here, and the stopping is the finding. The leak is the largest measured gap in this system, 6.4
+points on this slice and roughly fifteen task credits at contest scale, and it has now turned back four
+attacks with unrelated mechanisms, sixteen reweightings of the pool's own statistics, an out-of-pool
+consistency score that ranks the answers backwards, a diversity-forced second attempt, and cell-level
+fusion. The correlated errors explain all four at once. The model does not hold a noisy version of the
+right rule that clever aggregation could denoise, it holds the wrong rule, and every candidate it produces
+expresses that same wrong rule. This is the bimodality of Section~\ref{sec:scale} surfacing at cell level,
+and it relocates the leak from a selection problem to a training problem. The information needed to pick
+the correct grid is absent from the pool and from the model that produced it, so any repair has to change
+what the model believes, not how its outputs are ranked.
 
 \subsection{Revisiting the big-grid wall with the host's memory}
 \label{sec:biggrid}
