@@ -73,11 +73,15 @@ re-validated in the exact deployed condition before they are trusted. The climb 
 regularized adapter lifted the hidden score to \textbf{18.19\%}, a 4.58-point gain and the first
 configuration to beat the shipped operating point. The number is not a wall but climbs under the 16~GB
 ceiling as the per-task training deepens, while the methods that reach the field's level, heavy rank-256
-test-time training at an eight-thousand-token context, do not fit under 16~GB at all. We then measure
-that gap rather than assert it. Reproducing one such public pipeline on the contest's own four-L4 node,
-and repairing two defects the community port had introduced into it, scores \textbf{30.56\%}. That
-number is a reproduction of named public work and is not a single-card result, and we report it as the
-measured price of the constraint, roughly twelve points against the best configuration that does fit. We give an honest
+test-time training at an eight-thousand-token context, run far slower than the contest budget allows on one
+card. That configuration turns out to fit the card's memory once the attention kernel is chosen
+deliberately, which corrects an earlier conclusion of our own, so the binding resource is time rather than
+capacity. We then measure the gap rather than assert it. Reproducing one such public pipeline on the
+contest's own four-L4 node, and repairing two defects the community port had introduced into it, scores
+\textbf{30.97\%}, a score roughly sixty other entries carry exactly because it is the public notebook's
+own number. That result is a reproduction of named public work and is not a single-card result, and
+we report it as the measured price of the constraint, roughly twelve points against the best configuration
+we could serve inside the single-card budget. We give an honest
 accounting of
 what the recipe costs and where the effort should go for anyone working with one consumer GPU rather
 than the winner's hardware. The contest itself provides four L4 GPUs, 96~GB together, where the
@@ -119,7 +123,7 @@ H100 or GH200 GPUs, though the winning offline submission itself runs on four L4
 recipe under a constraint we think is widely shared, a single RTX~5070~Ti with 16~GB, on the
 Blackwell architecture, running native Windows. The aim on one card is not to top the leaderboard but to build a working, reproducible system, measure
 honest numbers, and map where the small model stops being enough. That map is the efficient floor of a
-larger climb. The ceiling in the title is the hardware, 16~GB of VRAM, not a score, and the number climbs beneath it as the method deepens, from 13.61 to 18.19 on the hidden set (Section~\ref{sec:results}). We also put a number on the ceiling itself. Reproducing a public pipeline that cannot fit one card, on the hardware the contest provides, reaches 30.56\% on the same hidden set, so the constraint is worth roughly twelve points rather than an unknown amount. The same contest hands every entrant four L4 GPUs, 96~GB together, and the offline frontier
+larger climb. The ceiling in the title is the hardware, 16~GB of VRAM, not a score, and the number climbs beneath it as the method deepens, from 13.61 to 18.19 on the hidden set (Section~\ref{sec:results}). We also put a number on the ceiling itself. Reproducing a public pipeline that cannot fit one card, on the hardware the contest provides, reaches 30.97\% on the same hidden set, so the constraint is worth roughly twelve points rather than an unknown amount. The same contest hands every entrant four L4 GPUs, 96~GB together, and the offline frontier
 on that hardware has already passed 50\% with refinement loops and program synthesis~\cite{arc2025}. We
 read the 16~GB walls not as the limit of the task but as the exact places scaling up has to break, and
 Section~\ref{sec:scale} lays out that path. Figure~\ref{fig:solve} shows a representative task our system
@@ -318,8 +322,9 @@ submissions through v6.1 use the four L4s only to shard tasks for throughput, si
 training does not fit the 12-hour budget on one card. No single task there needs more than one 16~GB
 GPU, so the method under test is the single-card recipe. The v7 entries are the one exception and this
 paper marks them as such wherever they appear. They reproduce a public pipeline whose per-task training
-runs at rank 256 over an eight-thousand-token context, which does not fit 16~GB at all, so those numbers
-measure competition hardware rather than the card this work is about. They are kept in the same table
+runs at rank 256 over an eight-thousand-token context, which fits 16~GB only under an attention kernel we
+identified after those runs and would still need roughly forty hours on one card against the twelve the
+contest allows, so those numbers measure competition hardware rather than the card this work is about. They are kept in the same table
 deliberately, because the distance between the best single-card entry and the best four-L4 entry is the
 most direct measurement we have of what the constraint costs.
 
@@ -329,14 +334,56 @@ two-thousand-token sequence and every one of them fails at four thousand. The bl
 adapter nor the optimizer, which together account for under a gigabyte at rank 32 and three at rank 256. It
 is activation memory, which grows from roughly 2.6~GB at two thousand tokens to roughly 8.5~GB at four
 thousand, a factor of 3.3 for a doubling of length. That superlinear growth is attention materializing its
-score matrix, and it places an eight-thousand-token sequence tens of gigabytes beyond the card. Leaner
-adapter dtypes buy a full rank doubling at equal memory, enough to run rank 256 at two thousand tokens in
-14.5~GB, but they leave the activation term untouched and so do not move the context wall at all. The heavy
-pipeline's advantage comes from long context and high rank together, and on this hardware the rank is
-affordable while the context is not. We note that the four-L4 runs fitting the same configuration into
-13~GB do so with a flash-attention kernel whose memory is linear rather than quadratic in sequence length,
-so this wall is at least partly a software limitation of our stack rather than a settled property of the
-card, and closing it is the most promising route we can identify.
+score matrix. Leaner adapter dtypes buy a full rank doubling at equal memory, enough to run rank 256 at two
+thousand tokens in 14.5~GB, but they leave the activation term untouched. On that evidence we recorded the
+context as a hard wall and the eight-thousand-token configuration as beyond the card.
+
+That conclusion was wrong, and the sweep above contains the reason. It never chose an attention kernel.
+Repeating the measurement with the backend forced rather than left to the framework's dispatch
+(Table~\ref{tab:attn}) moves the wall entirely. Under cuDNN attention the rank-256 configuration trains at
+an eight-thousand-token sequence in \textbf{14.86~GB} at 5.04 seconds per step, on the same card that had
+failed at four thousand. The framework's automatic selection is numerically identical to the forced math
+backend at both lengths, because the flash and memory-efficient kernels report no available implementation
+for this GPU in this build, so the dispatcher had been falling back to the quadratic path throughout. The
+result is corroborated from outside the measurement, since the four-L4 runs fit the same training
+configuration into 13.0~GB under a flash-attention kernel, and two different memory-efficient
+implementations on two different cards landing within two gigabytes of each other is the agreement we would
+expect.
+
+Three limits on that result, stated because they bound what follows from it. It measures training memory
+for a single sequence at batch size one, where the deployed pipeline may pack differently. It measures
+memory and step time rather than numerical equivalence, which would need a paired run against the math
+backend on a real task. And it shows only that the training configuration fits, not that the pipeline runs
+end to end on one card, which would additionally require porting that pipeline off a training library with
+no working install on this platform.
+
+What it does settle is which resource binds. At 5.04 seconds per step the 128-step schedule is about eleven
+minutes for one adapter, so the 240-task contest set would need roughly forty hours against a twelve-hour
+budget. The card holds the winning configuration and cannot serve it in time. That is a throughput limit
+rather than a capacity limit, and it is the second time in this work that a ceiling we recorded turned out
+to be a default rather than a property of the hardware, after the six-hundred-token training truncation of
+Section~\ref{sec:biggrid}. Both were found by re-examining a measurement we had already filed as settled.
+
+\begin{table}[H]
+\centering
+\caption{Attention backend against sequence length, at rank 256 with bf16 adapters on the 16~GB card, peak
+reserved memory in GB. Cells marked thrash spilled into host memory rather than raising, running at 33 to
+55 seconds per step against roughly 2 seconds when resident. Blank cells were not attempted once the
+shorter sequence had failed.}
+\label{tab:attn}
+\begin{tabular}{lccc}
+\toprule
+attention backend & 2048 & 4096 & 8192 \\
+\midrule
+eager                      & 13.44 & 19.33 (thrash) & \\
+sdpa, framework default    & 13.94 & 18.62 (thrash) & \\
+math, forced               & 13.94 & 18.62 (thrash) & \\
+memory-efficient, forced   & \multicolumn{3}{c}{no kernel available for this GPU} \\
+flash, forced              & \multicolumn{3}{c}{no kernel available for this GPU} \\
+cuDNN, forced              & \textbf{12.31} & \textbf{12.80} & \textbf{14.86} \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 The AIRV pipeline without TTT scores \textbf{12.79\%} (22 of 172 test outputs) on the public
 evaluation, a clean single-stream run completing in $\approx 78$ minutes, and \textbf{6.53\%} on the
@@ -347,7 +394,8 @@ TTT roughly doubles the hidden score. Table~\ref{tab:versions} gives the full pr
 \centering
 \caption{Leaderboard submissions, scored on the hidden 240-task set on the four-L4 node. Entries
 through v6.1 are the single-card recipe sharded for throughput. The v7 entries reproduce a public
-pipeline that does not fit one 16~GB card and are not single-card results.}
+pipeline whose per-task training cannot be served in budget on one 16~GB card and are not single-card
+results.}
 \label{tab:versions}
 \begin{tabular}{llc}
 \toprule
@@ -362,8 +410,9 @@ v4   & + more-candidates sampling (four per view)    & 13.19 \\
 v5   & + white-box plausibility filter               & 12.78 \\
 v6   & deep-regularized TTT (60 steps, rank 32), disk-exhausted & 12.36 \\
 v6.1 & deep-regularized TTT, all 232 tasks trained   & \textbf{18.19} \\
-v7   & sorokin reproduction as ported (Section~\ref{sec:architects}), needs $>16$~GB & 16.81 \\
-v7.1 & same pipeline with both port defects repaired, needs $>16$~GB & \textbf{30.56} \\
+v7   & sorokin reproduction as ported (Section~\ref{sec:architects}), not servable in budget on one card & 16.81 \\
+v7.1 & same pipeline with both port defects repaired, per-task cap 1200~s & 30.56 \\
+v7.2 & identical to v7.1 at the upstream per-task cap of 1800~s & \textbf{30.97} \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -386,14 +435,47 @@ with a more developed recipe.
 
 The two v7 entries then measure the constraint itself. Reproducing the public pipeline of
 Section~\ref{sec:architects} on the four-L4 node scored 16.81\% as the community port shipped it, and
-\textbf{30.56\%} once two defects introduced by that port were repaired. The second number is the
-highest this project has produced and it is not a single-card result, since its per-task training needs
-more memory than the card this paper is about. Read against v6.1, the best configuration that does fit,
+\textbf{30.56\%} once two defects introduced by that port were repaired, and \textbf{30.97\%} when the
+same repaired pipeline ran at the upstream per-task cap. The last of those is the highest this project has
+posted and it is not a single-card result, since its per-task training cannot be served on one card inside
+the contest's twelve hours. Read against v6.1, the best configuration we ran
+within that budget,
 the pair gives the cleanest figure in this work. The same author, the same base model, the same hidden
-set and the same twelve-hour budget yield \textbf{18.19\%} under 16~GB and \textbf{30.56\%} on the
+set and the same twelve-hour budget yield \textbf{18.19\%} under 16~GB and \textbf{30.97\%} on the
 contest's 96~GB, so roughly twelve points separate what one consumer card reaches from what the
 provided hardware reaches on a method built for it. That gap is the honest size of the ceiling in the
 title, measured rather than argued, and it is the paper's central quantitative claim.
+
+What the pair does not do is attribute that gap. The two runs differ in their hardware and in their method
+at the same time, so twelve points is the size of the distance rather than an account of where it comes
+from. Isolating the method term would mean running the reduced configuration on the four-L4 node rather
+than on the single card, holding the platform fixed and moving only the training context, and we flag that
+as the experiment this measurement wants next. Running it on our own hardware instead would confound the
+answer with the card, the driver and the attention kernel all at once, which is the fault the sweep in
+Section~\ref{sec:results} corrected in itself.
+
+A third submission of the reproduction, identical to the second except that it leaves the per-task search
+cap at the upstream default of 1800 seconds rather than the 1200 we had chosen for margin, scored
+\textbf{30.97\%} and placed 264th. Two facts about that number matter more than its size.
+
+Roughly sixty entries on the leaderboard carry it exactly. A tie that wide is not coincidence, it is the
+public notebook being forked and submitted unchanged, which identifies 30.97 as that notebook's number
+rather than as anyone's result. Our restoration therefore converges on the public baseline exactly rather
+than approximately, and that is stronger evidence that the two port defects we isolated account for the
+whole difference than the near-agreement we claimed before. It is also, plainly, a reproduction rather than
+a differentiating result, and we report it as one.
+
+The tie settles a methodological question against an earlier reading of our own. A sixty-way exact
+agreement means the reproduced pipeline is deterministic across machines, so the 0.41 points between our
+two runs of it is not run-to-run variance. It is the cap. Raising the per-task budget from 1200 to 1800
+seconds recovered about one task credit, which makes time allocation a live lever on a pipeline whose every
+other knob we have measured dead, and it means a one-credit difference inside this pipeline is signal
+rather than noise. The scope of that claim is narrow and worth stating. It is determinism of the reproduced
+pipeline on the contest node, and it says nothing about the bf16 per-task training in our own earlier
+submissions, where variance has never been excludable from outside. One further observation follows for
+anyone reading the leaderboard rather than the method. A single task credit separates an entire sixty-entry
+cluster, so on this board the cheapest available gain is not a better model but a better use of the twelve
+hours.
 
 \subsection{The engine speedup}
 The $13\times$ decode improvement from changing engines (Section~\ref{sec:engine},
@@ -636,7 +718,7 @@ come from a separate public track that allows internet and external compute, so 
 measure against~\cite{arc2025}. The offline bar is the leaderboard above. The field runs test-time
 adaptation, heavy synthetic-data pretraining, and program search on the full 96~GB, and our best single-card
 score of 18.19\% sits below it. Our faithful reproduction of the winning lineage's own pipeline, run on the
-four-L4 node it was built for, reached 30.56\% and still sits far below the leader, which locates the gap
+four-L4 node it was built for, reached 30.97\% and still sits far below the leader, which locates the gap
 in the base model and its training data rather than in the inference-time machinery we can run. None of our negative
 results argues against that climb, but none of them tests it either, so we state the scaling case as a
 falsifiable hypothesis for future work rather than as a claim.
@@ -767,8 +849,9 @@ gives the greedy vote \textbf{24.4\%} against the search's \textbf{13.3\%}. The 
 it was at rank 32, not closer, because the sharper adapter still starves the probability floor on most tasks
 while the heavier training only helped the vote. On every configuration a 16~GB card can run, rank 32 and
 rank 128, the search loses to the vote. We read this as the decoder being inseparable from the full rank-256,
-eight-thousand-token training it ships with, which does not fit one card, so the reach to the field's low
-thirties stays a claim to be settled on the contest hardware rather than a lever we could capture here. The
+eight-thousand-token training it ships with, which one card can hold but cannot serve inside the contest
+budget (Section~\ref{sec:results}), so the reach to the field's low thirties stays a claim to be settled on
+the contest hardware rather than a lever we could capture here. The
 lift we did capture, from 13.61 to 18.19, came from the training depth alone. A first hidden-set submission
 of the reproduction itself, run faithfully with the community port's bolted-on symbolic arm still active,
 scored 16.81\%. Two facts inside that number matter more than its size. The public-to-hidden transfer is
@@ -789,6 +872,167 @@ a faithful restoration lands within striking distance of it while the ported for
 result is a reproduction, not a contribution of ours. What this work adds around it is the measurement,
 the isolation of the two port defects, the paired evaluation that priced each one, and the placement of
 the restored number against a single-card baseline so the hardware gap becomes visible.
+
+\subsection{The selection leak, measured on the candidate pool}
+\label{sec:selection}
+A search-and-select decoder is only as good as its selector, and the restored pipeline of
+Section~\ref{sec:architects} throws away correct answers it has already found. To measure how many, we ran a
+build identical to the submitted one except for a gated dump of the entire candidate pool. It records, for
+every test output, each distinct candidate grid together with the number of augmented views that produced
+it, the beam likelihood of each view, and the per-augmentation likelihoods the selector consumes. Over forty
+evaluation tasks the run produced 60 test outputs across 39 tasks, one of the forty yielding no decoded
+output at all, holding 432 distinct candidate grids drawn from 847 decoded subkeys, of which 152 reproduce
+the ground truth exactly. Scoring follows the harness, where each task contributes one credit divided among
+its test outputs.
+
+The dump is a replica of the deployed decision rather than a model of it. Reimplementing the shipped
+selector against the file returns 9.833 credits of 39, equal to the run's own scored output, so a candidate
+rule tested offline here is tested against the real thing at no GPU cost.
+
+\begin{table}[H]
+\centering
+\caption{Selection against the pool ceiling on the 40-task measurement run (60 test outputs, 39 tasks).}
+\label{tab:selection}
+\begin{tabular}{lcc}
+\toprule
+selection rule & outputs solved & credits \\
+\midrule
+published vote, deployed              & 15 & 9.833 \\
+confidence-weighted vote              & 15 & 9.833 \\
+augmentation likelihood alone         & 16 & 10.333 \\
+\midrule
+correct grid present in the pool      & \textbf{19} & \textbf{12.333} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The leak is large. Nineteen of the 60 outputs hold a correct grid somewhere in their pool and the deployed
+rule converts fifteen, 9.833 credits against a ceiling of 12.333, so 2.5 credits or 6.4 points of this slice
+sit inside candidates the system generated and then ranked away. The published rule and the
+confidence-weighted alternative select identically on all 60 outputs, neither gaining nor losing one, which
+is a third independent reading that the two are near-equivalent once deployed.
+
+We then asked whether any reweighting of the statistics already in the pool closes that gap. Sixteen rules
+were scored against the dump, spanning the vote count alone, the beam likelihood alone, the augmentation
+likelihood alone, the deployed count-minus-penalty form at five weightings, a best-view variant taking the
+minimum augmentation penalty rather than the mean, and a length-normalised family motivated by summed
+log-likelihoods penalising physically larger grids. Exactly one rule gains. Ranking by augmentation
+likelihood alone, discarding the vote count entirely, recovers one output and loses none, for sixteen solved
+and 10.333 credits. The length normalisation is inert, since only 11 of the 60 outputs contain candidates
+that differ in size, and the normalised and unnormalised forms return identical solved sets.
+
+\begin{table}[H]
+\centering
+\caption{The four outputs whose pool holds a correct grid the deployed selector ranks outside its two
+attempts. Views is the number of augmented decodes producing that grid, penalty its mean augmentation
+negative log-likelihood, where lower is better.}
+\label{tab:leak}
+\begin{tabular}{lccc}
+\toprule
+test output & pool size & correct grid (views / penalty) & selected grid (views / penalty) \\
+\midrule
+\texttt{142ca369\_0} & 10 & 3 / 18.64 & 4 / 10.57 \\
+\texttt{3dc255db\_0} & 13 & 2 / 13.57 & 1 /\phantom{0} 7.36 \\
+\texttt{3a25b0d8\_0} & \phantom{0}7 & 1 /\phantom{0} 5.96 & 7 /\phantom{0} 4.69 \\
+\texttt{4c7dc4dd\_1} & 11 & 1 / 12.90 & 3 /\phantom{0} 8.79 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+That gain does not survive inspection, and the reason is in the four outputs the deployed rule misses
+(Table~\ref{tab:leak}). In every one the correct grid carries a heavier augmentation penalty than the grid
+the selector chose, so the signal does not merely fail to surface these answers, it actively orders them
+below the wrong one. On one output the correct grid was decoded more often than the grid that beat it and
+still lost, on the penalty term alone. The single recovered output is a correct grid moving from third place
+to second, which slides it into the second attempt slot while still losing outright. Two of the four are
+reachable by some rule in the family, each time at the price of losing outputs the deployed rule already
+holds, and the other two are reached by nothing we tried. On three of the nineteen recoverable outputs the
+correct grid was decoded exactly once in the whole pool, so no vote-based rule can reach them in principle.
+
+The exercise also carries a warning about the slice it ran on. An earlier reading of these same forty tasks
+found three discordant outputs favouring the confidence-weighted rule over the published one, with a clean
+mechanism behind it, so we shipped the switch, and a 120-task run then reversed it. This sweep points the
+opposite way on the same tasks, that discarding the vote count beats keeping it, on the evidence of one
+output in sixty and as the best of sixteen rules tried. Two contradictory prescriptions of equal statistical
+weight, from one evaluation slice. We therefore record the count-free rule as measured and leave the
+deployed selector alone.
+
+What we carry forward is the negative, and it is sharper than the headroom number by itself. The selection
+leak is worth roughly six points on this slice, and it is not recoverable by rescoring what the pipeline
+already computes, because every statistic in the pool ranks the discarded correct grid below the chosen one.
+Closing it needs a signal the pool does not contain, consistency against the task's own train pairs, which
+is the verifier direction Section~\ref{sec:limits} finds silent exactly where it is needed. The contribution
+of this measurement is to eliminate the cheaper alternative. Reweighting is exhausted, and the instrument
+for any future attempt is the pool dump itself, which makes selection rules testable offline without
+further contest compute.
+
+The signal that paragraph asked for has since been built, and it fails too. It is worth reporting because
+the construction avoids the objection that sank our earlier verifier, which scored an adapter rather than a
+candidate and so could not choose between two candidates the same adapter produced. Here a candidate is
+scored as evidence. An output proposed for the test input is either a true instance of the task's rule or
+it is not, so appending the pair of test input and candidate to the task's demonstrations either hands the
+model a fourth true example or hands it a contradiction. We measure the negative log-likelihood of a
+held-out real demonstration's output twice, once from the remaining demonstrations alone and once with the
+candidate injected, and average the difference across held-out choices. A negative delta means the
+candidate behaved like a true example of the rule. Scoring a difference rather than a likelihood cancels
+per-task and per-fold difficulty, and the whole thing costs forward passes rather than decodes, so it is
+affordable over every candidate inside the contest budget.
+
+A cheap gate ran first, over all 172 evaluation test outputs, scoring the true grid against four
+distractors, the test input unchanged, the true grid with two colours swapped, the true grid transposed,
+and another task's answer. The true grid ranked first on 133 of them against a chance rate of one in five,
+which read alone looks like a working signal. The margins say otherwise. The median winning margin is
+0.0043 nats and the median losing margin is 0.0031, so the two distributions sit on top of each other, and
+58 percent of the wins are by less than 0.005. The shape of the failures matters more than the rate.
+Another task's answer loses 171 times out of 172, so the score reliably rejects a grid unrelated to the
+rule, while transpose beats the truth 17 times, colour swap 11 and the unchanged input 10. Those three
+preserve the structure of the answer and change its content, which is precisely what a decoder's
+near-misses are.
+
+\begin{table}[H]
+\centering
+\caption{Round-trip candidate scoring against the deployed selector, on the same 40-task pool as
+Table~\ref{tab:selection}. Credits are out of 39.}
+\label{tab:roundtrip}
+\begin{tabular}{lcc}
+\toprule
+selection rule & outputs solved & credits \\
+\midrule
+published vote, deployed                & 15 & 9.833 \\
+round trip alone                        & \phantom{0}7 & 5.500 \\
+published vote, round trip as tiebreak  & 15 & 9.833 \\
+\midrule
+correct grid present in the pool        & \textbf{19} & \textbf{12.333} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Against the real pool it is worse than the rule it was meant to improve (Table~\ref{tab:roundtrip}).
+Ranking by the round trip alone solves 7 of the 60 outputs where the deployed rule solves 15, losing eight
+and gaining none, and applied as a tiebreak it changes nothing at all, because the deployed rule produces
+no exact ties to break. On the four outputs the leak consists of, the correct grid ranks seventh of ten,
+seventh of seven, tenth of thirteen and fourth of eleven. A merely noisy score would scatter those near the
+middle. Landing in the bottom half on three of four says it is measuring something real and something other
+than correctness.
+
+That something is grid complexity. A simple, repetitive, low-entropy candidate is cheap to append and
+perturbs the model very little, so its delta sits near zero, while a complex correct answer perturbs more.
+The score therefore rewards candidates that are easy to encode over candidates that are right, which is
+also why the unchanged test input, usually the structurally cheapest grid on offer, beat the truth ten
+times in the gate.
+
+One qualification is owed. The scoring ran against the unadapted base model, because the per-task adapters
+that produced this pool were discarded with the contest container, and a sharper adapted model would react
+more strongly to a contradictory demonstration. We report the number as a floor for that reason. It is not
+a floor we expect to lift far, because the failure is systematic rather than weak, and a complexity bias
+does not dissolve under better adaptation.
+
+We stop here rather than tune, and the stopping is the finding. The leak is the largest measured gap in
+this system, 6.4 points on this slice and roughly fifteen task credits at contest scale, and it has now
+turned back two attacks with unrelated mechanisms, sixteen reweightings of the pool's own statistics and an
+out-of-pool consistency score that ranks the answers backwards. Together they say something neither says
+alone. A candidate pool can contain the right answer while the information needed to identify it is absent
+both from the pool and from the model that produced it.
 
 \subsection{Revisiting the big-grid wall with the host's memory}
 \label{sec:biggrid}
@@ -832,6 +1076,15 @@ floor with headroom. The doubled count settles the question this subsection open
 genuine ceiling was in substantial part a truncation artifact, and the excluded third of the evaluation is
 partially winnable on this card with the host's memory carrying the frozen weights.
 
+One postscript, because it may make the streaming unnecessary. The activation growth that forced the frozen
+weights off the card in the first place was measured under an attention kernel the framework had chosen by
+default, and forcing the cuDNN backend instead trains rank 256 at eight thousand tokens fully resident in
+14.86~GB (Section~\ref{sec:results}). Our big-grid configuration is rank 32, well below that, so these
+tasks would plausibly train resident and pay no streaming cost at all, which would move the arrangement
+from unaffordable inside a contest budget to ordinary. We have not measured that cell, so we state it as
+the obvious next probe rather than as a result, and we leave the streaming numbers above as they were
+measured.
+
 \section{Conclusion}
 \label{sec:conclusion}
 The 2025 winning recipe survives a single 16~GB consumer GPU, but only after the inference engine is
@@ -840,8 +1093,9 @@ tractable through an adapter-serving bridge. The honest result is a 12.79\% no-T
 16.28\% regularized-TTT blend on the public evaluation, 13.61\% and then 18.19\% on the hidden leaderboard as the per-task training deepened, with the
 gains bounded by adapter overfitting and by a VRAM wall on large grids that later proved to be partly a
 context-truncation artifact rather than a true limit. Against that single-card ceiling we set one
-measurement from above. A faithful reproduction of a public pipeline that does not fit 16~GB, run on the
-contest's own four-L4 node and repaired of two defects its community port had introduced, scores 30.56\%
+measurement from above. A faithful reproduction of a public pipeline that one 16~GB card can hold but not
+serve in budget, run on the contest's own four-L4 node and repaired of two defects its community port had
+introduced, scores 30.97\%
 on the same hidden set. That result is not ours and not single-card, and its value here is that it
 prices the constraint at roughly twelve points instead of leaving it an open question. The sharpest general lesson
 is that public-eval gains must be re-validated in the deployed condition, since every public-validated
@@ -1000,9 +1254,13 @@ validation scripts that drove generation through eager had no per-task timeout, 
 hang a whole multi-hour run with no way to resume. Moving validation onto the same \texttt{llama-server}
 path used for scoring, with a hard per-request cap, a heartbeat file, and per-task checkpoints, removed the
 stalls and made the runs resumable. The engine was the bottleneck for validation just as for inference.
-\item \textbf{The VRAM wall on large grids is real.} The largest-train-pair token length, not the
-test grid size, is the binding constraint. Tasks above the operational cutoff cannot train in 16~GB.
-Forcing TTT onto them by truncation did not recover accuracy, so they are excluded and served no-TTT.
+\item \textbf{The VRAM wall on large grids was a default, twice over.} The largest-train-pair token
+length, not the test grid size, is what grows the training sequence. We first recorded the resulting
+exclusion as a hard limit, then found that forcing TTT onto those tasks had only ever been tested under a
+six-hundred-token truncation that admits one demonstration, and later that the framework was dispatching
+attention to a quadratic kernel because no flash or memory-efficient implementation exists for this GPU in
+this build. Forcing the cuDNN backend trains rank 256 at eight thousand tokens in 14.86~GB. The general
+lesson is to distrust a wall that was never probed one variable at a time.
 \item \textbf{Naive TTT ties the baseline.} The standard adapter configuration drives training loss
 to $0.000$ and generalizes no better than no-TTT. Only regularization (fewer steps, lower rank,
 dropout) recovers a lift.
