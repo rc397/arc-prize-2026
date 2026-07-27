@@ -1,0 +1,3786 @@
+{
+ "0934a4d8_0": [
+  {
+   "kind": "true",
+   "delta": 0.0026885288389166817
+  },
+  {
+   "kind": "identity",
+   "delta": 0.06418747735733632
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.006101030056015588
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.08377727681363467
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.057950682486989535
+  }
+ ],
+ "135a2760_0": [
+  {
+   "kind": "true",
+   "delta": -0.0016140723582793726
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0014641716261394322
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.0002598693245090544
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.024011291388887912
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.029370367352385074
+  }
+ ],
+ "136b0064_0": [
+  {
+   "kind": "true",
+   "delta": -0.08780954033136368
+  },
+  {
+   "kind": "identity",
+   "delta": 0.004559417565663655
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.0066793809334437055
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.05946050584316254
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.06295944253603618
+  }
+ ],
+ "13e47133_0": [
+  {
+   "kind": "true",
+   "delta": -0.011612885554010669
+  },
+  {
+   "kind": "identity",
+   "delta": 0.004168011713773012
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.003346141272534927
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.01288375056659182
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.017700487592568
+  }
+ ],
+ "13e47133_1": [
+  {
+   "kind": "true",
+   "delta": 0.004842237879832585
+  },
+  {
+   "kind": "identity",
+   "delta": 0.011569771139572064
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.01122277183458209
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.01286522283529242
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.013250103686004877
+  }
+ ],
+ "142ca369_0": [
+  {
+   "kind": "true",
+   "delta": 0.0013324438283840816
+  },
+  {
+   "kind": "identity",
+   "delta": 0.004813884695370992
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.004754844432075818
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.0067781079560518265
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.004218068594733874
+  }
+ ],
+ "142ca369_1": [
+  {
+   "kind": "true",
+   "delta": 0.0012465423593918483
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0017222743481397629
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.005935411279400189
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.00228765606880188
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.004699668536583583
+  }
+ ],
+ "16b78196_0": [
+  {
+   "kind": "true",
+   "delta": -4.152650944888592e-05
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0017608895432204008
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.001530591631308198
+  },
+  {
+   "kind": "transpose",
+   "delta": 7.236399687826633e-05
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.003809998044744134
+  }
+ ],
+ "16de56c4_0": [
+  {
+   "kind": "true",
+   "delta": -0.006937636683384578
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0029722840214769044
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.0005916164567073187
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.028286668782432873
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.01838939202328523
+  }
+ ],
+ "16de56c4_1": [
+  {
+   "kind": "true",
+   "delta": -0.009761000672976175
+  },
+  {
+   "kind": "identity",
+   "delta": -0.001886223132411639
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.0022069141268730164
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.00379766213397185
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.01690628193318844
+  }
+ ],
+ "1818057f_0": [
+  {
+   "kind": "true",
+   "delta": 0.006865953832554321
+  },
+  {
+   "kind": "identity",
+   "delta": 0.007733552289816241
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.017205728800036013
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.03778345630659411
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.017186682011621695
+  }
+ ],
+ "195c6913_0": [
+  {
+   "kind": "true",
+   "delta": -0.002713556090990702
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0038338452577590942
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.0018160368005434673
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.009052970757087072
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.00875602662563324
+  }
+ ],
+ "195c6913_1": [
+  {
+   "kind": "true",
+   "delta": -0.0015549138188362122
+  },
+  {
+   "kind": "identity",
+   "delta": 0.006203734626372655
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.0007046399017175039
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.006167175869146983
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.008528105914592743
+  }
+ ],
+ "1ae2feb7_0": [
+  {
+   "kind": "true",
+   "delta": -0.013008633938928446
+  },
+  {
+   "kind": "identity",
+   "delta": 0.005025927908718586
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -6.264789650837581e-05
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.009209096742173037
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.00942588628580173
+  }
+ ],
+ "1ae2feb7_1": [
+  {
+   "kind": "true",
+   "delta": -0.002421388402581215
+  },
+  {
+   "kind": "identity",
+   "delta": 0.007921313556532064
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.007491770821313064
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.017576260181764763
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.007147087094684442
+  }
+ ],
+ "1ae2feb7_2": [
+  {
+   "kind": "true",
+   "delta": 0.0011154382179180782
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0025035819659630456
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.005510185845196247
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.023311498574912548
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.00828113624205192
+  }
+ ],
+ "20270e3b_0": [
+  {
+   "kind": "true",
+   "delta": 0.024906671606004238
+  },
+  {
+   "kind": "identity",
+   "delta": 0.038849263451993465
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.04270539153367281
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.03366795089095831
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.033411686308681965
+  }
+ ],
+ "20270e3b_1": [
+  {
+   "kind": "true",
+   "delta": -0.005853812210261822
+  },
+  {
+   "kind": "identity",
+   "delta": 0.02898918930441141
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.051687256433069706
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.010503505356609821
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.03806112613528967
+  }
+ ],
+ "20a9e565_0": [
+  {
+   "kind": "true",
+   "delta": -0.013638076682885488
+  },
+  {
+   "kind": "identity",
+   "delta": -0.0032446359594662986
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.0274633194009463
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.02309226741393407
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.043029651045799255
+  }
+ ],
+ "20a9e565_1": [
+  {
+   "kind": "true",
+   "delta": 0.01689203828573227
+  },
+  {
+   "kind": "identity",
+   "delta": 0.009999588131904602
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.09674989928801854
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.00390421599149704
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.022263328234354656
+  }
+ ],
+ "21897d95_0": [
+  {
+   "kind": "true",
+   "delta": -0.006708591245114803
+  },
+  {
+   "kind": "identity",
+   "delta": 0.011574995703995228
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.001000124029815197
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.009826145134866238
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.02951809484511614
+  }
+ ],
+ "21897d95_1": [
+  {
+   "kind": "true",
+   "delta": 0.006211492232978344
+  },
+  {
+   "kind": "identity",
+   "delta": 0.012225360609591007
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.012901718728244305
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.0034891730174422264
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.0435276897624135
+  }
+ ],
+ "221dfab4_0": [
+  {
+   "kind": "true",
+   "delta": -0.0010681124404072762
+  },
+  {
+   "kind": "identity",
+   "delta": -0.0008806325495243073
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.006258813664317131
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.0039023146964609623
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.008291762787848711
+  }
+ ],
+ "221dfab4_1": [
+  {
+   "kind": "true",
+   "delta": 0.004792772699147463
+  },
+  {
+   "kind": "identity",
+   "delta": 0.004130765795707703
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.0058564539067447186
+  },
+  {
+   "kind": "transpose",
+   "delta": -2.9088929295539856e-05
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.007845448795706034
+  }
+ ],
+ "247ef758_0": [
+  {
+   "kind": "true",
+   "delta": -0.011444488850732645
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0021493307625253997
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.007496277801692486
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.012572041091819605
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.014209727135797342
+  }
+ ],
+ "247ef758_1": [
+  {
+   "kind": "true",
+   "delta": -0.00015069792668024698
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0020247073844075203
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.0008776038885116577
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.011601517287393412
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.009679507153729597
+  }
+ ],
+ "269e22fb_0": [
+  {
+   "kind": "true",
+   "delta": -0.0026486605405807496
+  },
+  {
+   "kind": "identity",
+   "delta": -0.0021115422248840334
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.008116406202316285
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.0016218692064285279
+  },
+  {
+   "kind": "other-task",
+   "delta": -0.0013151228427886962
+  }
+ ],
+ "269e22fb_1": [
+  {
+   "kind": "true",
+   "delta": -0.011374503374099731
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0010276347398757934
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.003546684980392456
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.0357316181063652
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.0017978608608245849
+  }
+ ],
+ "271d71e2_0": [
+  {
+   "kind": "true",
+   "delta": 0.006500231722990672
+  },
+  {
+   "kind": "identity",
+   "delta": 0.01433619111776352
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.027053748567899067
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.0660270427664121
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.013336585213740667
+  }
+ ],
+ "28a6681f_0": [
+  {
+   "kind": "true",
+   "delta": -0.017602384090423584
+  },
+  {
+   "kind": "identity",
+   "delta": 0.01971971740325292
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.0013346374034881592
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.033504354457060494
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.009860406319300333
+  }
+ ],
+ "291dc1e1_0": [
+  {
+   "kind": "true",
+   "delta": -0.03907470218837261
+  },
+  {
+   "kind": "identity",
+   "delta": 0.03064132109284401
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.0161313284188509
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.011998804286122322
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.04837724193930626
+  }
+ ],
+ "2b83f449_0": [
+  {
+   "kind": "true",
+   "delta": -0.02116435207426548
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0062902867794036865
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.03160284087061882
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.06086602061986923
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.017325222492218018
+  }
+ ],
+ "2ba387bc_0": [
+  {
+   "kind": "true",
+   "delta": 0.0004638387617887929
+  },
+  {
+   "kind": "identity",
+   "delta": 0.00784996137372218
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.008577044674893841
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.014345159142976627
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.0030492038640659302
+  }
+ ],
+ "2c181942_0": [
+  {
+   "kind": "true",
+   "delta": -0.004797809446851413
+  },
+  {
+   "kind": "identity",
+   "delta": 0.005558475231130918
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.004650469558934371
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.004708307484785716
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.009962855527798334
+  }
+ ],
+ "2d0172a1_0": [
+  {
+   "kind": "true",
+   "delta": -0.014591461047530174
+  },
+  {
+   "kind": "identity",
+   "delta": 0.04145736061036587
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.011494537815451622
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.020074788480997086
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.03501610644161701
+  }
+ ],
+ "2d0172a1_1": [
+  {
+   "kind": "true",
+   "delta": -0.023640553932636976
+  },
+  {
+   "kind": "identity",
+   "delta": 0.03261536732316017
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.0005018413066864014
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.025919650215655565
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.026264972984790802
+  }
+ ],
+ "31f7f899_0": [
+  {
+   "kind": "true",
+   "delta": -0.0015256731809737782
+  },
+  {
+   "kind": "identity",
+   "delta": 0.004393591564924766
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.0004890559357590973
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.022088088425031554
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.02502906231287246
+  }
+ ],
+ "332f06d7_0": [
+  {
+   "kind": "true",
+   "delta": -0.002443273551762104
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0038694608956575394
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.001504512969404459
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.011080584488809109
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.00039709871634840965
+  }
+ ],
+ "35ab12c3_0": [
+  {
+   "kind": "true",
+   "delta": -0.0055288660029570265
+  },
+  {
+   "kind": "identity",
+   "delta": -0.0027657573421796164
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.004067230969667435
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.02989614134033521
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.005895655602216721
+  }
+ ],
+ "36a08778_0": [
+  {
+   "kind": "true",
+   "delta": -0.0010627736070697817
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0033870291784599735
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.00895317012570255
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.0081737859606316
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.01561982119892491
+  }
+ ],
+ "36a08778_1": [
+  {
+   "kind": "true",
+   "delta": -0.0003075611821259372
+  },
+  {
+   "kind": "identity",
+   "delta": 0.00838413185920217
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.005451690788807658
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.006681999164963297
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.006121471012496234
+  }
+ ],
+ "38007db0_0": [
+  {
+   "kind": "true",
+   "delta": -0.0013027761378907599
+  },
+  {
+   "kind": "identity",
+   "delta": 0.005651822604704648
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.01685987232485786
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.014824888261500746
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.02244932862231508
+  }
+ ],
+ "38007db0_1": [
+  {
+   "kind": "true",
+   "delta": -0.001193459022033494
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0070277355262078345
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.005198038707021624
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.01692089537391439
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.04390903568128124
+  }
+ ],
+ "3a25b0d8_0": [
+  {
+   "kind": "true",
+   "delta": -0.009651094675064087
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0757639929652214
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.022414065897464752
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.013211611658334732
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.009651869535446167
+  }
+ ],
+ "3a25b0d8_1": [
+  {
+   "kind": "true",
+   "delta": -0.019806532189249992
+  },
+  {
+   "kind": "identity",
+   "delta": 0.05404774844646454
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.0018858686089515686
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.006893198937177658
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.05247854068875313
+  }
+ ],
+ "3dc255db_0": [
+  {
+   "kind": "true",
+   "delta": -0.010452613544960817
+  },
+  {
+   "kind": "identity",
+   "delta": 0.002528589218854904
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 2.94465571641922e-05
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.010116959611574808
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.015442408000429472
+  }
+ ],
+ "3e6067c3_0": [
+  {
+   "kind": "true",
+   "delta": 0.0016959654167294502
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0032234955579042435
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.00553375327338775
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.004048927997549375
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.005632637068629265
+  }
+ ],
+ "3e6067c3_1": [
+  {
+   "kind": "true",
+   "delta": 0.0004486609250307083
+  },
+  {
+   "kind": "identity",
+   "delta": 0.005015210248529911
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.004121897121270497
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.0020864922553300858
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.006094864569604397
+  }
+ ],
+ "409aa875_0": [
+  {
+   "kind": "true",
+   "delta": -0.00517209991812706
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0034851754705111184
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.00399912769595782
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.009198073297739029
+  },
+  {
+   "kind": "other-task",
+   "delta": -0.0036808624863624573
+  }
+ ],
+ "446ef5d2_0": [
+  {
+   "kind": "true",
+   "delta": -0.01112656481564045
+  },
+  {
+   "kind": "identity",
+   "delta": 0.02279418706893921
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.03172706812620163
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.003889232873916626
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.07934539020061493
+  }
+ ],
+ "446ef5d2_1": [
+  {
+   "kind": "true",
+   "delta": -0.038491771556437016
+  },
+  {
+   "kind": "identity",
+   "delta": 0.026276681572198868
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.018493223935365677
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.0041380710899829865
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.06282786652445793
+  }
+ ],
+ "45a5af55_0": [
+  {
+   "kind": "true",
+   "delta": -0.0016430460091214627
+  },
+  {
+   "kind": "identity",
+   "delta": 0.002012876619119197
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.001460107567254454
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.0016430460091214627
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.004372709721792489
+  }
+ ],
+ "4a21e3da_0": [
+  {
+   "kind": "true",
+   "delta": 0.0012166270365317662
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0024774186313152313
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.005515274902184804
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.013125105450550715
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.019544053822755814
+  }
+ ],
+ "4a21e3da_1": [
+  {
+   "kind": "true",
+   "delta": -0.0030811174462238946
+  },
+  {
+   "kind": "identity",
+   "delta": 0.001175874223311742
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.004262162993351619
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.002133175109823545
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.013698708266019821
+  }
+ ],
+ "4c3d4a41_0": [
+  {
+   "kind": "true",
+   "delta": -0.0043492624536156654
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0021801237016916275
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.004165463149547577
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.007200185209512711
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.015756936743855476
+  }
+ ],
+ "4c3d4a41_1": [
+  {
+   "kind": "true",
+   "delta": 0.0006732940673828125
+  },
+  {
+   "kind": "identity",
+   "delta": 0.008391181007027626
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.009722184389829636
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.006142335012555122
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.011743290349841118
+  }
+ ],
+ "4c416de3_0": [
+  {
+   "kind": "true",
+   "delta": -0.004591264917204778
+  },
+  {
+   "kind": "identity",
+   "delta": -0.0014787944965064526
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.00035609320426980656
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.0008913736479977766
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.0015175589360296726
+  }
+ ],
+ "4c7dc4dd_0": [
+  {
+   "kind": "true",
+   "delta": -0.0903499573469162
+  },
+  {
+   "kind": "identity",
+   "delta": 0.04042127728462219
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.10048660635948181
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.0903499573469162
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.080463707447052
+  }
+ ],
+ "4c7dc4dd_1": [
+  {
+   "kind": "true",
+   "delta": -0.05881977081298828
+  },
+  {
+   "kind": "identity",
+   "delta": 0.05449095368385315
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.0823986679315567
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.05881977081298828
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.11022982001304626
+  }
+ ],
+ "4e34c42c_0": [
+  {
+   "kind": "true",
+   "delta": -0.04432394728064537
+  },
+  {
+   "kind": "identity",
+   "delta": -0.006519705057144165
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.001911114901304245
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.05680700019001961
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.033987510949373245
+  }
+ ],
+ "4e34c42c_1": [
+  {
+   "kind": "true",
+   "delta": -0.03459198400378227
+  },
+  {
+   "kind": "identity",
+   "delta": 0.003818865865468979
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.01376880332827568
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.046319980174303055
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.03679646924138069
+  }
+ ],
+ "53fb4810_0": [
+  {
+   "kind": "true",
+   "delta": -0.004932137904688716
+  },
+  {
+   "kind": "identity",
+   "delta": 0.00813107518479228
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.00910308351740241
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.026087721344083548
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.01107527082785964
+  }
+ ],
+ "5545f144_0": [
+  {
+   "kind": "true",
+   "delta": 0.004253050933281581
+  },
+  {
+   "kind": "identity",
+   "delta": 0.02917839710911115
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.0020575945576032004
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.000752603014310201
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.10212176417311032
+  }
+ ],
+ "581f7754_0": [
+  {
+   "kind": "true",
+   "delta": 0.0018188109000523884
+  },
+  {
+   "kind": "identity",
+   "delta": 0.005567969133456548
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.00323665514588356
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.01610095923145612
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.016420039037863415
+  }
+ ],
+ "581f7754_1": [
+  {
+   "kind": "true",
+   "delta": -0.000806992252667745
+  },
+  {
+   "kind": "identity",
+   "delta": 0.009075024475653967
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.009902397791544596
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.01962283377846082
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.017839354773362476
+  }
+ ],
+ "58490d8a_0": [
+  {
+   "kind": "true",
+   "delta": -0.03130690008401871
+  },
+  {
+   "kind": "identity",
+   "delta": -0.009750703970591227
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.006399483730395635
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.10043464228510857
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.04347944880525271
+  }
+ ],
+ "58f5dbd5_0": [
+  {
+   "kind": "true",
+   "delta": -0.011255178600549698
+  },
+  {
+   "kind": "identity",
+   "delta": 0.015473119914531708
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.01069579025109609
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.00670978178580602
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.029294538001219433
+  }
+ ],
+ "5961cc34_0": [
+  {
+   "kind": "true",
+   "delta": -0.0014730952680110931
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0012810782063752413
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.00030702888034284115
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.003903112781699747
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.00036591204116120934
+  }
+ ],
+ "5dbc8537_0": [
+  {
+   "kind": "true",
+   "delta": -0.0008478015661239624
+  },
+  {
+   "kind": "identity",
+   "delta": 0.017976604402065277
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.005440365523099899
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.008663514629006386
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.007178934291005135
+  }
+ ],
+ "5dbc8537_1": [
+  {
+   "kind": "true",
+   "delta": -0.001413995400071144
+  },
+  {
+   "kind": "identity",
+   "delta": 0.019892282783985138
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.020903872326016426
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.020168272778391838
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.020328404381871223
+  }
+ ],
+ "62593bfd_0": [
+  {
+   "kind": "true",
+   "delta": -0.004807075019925833
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0020709915552288294
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.0005882822442799807
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.01223092875443399
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.009500204818323255
+  }
+ ],
+ "62593bfd_1": [
+  {
+   "kind": "true",
+   "delta": -0.004664660664275289
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0031993489246815443
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.0020535136573016644
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.0183042676653713
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.013745899079367518
+  }
+ ],
+ "64efde09_0": [
+  {
+   "kind": "true",
+   "delta": -0.006001526489853859
+  },
+  {
+   "kind": "identity",
+   "delta": 0.001697995699942112
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.002450784668326378
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.0021646227687597275
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.01593098882585764
+  }
+ ],
+ "65b59efc_0": [
+  {
+   "kind": "true",
+   "delta": 0.005446356410781543
+  },
+  {
+   "kind": "identity",
+   "delta": 0.03805976981918017
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.03699599765241146
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.017499934881925583
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.038060836493968964
+  }
+ ],
+ "65b59efc_1": [
+  {
+   "kind": "true",
+   "delta": 0.0016920436173677444
+  },
+  {
+   "kind": "identity",
+   "delta": 0.030890140682458878
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.009538580353061358
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.02752467741568883
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.03457887222369512
+  }
+ ],
+ "67e490f4_0": [
+  {
+   "kind": "true",
+   "delta": 0.0024232659488916397
+  },
+  {
+   "kind": "identity",
+   "delta": 0.014503111131489277
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.0041410187259316444
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.004456073045730591
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.01910626795142889
+  }
+ ],
+ "6e453dd6_0": [
+  {
+   "kind": "true",
+   "delta": -0.0037659057998098433
+  },
+  {
+   "kind": "identity",
+   "delta": 0.01088051536741356
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.013310123002156615
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.03348388561668495
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.01083388466698428
+  }
+ ],
+ "6e4f6532_0": [
+  {
+   "kind": "true",
+   "delta": -0.030935630202293396
+  },
+  {
+   "kind": "identity",
+   "delta": -0.012852499261498451
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.02508079633116722
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.02556340955197811
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.024547899141907692
+  }
+ ],
+ "6e4f6532_1": [
+  {
+   "kind": "true",
+   "delta": -0.025999246165156364
+  },
+  {
+   "kind": "identity",
+   "delta": -0.0124443881213665
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.008703988045454025
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.024513356387615204
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.024434546008706093
+  }
+ ],
+ "6ffbe589_0": [
+  {
+   "kind": "true",
+   "delta": 0.007565860946973165
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0038959085941314697
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.03041568398475647
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.008305743336677551
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.03778069714705149
+  }
+ ],
+ "71e489b6_0": [
+  {
+   "kind": "true",
+   "delta": -0.0022612609900534153
+  },
+  {
+   "kind": "identity",
+   "delta": 0.00970131205394864
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.007806564836452405
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.016029253757248323
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.004192165564745665
+  }
+ ],
+ "71e489b6_1": [
+  {
+   "kind": "true",
+   "delta": -0.004060823004692793
+  },
+  {
+   "kind": "identity",
+   "delta": 0.010251353650043407
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.01150270008171598
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.008129004078606764
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.0035344399511814117
+  }
+ ],
+ "7491f3cf_0": [
+  {
+   "kind": "true",
+   "delta": -0.00035509373992681503
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0023591588251292706
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.011671817861497402
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.006994520779699087
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.013216188177466393
+  }
+ ],
+ "7666fa5d_0": [
+  {
+   "kind": "true",
+   "delta": -0.00788860023021698
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0036598648875951767
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.021558387205004692
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.004816373810172081
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.009161552414298058
+  }
+ ],
+ "78332cb0_0": [
+  {
+   "kind": "true",
+   "delta": -0.006516113877296448
+  },
+  {
+   "kind": "identity",
+   "delta": -0.006851914028326671
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.007049522052208583
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.007409152885278066
+  },
+  {
+   "kind": "other-task",
+   "delta": -0.006171976526578267
+  }
+ ],
+ "78332cb0_1": [
+  {
+   "kind": "true",
+   "delta": -0.016950134187936783
+  },
+  {
+   "kind": "identity",
+   "delta": -0.015741685405373573
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.0005815128485361735
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.015213502260545889
+  },
+  {
+   "kind": "other-task",
+   "delta": -0.006541669679184754
+  }
+ ],
+ "7b0280bc_0": [
+  {
+   "kind": "true",
+   "delta": -0.005456652492284775
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0067528535922368365
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.005398321275909741
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.005259566629926364
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.01631147973239422
+  }
+ ],
+ "7b3084d4_0": [
+  {
+   "kind": "true",
+   "delta": -0.043105492989222206
+  },
+  {
+   "kind": "identity",
+   "delta": 0.08478193481763203
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.022938333451747894
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.028739723066488903
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.041970779498418175
+  }
+ ],
+ "7b5033c1_0": [
+  {
+   "kind": "true",
+   "delta": -0.004985025152564049
+  },
+  {
+   "kind": "identity",
+   "delta": 0.005331171676516533
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.013644346967339516
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.030276414938271046
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.06713862158358097
+  }
+ ],
+ "7b80bb43_0": [
+  {
+   "kind": "true",
+   "delta": -0.000664928462356329
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0044449749402701855
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.0010636476799845695
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.010026518255472183
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.003128430340439081
+  }
+ ],
+ "7c66cb00_0": [
+  {
+   "kind": "true",
+   "delta": -0.007032817540069421
+  },
+  {
+   "kind": "identity",
+   "delta": 0.002449170375863711
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.004538989315430324
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.0023357452203830085
+  },
+  {
+   "kind": "other-task",
+   "delta": -0.0005521724621454874
+  }
+ ],
+ "7ed72f31_0": [
+  {
+   "kind": "true",
+   "delta": -0.010221541655482724
+  },
+  {
+   "kind": "identity",
+   "delta": -0.009048046806128696
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.0010781967430375516
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.0021709988941438496
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.006320476939436048
+  }
+ ],
+ "7ed72f31_1": [
+  {
+   "kind": "true",
+   "delta": -0.010927001385425683
+  },
+  {
+   "kind": "identity",
+   "delta": -0.003526755084749311
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.015359104087110609
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.004598241241183132
+  },
+  {
+   "kind": "other-task",
+   "delta": -0.0018047409248538315
+  }
+ ],
+ "800d221b_0": [
+  {
+   "kind": "true",
+   "delta": -0.0068365844587485
+  },
+  {
+   "kind": "identity",
+   "delta": 0.015230209256211916
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.0049693286418914795
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.006378945584098498
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.014838684971133867
+  }
+ ],
+ "80a900e0_0": [
+  {
+   "kind": "true",
+   "delta": -0.008973793941549957
+  },
+  {
+   "kind": "identity",
+   "delta": 0.00545146013610065
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.005910340463742614
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.012771505629643798
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.011369208572432399
+  }
+ ],
+ "8698868d_0": [
+  {
+   "kind": "true",
+   "delta": -0.0016764169558882713
+  },
+  {
+   "kind": "identity",
+   "delta": 0.022732543759047985
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.005407675169408321
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.010243340395390987
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.016979309730231762
+  }
+ ],
+ "88bcf3b4_0": [
+  {
+   "kind": "true",
+   "delta": -0.008178428560495377
+  },
+  {
+   "kind": "identity",
+   "delta": 0.013614150881767272
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.004128709435462952
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.019979941099882124
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.01327967494726181
+  }
+ ],
+ "88bcf3b4_1": [
+  {
+   "kind": "true",
+   "delta": -0.018418240547180175
+  },
+  {
+   "kind": "identity",
+   "delta": 0.008979251235723495
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.013897924870252609
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.026779309660196305
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.007537032663822174
+  }
+ ],
+ "88e364bc_0": [
+  {
+   "kind": "true",
+   "delta": -0.0033365835746129355
+  },
+  {
+   "kind": "identity",
+   "delta": 0.004815002903342247
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.0015944546709458034
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.017776289333899815
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.023420230795939762
+  }
+ ],
+ "88e364bc_1": [
+  {
+   "kind": "true",
+   "delta": 0.0014444080491860707
+  },
+  {
+   "kind": "identity",
+   "delta": 0.007848680640260378
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.004196979105472565
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.017733335494995117
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.03156698867678642
+  }
+ ],
+ "89565ca0_0": [
+  {
+   "kind": "true",
+   "delta": -0.04622742533683777
+  },
+  {
+   "kind": "identity",
+   "delta": 0.08600698908170064
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.04718652864297231
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.07316504915555318
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.09790103634198506
+  }
+ ],
+ "898e7135_0": [
+  {
+   "kind": "true",
+   "delta": 0.00116445473395288
+  },
+  {
+   "kind": "identity",
+   "delta": 0.014606857905164361
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.010302921058610082
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.0031046958174556494
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.013810484437271953
+  }
+ ],
+ "8b7bacbf_0": [
+  {
+   "kind": "true",
+   "delta": 0.0011060127289965749
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0005366363329812884
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.0025334208039566875
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.00312767771538347
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.007992913597263396
+  }
+ ],
+ "8b7bacbf_1": [
+  {
+   "kind": "true",
+   "delta": -0.0004871216369792819
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0009782261913642287
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.004648375208489597
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.015706277335993946
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.0049303172854706645
+  }
+ ],
+ "8b9c3697_0": [
+  {
+   "kind": "true",
+   "delta": -0.006494932031879823
+  },
+  {
+   "kind": "identity",
+   "delta": 0.004618070709208648
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.004101993205646674
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.000305585873623689
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.009767427730063597
+  }
+ ],
+ "8e5c0c38_0": [
+  {
+   "kind": "true",
+   "delta": -0.004971327725797892
+  },
+  {
+   "kind": "identity",
+   "delta": 0.005309639265760779
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.0006527465302497149
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.0005625016056001186
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.007902876241132617
+  }
+ ],
+ "8e5c0c38_1": [
+  {
+   "kind": "true",
+   "delta": -0.0031680893152952194
+  },
+  {
+   "kind": "identity",
+   "delta": 0.005970163969323039
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.0037181980442255735
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.0029154482763260603
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.008142129285261035
+  }
+ ],
+ "8f215267_0": [
+  {
+   "kind": "true",
+   "delta": -0.0040618302300572395
+  },
+  {
+   "kind": "identity",
+   "delta": 0.00537519125888745
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.0011872661610444386
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.0023668399080634117
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.0029663564637303352
+  }
+ ],
+ "8f3a5a89_0": [
+  {
+   "kind": "true",
+   "delta": -0.0045797911783059435
+  },
+  {
+   "kind": "identity",
+   "delta": -0.0002866555005311966
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.0029657824585835138
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.07105945982038975
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.0089839535454909
+  }
+ ],
+ "9385bd28_0": [
+  {
+   "kind": "true",
+   "delta": 0.00478885555639863
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0034165089018642902
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.0052228993736207485
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.02176380855962634
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.008999045938253403
+  }
+ ],
+ "9385bd28_1": [
+  {
+   "kind": "true",
+   "delta": -0.004447425249963999
+  },
+  {
+   "kind": "identity",
+   "delta": 0.002009933814406395
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.00047869281843304634
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.002547105075791478
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.008385602850466967
+  }
+ ],
+ "97d7923e_0": [
+  {
+   "kind": "true",
+   "delta": -0.005798052996397018
+  },
+  {
+   "kind": "identity",
+   "delta": -0.0027418180058399835
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.00248617772012949
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.005499931362768014
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.0016359779983758926
+  }
+ ],
+ "981571dc_0": [
+  {
+   "kind": "true",
+   "delta": -2.9774739118693105e-07
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0018412012564965607
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.0012475903627944263
+  },
+  {
+   "kind": "transpose",
+   "delta": -2.9774739118693105e-07
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.0005843295353713529
+  }
+ ],
+ "9aaea919_0": [
+  {
+   "kind": "true",
+   "delta": -0.0011889272912715871
+  },
+  {
+   "kind": "identity",
+   "delta": -0.0005678983094791571
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.0015797268133610487
+  },
+  {
+   "kind": "transpose",
+   "delta": -3.159946451584498e-05
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.0012484372903903325
+  }
+ ],
+ "9bbf930d_0": [
+  {
+   "kind": "true",
+   "delta": -0.0047173456599315005
+  },
+  {
+   "kind": "identity",
+   "delta": 0.009715646194914976
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.0005593371267120043
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.004275247765084107
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.007381070715685685
+  }
+ ],
+ "a251c730_0": [
+  {
+   "kind": "true",
+   "delta": -0.0031549972482025623
+  },
+  {
+   "kind": "identity",
+   "delta": 0.013177553657442331
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.000945627223700285
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.028004067949950695
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.020747816190123558
+  }
+ ],
+ "a25697e4_0": [
+  {
+   "kind": "true",
+   "delta": -0.004920002073049545
+  },
+  {
+   "kind": "identity",
+   "delta": -0.0003696822871764501
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.002973310649394989
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.000558763121565183
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.008438178648551306
+  }
+ ],
+ "a25697e4_1": [
+  {
+   "kind": "true",
+   "delta": -0.0027606630076964698
+  },
+  {
+   "kind": "identity",
+   "delta": 0.00018473466237386069
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 1.5747422973314922e-05
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.0009722411632537842
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.011376110215981802
+  }
+ ],
+ "a32d8b75_0": [
+  {
+   "kind": "true",
+   "delta": 0.003046515087286631
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0022566374391317368
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.008185893297195435
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.005636503299077352
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.005439599355061849
+  }
+ ],
+ "a32d8b75_1": [
+  {
+   "kind": "true",
+   "delta": -0.002488786975542704
+  },
+  {
+   "kind": "identity",
+   "delta": 0.002434058735768
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.0017319793502489726
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.00636578102906545
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.005250277618567149
+  }
+ ],
+ "a395ee82_0": [
+  {
+   "kind": "true",
+   "delta": -0.008356629870831966
+  },
+  {
+   "kind": "identity",
+   "delta": 0.001479949802160263
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.0020274631679058075
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.006291140491763751
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.006608806550502777
+  }
+ ],
+ "a47bf94d_0": [
+  {
+   "kind": "true",
+   "delta": -0.005195293265084426
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0027120805655916533
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.00283026322722435
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.007625207615395387
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.007031872247656186
+  }
+ ],
+ "a6f40cea_0": [
+  {
+   "kind": "true",
+   "delta": -0.07202841465671857
+  },
+  {
+   "kind": "identity",
+   "delta": 0.023483604192733765
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.046795301139354706
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.025711325307687122
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.1609443078438441
+  }
+ ],
+ "aa4ec2a5_0": [
+  {
+   "kind": "true",
+   "delta": -0.00030229132001598674
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0036703309354682765
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.003097931854426861
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.012321065335224072
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.0035456946740547815
+  }
+ ],
+ "abc82100_0": [
+  {
+   "kind": "true",
+   "delta": 0.0013640839606523514
+  },
+  {
+   "kind": "identity",
+   "delta": 0.025843538343906403
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.009386975318193436
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.005626559257507324
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.04660138487815857
+  }
+ ],
+ "abc82100_1": [
+  {
+   "kind": "true",
+   "delta": -0.02156725898385048
+  },
+  {
+   "kind": "identity",
+   "delta": 0.004903849214315414
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.02471228316426277
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.04487645626068115
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.04117540642619133
+  }
+ ],
+ "b0039139_0": [
+  {
+   "kind": "true",
+   "delta": 0.0009869541972875595
+  },
+  {
+   "kind": "identity",
+   "delta": 0.19122893642634153
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.005131261423230171
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.048901974223554134
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.24867498222738504
+  }
+ ],
+ "b0039139_1": [
+  {
+   "kind": "true",
+   "delta": 0.01536280196160078
+  },
+  {
+   "kind": "identity",
+   "delta": 0.10384645592421293
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.014535755850374699
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.0665138540789485
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.18296269793063402
+  }
+ ],
+ "b10624e5_0": [
+  {
+   "kind": "true",
+   "delta": -0.01280211890116334
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0070108650252223015
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.0072706518694758415
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.0027922317385673523
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.006736631505191326
+  }
+ ],
+ "b5ca7ac4_0": [
+  {
+   "kind": "true",
+   "delta": -0.002021971818370124
+  },
+  {
+   "kind": "identity",
+   "delta": 0.00488967658020556
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.004713197471573949
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.01092821879622837
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.0006555397218714157
+  }
+ ],
+ "b6f77b65_0": [
+  {
+   "kind": "true",
+   "delta": -0.0034106001257896423
+  },
+  {
+   "kind": "identity",
+   "delta": -0.0034084096550941467
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.0028578199446201323
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.009600059688091278
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.007433687895536422
+  }
+ ],
+ "b6f77b65_1": [
+  {
+   "kind": "true",
+   "delta": 0.0008200917392969132
+  },
+  {
+   "kind": "identity",
+   "delta": -0.002346498891711235
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.008566583693027496
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.01990281865000725
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.009073254466056824
+  }
+ ],
+ "b6f77b65_2": [
+  {
+   "kind": "true",
+   "delta": -0.0004634879529476166
+  },
+  {
+   "kind": "identity",
+   "delta": -0.002073134481906891
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -5.542188882827759e-05
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.020561818033456802
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.008565602451562881
+  }
+ ],
+ "b99e7126_0": [
+  {
+   "kind": "true",
+   "delta": 0.00041640860339005786
+  },
+  {
+   "kind": "identity",
+   "delta": -0.0005239659609893957
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.0023207965617378554
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.004527923030157884
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.0033614950565000377
+  }
+ ],
+ "b9e38dc0_0": [
+  {
+   "kind": "true",
+   "delta": -0.019219018518924713
+  },
+  {
+   "kind": "identity",
+   "delta": -0.002607656642794609
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.002418136845032374
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.01193147525191307
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.06340870509545009
+  }
+ ],
+ "bf45cf4b_0": [
+  {
+   "kind": "true",
+   "delta": -8.175322242702047e-05
+  },
+  {
+   "kind": "identity",
+   "delta": 0.004887677961960435
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.01138287247158587
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.006013067827249567
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.01116776023991406
+  }
+ ],
+ "c4d067a0_0": [
+  {
+   "kind": "true",
+   "delta": -0.0001900768062720696
+  },
+  {
+   "kind": "identity",
+   "delta": -0.0006176676445951065
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.0013243115196625392
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.003098561273266872
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.0009472835808992386
+  }
+ ],
+ "c7f57c3e_0": [
+  {
+   "kind": "true",
+   "delta": -0.011185562005266547
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0037850975058972836
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.008702049730345607
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.01359142642468214
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.021685863845050335
+  }
+ ],
+ "cb2d8a2c_0": [
+  {
+   "kind": "true",
+   "delta": -0.0017948462627828121
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0037858430296182632
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.0034704399295151234
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.008454147726297379
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.006372328847646713
+  }
+ ],
+ "cb2d8a2c_1": [
+  {
+   "kind": "true",
+   "delta": -0.003396459389477968
+  },
+  {
+   "kind": "identity",
+   "delta": 0.005139386747032404
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.005395356100052595
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.009233986027538776
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.006742836441844702
+  }
+ ],
+ "cbebaa4b_0": [
+  {
+   "kind": "true",
+   "delta": -0.005833989940583706
+  },
+  {
+   "kind": "identity",
+   "delta": 0.007596799172461033
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.001417212188243866
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.015504649840295315
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.004940052516758442
+  }
+ ],
+ "cbebaa4b_1": [
+  {
+   "kind": "true",
+   "delta": -0.007380598224699497
+  },
+  {
+   "kind": "identity",
+   "delta": 0.010306685231626034
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.0028255265206098557
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.012037723325192928
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.005182909779250622
+  }
+ ],
+ "d35bdbdc_0": [
+  {
+   "kind": "true",
+   "delta": 0.00192583662768205
+  },
+  {
+   "kind": "identity",
+   "delta": 0.03954938488701979
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.010624748344222704
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.029236868644754093
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.018751475339134533
+  }
+ ],
+ "d35bdbdc_1": [
+  {
+   "kind": "true",
+   "delta": 0.006924505655964215
+  },
+  {
+   "kind": "identity",
+   "delta": 0.04731307613352934
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.0226574062059323
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.052154441053668656
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.023013670618335407
+  }
+ ],
+ "d35bdbdc_2": [
+  {
+   "kind": "true",
+   "delta": -0.0026357260843118033
+  },
+  {
+   "kind": "identity",
+   "delta": 0.055291286980112396
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.017183818543950718
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.07920762834449609
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.021176918720205624
+  }
+ ],
+ "d59b0160_0": [
+  {
+   "kind": "true",
+   "delta": -0.0029637740614513555
+  },
+  {
+   "kind": "identity",
+   "delta": -0.006082856251547734
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.00720065226778388
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.0025415512112279734
+  },
+  {
+   "kind": "other-task",
+   "delta": -0.00042774295434355736
+  }
+ ],
+ "d8e07eb2_0": [
+  {
+   "kind": "true",
+   "delta": -0.0017437763512134553
+  },
+  {
+   "kind": "identity",
+   "delta": -0.0002693925052881241
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.0002213025465607643
+  },
+  {
+   "kind": "transpose",
+   "delta": 4.7263503074646e-05
+  },
+  {
+   "kind": "other-task",
+   "delta": -0.0007741384208202362
+  }
+ ],
+ "d8e07eb2_1": [
+  {
+   "kind": "true",
+   "delta": -0.0014062885195016861
+  },
+  {
+   "kind": "identity",
+   "delta": 7.521361112594604e-05
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.0004549253731966019
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.0014973778277635574
+  },
+  {
+   "kind": "other-task",
+   "delta": -0.0007651951164007187
+  }
+ ],
+ "da515329_0": [
+  {
+   "kind": "true",
+   "delta": -0.012568409244219461
+  },
+  {
+   "kind": "identity",
+   "delta": -0.0008535236120223999
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.007227590307593346
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.0031142706672350564
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.013933047031362852
+  }
+ ],
+ "db0c5428_0": [
+  {
+   "kind": "true",
+   "delta": -0.008028760630016526
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0040866476483643055
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.000950968824326992
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.008028760630016526
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.013803854895134767
+  }
+ ],
+ "db695cfb_0": [
+  {
+   "kind": "true",
+   "delta": -0.00732803676801268
+  },
+  {
+   "kind": "identity",
+   "delta": -0.0038688953092787413
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.004908046225318685
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.004000076971715316
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.0019612861273344607
+  }
+ ],
+ "dbff022c_0": [
+  {
+   "kind": "true",
+   "delta": 0.011148534715175629
+  },
+  {
+   "kind": "identity",
+   "delta": 0.005663136641184489
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.023273494094610214
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.012272916734218597
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.023184865713119507
+  }
+ ],
+ "dd6b8c4b_0": [
+  {
+   "kind": "true",
+   "delta": -0.003933928906917572
+  },
+  {
+   "kind": "identity",
+   "delta": -0.005434264739354451
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.013630231221516928
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.007105025152365367
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.008059362570444742
+  }
+ ],
+ "dd6b8c4b_1": [
+  {
+   "kind": "true",
+   "delta": -0.012406731645266214
+  },
+  {
+   "kind": "identity",
+   "delta": -0.0028754820426305137
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.0007913957039515177
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.009941096107165018
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.010958244403203329
+  }
+ ],
+ "de809cff_0": [
+  {
+   "kind": "true",
+   "delta": -0.01823541452176869
+  },
+  {
+   "kind": "identity",
+   "delta": 0.01244574598968029
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.00442774873226881
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.0219896137714386
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.024862054735422134
+  }
+ ],
+ "dfadab01_0": [
+  {
+   "kind": "true",
+   "delta": 0.003300493350252509
+  },
+  {
+   "kind": "identity",
+   "delta": 0.005219899117946625
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.011471170000731945
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.006147515261545777
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.021823411574587226
+  }
+ ],
+ "e12f9a14_0": [
+  {
+   "kind": "true",
+   "delta": -0.007312686764635146
+  },
+  {
+   "kind": "identity",
+   "delta": 0.001539113000035286
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.0027709787245839834
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.006301970686763525
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.018643171060830355
+  }
+ ],
+ "e12f9a14_1": [
+  {
+   "kind": "true",
+   "delta": -0.010084272944368422
+  },
+  {
+   "kind": "identity",
+   "delta": 0.003917750436812639
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.002475862856954336
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.03815390635281801
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.008762553799897432
+  }
+ ],
+ "e3721c99_0": [
+  {
+   "kind": "true",
+   "delta": 0.001370036043226719
+  },
+  {
+   "kind": "identity",
+   "delta": 0.003838903270661831
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.001508934423327446
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.0025662193074822426
+  },
+  {
+   "kind": "other-task",
+   "delta": -4.579126834869385e-05
+  }
+ ],
+ "e3721c99_1": [
+  {
+   "kind": "true",
+   "delta": 0.0011578421108424664
+  },
+  {
+   "kind": "identity",
+   "delta": 0.003134489059448242
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.0034207142889499664
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.0007586893625557423
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.001905262004584074
+  }
+ ],
+ "e376de54_0": [
+  {
+   "kind": "true",
+   "delta": -0.004918220142523448
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0001841274400552114
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.004401005804538727
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.004918220142523448
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.017254117255409557
+  }
+ ],
+ "e8686506_0": [
+  {
+   "kind": "true",
+   "delta": -0.02422550693154335
+  },
+  {
+   "kind": "identity",
+   "delta": 0.09131016954779625
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.01310693845152855
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.011771351099014282
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.205026064068079
+  }
+ ],
+ "e87109e9_0": [
+  {
+   "kind": "true",
+   "delta": -0.0032008234411478043
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0037881582975387573
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.0007314439862966537
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.007758628576993942
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.007726871718962987
+  }
+ ],
+ "edb79dae_0": [
+  {
+   "kind": "true",
+   "delta": -0.00751872337423265
+  },
+  {
+   "kind": "identity",
+   "delta": 0.004462136421352625
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.007230711169540882
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.0012259837239980698
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.0002494482323527336
+  }
+ ],
+ "eee78d87_0": [
+  {
+   "kind": "true",
+   "delta": -0.0018145181238651276
+  },
+  {
+   "kind": "identity",
+   "delta": 0.004881250361601512
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.0018033388381203015
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.0018145181238651276
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.011282150323192278
+  }
+ ],
+ "f560132c_0": [
+  {
+   "kind": "true",
+   "delta": 0.0505298376083374
+  },
+  {
+   "kind": "identity",
+   "delta": 0.04718247801065445
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.04568498581647873
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.06426142901182175
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.11887629330158234
+  }
+ ],
+ "f560132c_1": [
+  {
+   "kind": "true",
+   "delta": -0.026254259049892426
+  },
+  {
+   "kind": "identity",
+   "delta": 0.05463138222694397
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.020211301743984222
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.016686968505382538
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.13086199760437012
+  }
+ ],
+ "f931b4a8_0": [
+  {
+   "kind": "true",
+   "delta": -0.0383432574570179
+  },
+  {
+   "kind": "identity",
+   "delta": -0.026994705200195312
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.03521724715828896
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.03690318986773491
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.005028533190488816
+  }
+ ],
+ "f931b4a8_1": [
+  {
+   "kind": "true",
+   "delta": -0.008688027039170265
+  },
+  {
+   "kind": "identity",
+   "delta": -0.0046163231134414675
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -9.781792759895324e-05
+  },
+  {
+   "kind": "transpose",
+   "delta": -9.781792759895324e-05
+  },
+  {
+   "kind": "other-task",
+   "delta": -0.004332826286554336
+  }
+ ],
+ "faa9f03d_0": [
+  {
+   "kind": "true",
+   "delta": -0.012246713663140932
+  },
+  {
+   "kind": "identity",
+   "delta": 0.017710473388433456
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.007763390739758809
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.015715930610895157
+  },
+  {
+   "kind": "other-task",
+   "delta": -0.013508031765619913
+  }
+ ],
+ "faa9f03d_1": [
+  {
+   "kind": "true",
+   "delta": -0.019602323261400063
+  },
+  {
+   "kind": "identity",
+   "delta": 0.004517111927270889
+  },
+  {
+   "kind": "colour-swap",
+   "delta": -0.02815062676866849
+  },
+  {
+   "kind": "transpose",
+   "delta": -0.014539989332358042
+  },
+  {
+   "kind": "other-task",
+   "delta": -0.009270240863164267
+  }
+ ],
+ "fc7cae8d_0": [
+  {
+   "kind": "true",
+   "delta": 0.03457348172863325
+  },
+  {
+   "kind": "identity",
+   "delta": 0.0486379067103068
+  },
+  {
+   "kind": "colour-swap",
+   "delta": 0.03192959477504095
+  },
+  {
+   "kind": "transpose",
+   "delta": 0.02989692861835162
+  },
+  {
+   "kind": "other-task",
+   "delta": 0.032427992671728134
+  }
+ ]
+}

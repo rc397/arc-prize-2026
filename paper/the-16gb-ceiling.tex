@@ -1441,7 +1441,18 @@ Section~\ref{sec:ttt-results}, six flips against one across seven discordant tas
 0.125$, the $p \approx 0.13$ reported there. The selector switch shipped on three unanimous flips, $p =
 0.25$ two-sided, and reversed on the full sample. And the accidental repeat run, two submissions of one
 build, differed by 0.41 points, one quantum, which is the empirical noise floor agreeing with the formal
-one.
+one. Figure~\ref{fig:resolution} places the episodes on the bound.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.88\linewidth]{fig_resolution}
+\caption{The resolving power of a paired comparison on this benchmark. The curve is the exact two-sided
+McNemar p-value when every discordant task falls one way, and six flips is the smallest unanimous effect
+that clears 0.05. The project's episodes sit at their exact p-values, the three-flip selector switch that
+shipped and reversed, the six-to-one regularized-TTT read that was held for a confirmation seed before
+submission, and the repeat-run noise floor of one credit.}
+\label{fig:resolution}
+\end{figure}
 
 \subsection{A family of rules is a multiplicity}
 
@@ -1484,7 +1495,19 @@ it holds. On every one of the four leaked outputs of Table~\ref{tab:leak} the tr
 Pareto-dominated inside its own pool, checked on multiplicity, mean augmentation NLL and best beam NLL,
 by one wrong candidate on two of the outputs, by two on a third, and by three on the fourth. No monotone
 selector can recover any of the four, so the sixteen-rule sweep was not sixteen independent failures, it
-was one proposition observed sixteen times.
+was one proposition observed sixteen times. Figure~\ref{fig:dominance} draws the premise.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.97\linewidth]{fig_dominance}
+\caption{The four test outputs whose pool contains a truth the selector misses, every candidate plotted by
+mean augmentation NLL and multiplicity. The shaded rectangle dominates the truth on both plotted axes,
+and every point inside one is a wrong grid. The selected grid need not itself be the dominator, on
+\texttt{3dc255db\_0} it wins through the likelihood term alone, but a dominator exists in every pool, and
+with the beam statistic included the domination is strict on all four, which is the premise of the
+proposition.}
+\label{fig:dominance}
+\end{figure}
 
 Dominance is what the failure mode predicts rather than an accident. When the model internalizes a wrong
 rule, $q$ concentrates on grids consistent with that rule, and the truth enters the pool only as a
@@ -1508,7 +1531,18 @@ measured $\Delta$ tracks the description length of $c$ rather than its truth, a 
 perturbs the conditional barely at all, so $-\Delta$ behaves as a smoothness prior, which is once again a
 functional of the model's beliefs. The section's conclusion restated formally, the leak is not a ranking
 deficiency inside $\Sigma_{\mathrm{mono}}$, it is $q$ itself pointing at the wrong grid, and a repair must
-move $q$, which is training, not selection.
+move $q$, which is training, not selection. Figure~\ref{fig:margins} shows the escape attempt's margins.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.88\linewidth]{fig_delta_margins}
+\caption{Margins of the round-trip signal on the 172-output gate, the true grid's advantage in
+$\Delta$ over its best synthetic rival. The truth wins 133 of 172 against a chance rate of one in five,
+but the mass hugs zero and the median winning margin of 0.0043 nats sits against a median losing margin
+of 0.0031, so the discrimination lives inside its own noise. Outputs beyond 0.06 nats are clipped into
+the edge bins.}
+\label{fig:margins}
+\end{figure}
 
 \subsection{Time as the decision variable}
 
@@ -1537,7 +1571,20 @@ the model predicts sensitivity to $C$ exactly when $\sum_i \min(\tau_i, C)$ appr
 control submission is the experiment that decides it. One operational corollary came from the same smoke
 that validated the cap. Any work placed after the capped loop re-enters as unaccounted growth in
 $\tau_i$, the greedy fallback measured about 80 seconds per fill past the cap, so post-loop work must
-carry a budget of its own.
+carry a budget of its own. Figure~\ref{fig:cap} draws the model against the measured timings.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\linewidth]{fig_cap}
+\caption{The sequential-deadline model of Equation~\eqref{eq:cap}, bootstrapped from the forty measured
+task timings and the credits the measurement run harvested. Under the public-eval timing distribution
+the wall never binds, the queue is always fully reached, and the projected score is flat from a cap of
+1200 upward, so the model itself predicts the cap change is neutral unless the hidden tasks run
+meaningfully slower than the public ones. That is a pre-registered prediction, not a hope, and the
+control submission is its test. The projection carries stated limits, forty samples, right-censoring at
+the deployed 1800, and yield only on completed searches.}
+\label{fig:cap}
+\end{figure}
 
 \subsection{Composition and coverage}
 
