@@ -53,7 +53,7 @@ VARIANTS = {
     },
     "v7.4": {
         "file": "arc_submission_v7_4.ipynb",
-        "env": {"ARC_TASK_TIMEOUT": "1200", "ARC_LOSS_CUT": "0", "ARC_GREEDY_FALLBACK": "1",
+        "env": {"ARC_TASK_TIMEOUT": "1200", "ARC_LOSS_CUT": "0", "ARC_GREEDY_FALLBACK": "0",
                 "ARC_N_EVAL": "0"},
         "note": ("The cap, wired for the first time. ARC_TASK_TIMEOUT was echoed by the config cell from "
                  "v7.1 onward but the builder's replace targeted a spend_time form the source does not "
@@ -63,8 +63,13 @@ VARIANTS = {
                  "budget until the tail of the queue is dropped unstarted, which is the standing "
                  "candidate explanation for a three-point gap we had wrongly attributed to the "
                  "dependency tree. The loss cut is OFF here, it is the leading suspect for v7.3's "
-                 "regression and its justification was five tasks. The greedy fill stays on, it can only "
-                 "write where the search left nothing."),
+                 "regression and its justification was five tasks. The greedy fill is off too. Its 6-task "
+                 "smoke ran it clean past the per-task cap, since it sits after the DFS loop and had no "
+                 "budget of its own, adding 330s to one task in four fills. At roughly 80s a fill that "
+                 "is near two hours of unbudgeted work on a 240-task rerun, a better candidate for "
+                 "v7.3's regression than the loss cut. It now takes ARC_GFB_BUDGET seconds of its own, "
+                 "default 180, but v7.4 leaves it off so this build is a pure control against the 33.89 "
+                 "public notebook, identical pipeline, identical cap, nothing of ours added."),
     },
 }
 # The search-width arms (old v7.2 at floor 0.1, v7.3 at floor 0.35) were measured dead, the DFS floor
@@ -269,9 +274,11 @@ def rewire(text):
         '\n        if os.environ.get("ARC_GREEDY_FALLBACK"):\n'
         '            _done = {fn.split(".")[0] for fn in os.listdir(dir_outputs)}\n'
         "            _missing = [k2 for k2 in sorted(puzzle_ds_multi.keys) if k2 not in _done]\n"
+        '            _fb_stop = start_time + int(os.environ.get("ARC_TASK_TIMEOUT", "1800")) + int(os.environ.get("ARC_GFB_BUDGET", "180"))\n'
         "            with torch.inference_mode():\n"
         "                for k2 in _missing:\n"
-        "                    if time.time() > end_time:\n"
+        "                    if time.time() > end_time or time.time() > _fb_stop:\n"
+        '                        print(f"[Rank {rank}] greedy fallback budget spent for {key}")\n'
         "                        break\n"
         '                    _sks = [s2 for s2 in sorted(eval_ds.keys) if s2.split(".")[0] == k2][:2]\n'
         "                    for s2 in _sks:\n"

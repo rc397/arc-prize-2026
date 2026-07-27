@@ -32,7 +32,7 @@ if not os.path.isdir(os.environ["ARC_DATA_DIR"]):
 #   ARC_RANK         LoRA rank (default 256)      ARC_MAXSEQ  training context (default 8192)
 #   ARC_LOSS_CUT     skip the search when training loss ends above this, 0 disables (v7.3: 0.05)
 #   ARC_GREEDY_FALLBACK  fill search-empty tasks with a greedy decode (v7.3: 1)
-os.environ["ARC_GREEDY_FALLBACK"] = "1"
+os.environ["ARC_GREEDY_FALLBACK"] = "0"
 os.environ["ARC_LOSS_CUT"] = "0"
 os.environ["ARC_N_EVAL"] = "0"
 os.environ["ARC_TASK_TIMEOUT"] = "1200"

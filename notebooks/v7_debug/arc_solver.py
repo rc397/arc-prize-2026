@@ -445,9 +445,11 @@ def worker(rank, queue, end_time):
         if os.environ.get("ARC_GREEDY_FALLBACK"):
             _done = {fn.split(".")[0] for fn in os.listdir(dir_outputs)}
             _missing = [k2 for k2 in sorted(puzzle_ds_multi.keys) if k2 not in _done]
+            _fb_stop = start_time + int(os.environ.get("ARC_TASK_TIMEOUT", "1800")) + int(os.environ.get("ARC_GFB_BUDGET", "180"))
             with torch.inference_mode():
                 for k2 in _missing:
-                    if time.time() > end_time:
+                    if time.time() > end_time or time.time() > _fb_stop:
+                        print(f"[Rank {rank}] greedy fallback budget spent for {key}")
                         break
                     _sks = [s2 for s2 in sorted(eval_ds.keys) if s2.split(".")[0] == k2][:2]
                     for s2 in _sks:
