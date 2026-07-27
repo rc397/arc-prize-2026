@@ -249,7 +249,7 @@ table.book tbody tr:first-child td{padding-top:.5em;}
 <h3 id="s3-2"><span class="sn">3.2</span>The engine is the bottleneck</h3>
 <p>Our most consequential finding concerns throughput. Decoding a 4B model is memory-bound. Each token streams the full weight matrix from VRAM, so for a weight footprint <i class="v">M</i> on a card of bandwidth <i class="v">B</i> the decode rate is bounded by a first-order roofline</p>
 <div class="eqrow">
-  <div class="eqbody"><img class="eq" src="eq1.svg" alt="r_max = B / M" style="height:40px"></div>
+  <div class="eqbody"><img class="eq" src="eq1.svg" alt="r_max = B / M" style="height:34px"></div>
   <div class="eqno">(1)</div>
 </div>
 <p>With <i class="v">B</i>&nbsp;=&nbsp;896&nbsp;GB/s, Eq.&nbsp;(1) gives 132 tok/s in bf16 (<i class="v">M</i>&nbsp;=&nbsp;6.77&nbsp;GB), 249 in Q8_0 (<i class="v">M</i>&nbsp;=&nbsp;3.6&nbsp;GB), and 444 in Q4_K_M (<i class="v">M</i>&nbsp;=&nbsp;2.02&nbsp;GB). The standard Hugging Face eager path prefills healthily (&approx;3,400 tok/s) but <em>decodes</em> at only &approx;13 tok/s, about a tenth of the bf16 roof, because of per-token framework overhead with no CUDA graphs. The usual remedy, compiling the decode step, is unavailable on this platform. <code>torch.compile</code> needs Triton, and Triton has no native-Windows backend (Appendix&nbsp;C).</p>
@@ -263,7 +263,7 @@ table.book tbody tr:first-child td{padding-top:.5em;}
 <h3 id="s3-3"><span class="sn">3.3</span>AIRV: augment, infer, reverse, vote</h3>
 <p>Let <i class="v">f</i> be the served model and <i class="v">G</i> the eight dihedral (D4) symmetries of the grid. For a test input <i class="v">x</i> we generate one prediction per symmetry, invert it back to the original frame, and vote. Writing <i>n</i><sub><i>c</i></sub> for a candidate's vote count and <span class="olbar">&#8467;</span><sub><i>c</i></sub> for its mean sequence log-prob,</p>
 <div class="eqrow">
-  <div class="eqbody"><img class="eq" src="eq2.svg" alt="AIRV: candidate, vote count, mean log-prob, and the top-2 select" style="height:94px"></div>
+  <div class="eqbody"><img class="eq" src="eq2.svg" alt="AIRV: candidate, vote count, mean log-prob, and the top-2 select" style="height:80px"></div>
   <div class="eqno">(2)</div>
 </div>
 <p>where select returns the two distinct candidates with the highest vote count, ties broken by mean log-prob, and emits them as the two attempts the metric allows. The vote count is itself a usable confidence signal. Agreement across symmetries predicts correctness (Figure&nbsp;6). The whole offline system (the trainer, the converter, and the server, which never share VRAM) is sketched in Figure&nbsp;3.</p>
@@ -276,7 +276,7 @@ table.book tbody tr:first-child td{padding-top:.5em;}
 <h3 id="s3-4"><span class="sn">3.4</span>Per-task test-time training</h3>
 <p>For TTT we fit a per-task LoRA adapter &Delta;<i>W</i> = <i>s</i>&#8202;<i>BA</i> of rank <i class="v">r</i> and scale <i class="v">s</i> on the task's own train pairs <i class="v">T</i>, with a leave-one-out target and the loss masked to the answer tokens:</p>
 <div class="eqrow">
-  <div class="eqbody"><img class="eq" src="eq3.svg" alt="TTT leave-one-out loss masked to the answer tokens" style="height:43px"></div>
+  <div class="eqbody"><img class="eq" src="eq3.svg" alt="TTT leave-one-out loss masked to the answer tokens" style="height:36px"></div>
   <div class="eqno">(3)</div>
 </div>
 <p>drawing a fresh random augmentation each step. Capping the few-shot context to &approx;1,600 tokens drops a training step from &approx;13&nbsp;s to &approx;2&nbsp;s, so training is no longer the expensive part.</p>
@@ -600,7 +600,7 @@ table.book tbody tr:first-child td{padding-top:.5em;}
 <h3><span class="sn">F.1</span>The score and its quantum</h3>
 <p>Task <i>i</i> has <i>n<sub>i</sub></i> test outputs, the submission supplies two attempts per output, and a task contributes one credit split evenly across its outputs,</p>
 <div class="eqrow">
-  <div class="eqbody"><img class="eq" src="eq4.svg" alt="S equals the sum over tasks of solved outputs over n_i, and score equals 100 S over N" style="height:52px"></div>
+  <div class="eqbody"><img class="eq" src="eq4.svg" alt="S equals the sum over tasks of solved outputs over n_i, and score equals 100 S over N" style="height:44px"></div>
   <div class="eqno">(4)</div>
 </div>
 <p>On the hidden set <i>N</i>&nbsp;=&nbsp;240, so one credit is 100/240&nbsp;&approx;&nbsp;0.4167 percentage points, the quantum the leaderboard moves in. The public-notebook clusters sit at 31.39, 31.81, 32.22 and 32.64, spaced 0.41 to 0.42 apart, which is that quantum observed directly, whole boards separated by single tasks. The measure also carries a quiet bias. A solved output on a two-output task earns half what it earns on a single-output task, so any method that helps preferentially on multi-output tasks is systematically underpaid by the metric.</p>
@@ -608,7 +608,7 @@ table.book tbody tr:first-child td{padding-top:.5em;}
 <h3><span class="sn">F.2</span>Resolving power of a paired comparison</h3>
 <p>Two variants scored on the same tasks form a paired design, and the pairing removes the between-task difficulty variance entirely. Concordant tasks, solved by both or missed by both, carry no information about the difference. Writing <i>b</i> for tasks that flip miss to hit and <i>c</i> for the reverse, the null hypothesis of no difference makes the flips exchangeable, <i>b</i>&nbsp;~&nbsp;Binomial(<i>b</i>+<i>c</i>,&nbsp;&frac12;), and the exact two-sided McNemar test in the cleanest case, every discordant task falling the same way, gives</p>
 <div class="eqrow">
-  <div class="eqbody"><img class="eq" src="eq5.svg" alt="p equals 2 times 2 to the minus b plus c, and p at most 0.05 iff b plus c at least 5.32" style="height:34px"></div>
+  <div class="eqbody"><img class="eq" src="eq5.svg" alt="p equals 2 times 2 to the minus b plus c, and p at most 0.05 iff b plus c at least 5.32" style="height:21px"></div>
   <div class="eqno">(5)</div>
 </div>
 <p>Six unanimous flips are therefore the minimum resolvable effect at the five percent level, <i>p</i>&nbsp;=&nbsp;2/64&nbsp;=&nbsp;0.031, while five give 0.0625 and fail. Every candidate-side lever this work measured moved one to three tasks. Such effects are not weakly supported, they are unresolvable by any single read of a board this size. The body's episodes are this bound observed. The regularized-TTT comparison of Section&nbsp;4.3, six flips against one across seven discordant tasks, gives exactly 2&nbsp;&middot;&nbsp;8/128&nbsp;=&nbsp;0.125, the <i>p</i>&nbsp;&approx;&nbsp;0.13 reported there. The selector switch shipped on three unanimous flips, <i>p</i>&nbsp;=&nbsp;0.25 two-sided, and reversed on the full sample. And the accidental repeat run, two submissions of one build, differed by 0.41 points, one quantum, which is the empirical noise floor agreeing with the formal one. Figure&nbsp;8 places the episodes on the bound.</p>
@@ -625,7 +625,7 @@ table.book tbody tr:first-child td{padding-top:.5em;}
 <h3><span class="sn">F.4</span>Why the pool cannot rank its own truth</h3>
 <p>Model the pipeline as inducing, for each test output, a distribution <i>q</i> over grids, the composition of the adapted model, its sixteen augmented views, and the depth-first search. The pool is the sampled support of <i>q</i>, and every statistic the pool records for a distinct grid <i>c</i> is an estimate of a functional of <i>q</i>. The multiplicity <i>m</i>(<i>c</i>) counts the augmented decodes that produced <i>c</i>. Each decode <i>g</i> carries a beam score, the negative log-probability of its search path, and augmentation scores, per-view negative log-likelihoods of <i>c</i> under fresh augmentations. Both deployed selectors are monotone functions of these statistics,</p>
 <div class="eqrow">
-  <div class="eqbody"><img class="eq" src="eq6.svg" alt="the kgmon and probmul selector formulas" style="height:56px"></div>
+  <div class="eqbody"><img class="eq" src="eq6.svg" alt="the kgmon and probmul selector formulas" style="height:43px"></div>
   <div class="eqno">(6)</div>
 </div>
 <p>where <i>G<sub>c</sub></i> is the multiset of decodes yielding <i>c</i>. Call &Sigma;<sub>mono</sub> the class of selectors nondecreasing in <i>m</i> and nonincreasing in every recorded NLL. Both of (6) are members, as are all sixteen swept rules.</p>
@@ -640,7 +640,7 @@ table.book tbody tr:first-child td{padding-top:.5em;}
 <p>Dominance is what the failure mode predicts rather than an accident. When the model internalizes a wrong rule, <i>q</i> concentrates on grids consistent with that rule, and the truth enters the pool only as a low-mass fluctuation, which is precisely low multiplicity and high NLL, that is, dominance. The same concentration defeats aggregation at cell level. Treating candidates as draws from <i>q</i>, if the marginal of <i>q</i> at a given cell places most of its mass on a wrong colour, a per-cell majority vote converges to that wrong colour, amplifying the marginal rather than correcting it. The body measured exactly this, thirteen same-shape candidates fusing to a grid wrong in the same two cells the selected answer gets wrong.</p>
 <p>An escape therefore needs information not derived from <i>q</i>. The round-trip score of Section&nbsp;5.7 has the right form, injecting a candidate as a synthetic demonstration and measuring the mean change in per-token negative log-likelihood of each held-out real demonstration,</p>
 <div class="eqrow">
-  <div class="eqbody"><img class="eq" src="eq7.svg" alt="Delta of c, the round-trip score" style="height:50px"></div>
+  <div class="eqbody"><img class="eq" src="eq7.svg" alt="Delta of c, the round-trip score" style="height:47px"></div>
   <div class="eqno">(7)</div>
 </div>
 <p>with <i>D</i> the demonstration pairs and <i>x</i><sub>&#9733;</sub> the test input. It failed in an instructive direction. The measured &Delta; tracks the description length of <i>c</i> rather than its truth, a simple low-entropy grid perturbs the conditional barely at all, so &minus;&Delta; behaves as a smoothness prior, which is once again a functional of the model's beliefs. The section's conclusion restated formally, the leak is not a ranking deficiency inside &Sigma;<sub>mono</sub>, it is <i>q</i> itself pointing at the wrong grid, and a repair must move <i>q</i>, which is training, not selection. Figure&nbsp;10 shows the escape attempt's margins.</p>
@@ -654,7 +654,7 @@ table.book tbody tr:first-child td{padding-top:.5em;}
 <h3><span class="sn">F.5</span>Time as the decision variable</h3>
 <p>Let <i>p<sub>i</sub></i>(<i>t</i>) be the probability task <i>i</i> is solved when given <i>t</i> seconds, and let <i>T</i> be the wall. The allocation problem is to maximize &Sigma;<sub>i</sub>&nbsp;<i>p<sub>i</sub></i>(<i>t<sub>i</sub></i>) subject to &Sigma;<sub>i</sub>&nbsp;<i>t<sub>i</sub></i>&nbsp;&le;&nbsp;<i>T</i>. For concave increasing <i>p<sub>i</sub></i> the Karush-Kuhn-Tucker conditions give water-filling, <i>p<sub>i</sub></i>&prime;(<i>t<sub>i</sub></i>)&nbsp;=&nbsp;&lambda; on every task receiving time and <i>p<sub>i</sub></i>&prime;(0)&nbsp;&le;&nbsp;&lambda; on the rest, marginal solve probability per second equalized. The measured behaviour of this pipeline is closer to a step. A task completes its search at a natural time &tau;<sub>i</sub> or fails regardless, which turns the allocation into a 0/1 knapsack over (<i>s<sub>i</sub></i>,&nbsp;&tau;<sub>i</sub>). Since &tau;<sub>i</sub> is unknown until the task is run, the implementable policy is a uniform cap <i>C</i>, and under sequential processing against the wall the outcome is</p>
 <div class="eqrow">
-  <div class="eqbody"><img class="eq" src="eq8.svg" alt="k of C and S of C, the sequential deadline model" style="height:52px"></div>
+  <div class="eqbody"><img class="eq" src="eq8.svg" alt="k of C and S of C, the sequential deadline model" style="height:41px"></div>
   <div class="eqno">(8)</div>
 </div>
 <p>Raising <i>C</i> weakly raises every surviving term and weakly lowers <i>k</i>(<i>C</i>), and each task beyond <i>k</i>(<i>C</i>) contributes zero, so <i>S</i>(<i>C</i>) is in general non-monotone and its maximizer can be interior. When the wall never binds, larger <i>C</i> is weakly better, which is why a 120-task public run cannot exhibit the effect while a 240-task hidden run can, and why the public and hidden reads of a cap change may legitimately disagree. The measured inputs are a &tau; range of 174 to 1889 seconds on the 40-task slice, a deployed cap of 1800 on every submission through the wiring fault of Section&nbsp;4.1, and a cap of 1200 in the strongest public build. Whether the wall binds on the hidden set is not observable from outside, the model predicts sensitivity to <i>C</i> exactly when &Sigma;<sub>i</sub>&nbsp;min(&tau;<sub>i</sub>,&nbsp;<i>C</i>) approaches <i>T</i>, and the control submission is the experiment that decides it. One operational corollary came from the same smoke that validated the cap. Any work placed after the capped loop re-enters as unaccounted growth in &tau;<sub>i</sub>, the greedy fallback measured about 80 seconds per fill past the cap, so post-loop work must carry a budget of its own. Figure&nbsp;11 draws the model against the measured timings.</p>
