@@ -410,10 +410,10 @@ v4   & + more-candidates sampling (four per view)    & 13.19 \\
 v5   & + white-box plausibility filter               & 12.78 \\
 v6   & deep-regularized TTT (60 steps, rank 32), disk-exhausted & 12.36 \\
 v6.1 & deep-regularized TTT, all 232 tasks trained   & \textbf{18.19} \\
-v7   & sorokin reproduction as ported (Section~\ref{sec:architects}), not servable in budget on one card & 16.81 \\
+v7   & sorokin reproduction as ported (Section~\ref{sec:architects}) & 16.81 \\
 v7.1 & same pipeline with both port defects repaired   & 30.56 \\
-v7.2 & identical build, cap knob inert in both, a repeat run & \textbf{30.97} \\
-v7.3 & + loss-gated search skip, greedy fill of empty slots & 28.61 \\
+v7.2 & identical build, an accidental repeat run & \textbf{30.97} \\
+v7.3 & + loss-gated skip and greedy fill of empty slots & 28.61 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -474,7 +474,9 @@ writes the same test inline, the pattern never matched, and so every submission 
 onward ran the same hardcoded 1800-second cap while its configuration banner printed whichever value we
 had set. The two runs were therefore the identical build at the identical cap, and their 0.41-point spread
 is run-to-run variance, which is worth about one task credit on 240 tasks. That is the noise floor for
-every hidden comparison in this work, and having it changes how the rest of the table should be read. One further observation follows for
+every hidden comparison in this work, and having it changes how the rest of the table should be read. Appendix~
+ef{app:math} derives the
+resolution limit that number instantiates. One further observation follows for
 anyone reading the leaderboard rather than the method. A single task credit separates an entire sixty-entry
 cluster, so on this board the cheapest available gain is not a better model but a better use of the twelve
 hours.
@@ -515,7 +517,8 @@ have instead is a candidate mechanism that fits the whole table. On a 240-task r
 twelve-hour wall, a looser per-task cap does not buy depth, it lets slow tasks consume the budget until
 the tail of the queue is dropped unstarted, and the public build we were chasing runs the tighter cap we
 had believed ourselves to be running. The next submission wires the knob for the first time and tests
-exactly that.
+exactly that, and Appendix~
+ef{app:math} gives the allocation model behind the prediction.
 
 \subsection{The engine speedup}
 The $13\times$ decode improvement from changing engines (Section~\ref{sec:engine},
@@ -1093,7 +1096,9 @@ right rule that clever aggregation could denoise, it holds the wrong rule, and e
 expresses that same wrong rule. This is the bimodality of Section~\ref{sec:scale} surfacing at cell level,
 and it relocates the leak from a selection problem to a training problem. The information needed to pick
 the correct grid is absent from the pool and from the model that produced it, so any repair has to change
-what the model believes, not how its outputs are ranked.
+what the model believes, not how its outputs are ranked. Appendix~
+ef{app:math} states this as a
+dominance proposition over the pool's statistics and verifies its premise on all four missed outputs.
 
 \subsection{Revisiting the big-grid wall with the host's memory}
 \label{sec:biggrid}
@@ -1387,6 +1392,164 @@ attribution are in the repository's \texttt{THIRD\_PARTY\_LICENSES.md} and \text
   author={Hodel, Michael}, journal={arXiv:2404.07353}, year={2024}}
 \end{verbatim}
 }
+
+\section{The mathematics of the measurement}
+\label{app:math}
+
+The competition's numbers are statistics over a small finite task set, and several of this work's wrong
+turns trace to reading them with more resolution than they possess. This appendix collects the formal
+content behind the rules the body applies, what a leaderboard point is, what a paired comparison can
+resolve, why a candidate pool cannot rank its own truth, and what the time budget actually optimizes.
+Everything here is elementary. The value is that each statement is attached to a measurement from the
+body, so the arithmetic and the project's history check each other.
+
+\subsection{The score and its quantum}
+
+Task $i$ has $n_i$ test outputs, the submission supplies two attempts per output, and a task contributes
+one credit split evenly across its outputs,
+\begin{equation}
+S \;=\; \sum_{i=1}^{N}\frac{1}{n_i}\,\Bigl|\bigl\{\, j \le n_i \;:\; y_{ij}\in\{a^{(1)}_{ij},\,
+a^{(2)}_{ij}\}\bigr\}\Bigr|,
+\qquad \text{score} \;=\; \frac{100\,S}{N}.
+\label{eq:score}
+\end{equation}
+On the hidden set $N=240$, so one credit is $100/240 \approx 0.4167$ percentage points, the quantum the
+leaderboard moves in. The public-notebook clusters sit at 31.39, 31.81, 32.22 and 32.64, spaced 0.41 to
+0.42 apart, which is that quantum observed directly, whole boards separated by single tasks. The measure
+also carries a quiet bias. A solved output on a two-output task earns half what it earns on a single-output
+task, so any method that helps preferentially on multi-output tasks is systematically underpaid by the
+metric.
+
+\subsection{Resolving power of a paired comparison}
+
+Two variants scored on the same tasks form a paired design, and the pairing removes the between-task
+difficulty variance entirely. Concordant tasks, solved by both or missed by both, carry no information
+about the difference. Writing $b$ for tasks that flip miss to hit and $c$ for the reverse, the null
+hypothesis of no difference makes the flips exchangeable, $b \sim \mathrm{Binomial}(b+c,\tfrac12)$, and the
+exact two-sided McNemar test in the cleanest case, every discordant task falling the same way, gives
+\begin{equation}
+p \;=\; 2\cdot 2^{-(b+c)},
+\qquad\text{so}\qquad
+p \le 0.05 \;\Longleftrightarrow\; b+c \;\ge\; 1-\log_2 0.05 \;\approx\; 5.32.
+\label{eq:mcnemar}
+\end{equation}
+Six unanimous flips are therefore the minimum resolvable effect at the five percent level, $p = 2/64 =
+0.031$, while five give $0.0625$ and fail. Every candidate-side lever this work measured moved one to three
+tasks. Such effects are not weakly supported, they are unresolvable by any single read of a board this
+size. The body's episodes are this bound observed. The regularized-TTT comparison of
+Section~\ref{sec:ttt-results}, six flips against one across seven discordant tasks, gives exactly $2 \cdot 8/128 =
+0.125$, the $p \approx 0.13$ reported there. The selector switch shipped on three unanimous flips, $p =
+0.25$ two-sided, and reversed on the full sample. And the accidental repeat run, two submissions of one
+build, differed by 0.41 points, one quantum, which is the empirical noise floor agreeing with the formal
+one.
+
+\subsection{A family of rules is a multiplicity}
+
+The selection sweep of Section~\ref{sec:selection} scored sixteen rules against one pool. If each rule
+independently had probability $\alpha$ of a spurious win, the chance that at least one wins is
+$1-(1-\alpha)^{16}$, which at $\alpha = 0.05$ is $1-0.95^{16} \approx 0.56$. The sixteen rules share the
+pool, so the tests are positively correlated and the true figure is smaller, but the reading survives the
+correction. The sweep's observed yield, exactly one rule gaining exactly one output, is what chance
+predicts from a search of that size over a null family, and that is why the winning rule was recorded
+rather than deployed.
+
+\subsection{Why the pool cannot rank its own truth}
+
+Model the pipeline as inducing, for each test output, a distribution $q$ over grids, the composition of
+the adapted model, its sixteen augmented views, and the depth-first search. The pool is the sampled
+support of $q$, and every statistic the pool records for a distinct grid $c$ is an estimate of a
+functional of $q$. The multiplicity $m(c)$ counts the augmented decodes that produced $c$. Each decode $g$
+carries a beam score $n_{\mathrm{beam}}(g)$, the negative log-probability of its search path, and
+augmentation scores $n_{\mathrm{aug},v}(g)$, per-view negative log-likelihoods of $c$ under fresh
+augmentations. Both deployed selectors are monotone functions of these statistics,
+\begin{equation}
+\sigma_{K}(c) \;=\; m(c) \;-\; \frac{1}{m(c)}\sum_{g \in G_c}\overline{n}_{\mathrm{aug}}(g),
+\qquad
+\sigma_{P}(c) \;=\; \sum_{g \in G_c}\bigl(3-n_{\mathrm{beam}}(g)\bigr)
+\;+\; \frac{1}{m(c)}\sum_{g \in G_c}\sum_{v}\bigl(3-n_{\mathrm{aug},v}(g)\bigr),
+\label{eq:selectors}
+\end{equation}
+where $G_c$ is the multiset of decodes yielding $c$ and $\overline{n}_{\mathrm{aug}}$ the per-decode mean.
+Call $\Sigma_{\mathrm{mono}}$ the class of selectors nondecreasing in $m$ and nonincreasing in every
+recorded NLL. Both of Equation~\eqref{eq:selectors} are members, as are all sixteen swept rules.
+
+\textbf{Proposition.} If a wrong grid $g$ Pareto-dominates the true grid $y^\star$ in the recorded
+statistics, meaning $m(g) \ge m(y^\star)$ and every NLL statistic of $g$ is at most the corresponding
+statistic of $y^\star$, with at least one comparison strict, then every selector in
+$\Sigma_{\mathrm{mono}}$ ranks $g$ at or above $y^\star$. \textit{Proof.} Immediate from monotonicity in
+each coordinate. \hfill$\square$
+
+The proposition is trivial. Its content is the premise, which is a measurable property of real pools, and
+it holds. On every one of the four leaked outputs of Table~\ref{tab:leak} the true grid is strictly
+Pareto-dominated inside its own pool, checked on multiplicity, mean augmentation NLL and best beam NLL,
+by one wrong candidate on two of the outputs, by two on a third, and by three on the fourth. No monotone
+selector can recover any of the four, so the sixteen-rule sweep was not sixteen independent failures, it
+was one proposition observed sixteen times.
+
+Dominance is what the failure mode predicts rather than an accident. When the model internalizes a wrong
+rule, $q$ concentrates on grids consistent with that rule, and the truth enters the pool only as a
+low-mass fluctuation, which is precisely low multiplicity and high NLL, that is, dominance. The same
+concentration defeats aggregation at cell level. Treating candidates as draws from $q$, if the marginal of
+$q$ at a given cell places most of its mass on a wrong colour, a per-cell majority vote converges to that
+wrong colour, amplifying the marginal rather than correcting it. The body measured exactly this, thirteen
+same-shape candidates fusing to a grid wrong in the same two cells the selected answer gets wrong.
+
+An escape therefore needs information not derived from $q$. The round-trip score of
+Section~\ref{sec:selection} has the right form, injecting a candidate as a synthetic demonstration and
+measuring the mean change in per-token negative log-likelihood of each held-out real demonstration,
+\begin{equation}
+\Delta(c) \;=\; \frac{1}{|D|}\sum_{i=1}^{|D|}\Bigl[
+\mathrm{NLL}\bigl(y_i \,\big|\, D_{-i}\cup\{(x_\star, c)\}\bigr)
+\;-\; \mathrm{NLL}\bigl(y_i \,\big|\, D_{-i}\bigr)\Bigr],
+\label{eq:roundtrip}
+\end{equation}
+with $D$ the demonstration pairs and $x_\star$ the test input. It failed in an instructive direction. The
+measured $\Delta$ tracks the description length of $c$ rather than its truth, a simple low-entropy grid
+perturbs the conditional barely at all, so $-\Delta$ behaves as a smoothness prior, which is once again a
+functional of the model's beliefs. The section's conclusion restated formally, the leak is not a ranking
+deficiency inside $\Sigma_{\mathrm{mono}}$, it is $q$ itself pointing at the wrong grid, and a repair must
+move $q$, which is training, not selection.
+
+\subsection{Time as the decision variable}
+
+Let $p_i(t)$ be the probability task $i$ is solved when given $t$ seconds, and let $T$ be the wall. The
+allocation problem is to maximize $\sum_i p_i(t_i)$ subject to $\sum_i t_i \le T$. For concave increasing
+$p_i$ the Karush-Kuhn-Tucker conditions give water-filling, $p_i'(t_i) = \lambda$ on every task receiving
+time and $p_i'(0) \le \lambda$ on the rest, marginal solve probability per second equalized. The measured
+behaviour of this pipeline is closer to a step. A task completes its search at a natural time $\tau_i$ or
+fails regardless, $p_i(t) \approx s_i\,\mathbf{1}[t \ge \tau_i]$, which turns the allocation into a 0/1
+knapsack over $(s_i, \tau_i)$. Since $\tau_i$ is unknown until the task is run, the implementable policy
+is a uniform cap $C$, and under sequential processing against the wall the outcome is
+\begin{equation}
+k(C) \;=\; \max\Bigl\{k \;:\; \sum_{i\le k}\min(\tau_i, C)\;\le\; T\Bigr\},
+\qquad
+S(C) \;=\; \sum_{i \le k(C)} p_i\bigl(\min(\tau_i, C)\bigr).
+\label{eq:cap}
+\end{equation}
+Raising $C$ weakly raises every surviving term and weakly lowers $k(C)$, and each task beyond $k(C)$
+contributes zero, so $S(C)$ is in general non-monotone and its maximizer can be interior. When the wall
+never binds, larger $C$ is weakly better, which is why a 120-task public run cannot exhibit the effect
+while a 240-task hidden run can, and why the public and hidden reads of a cap change may legitimately
+disagree. The measured inputs are a $\tau$ range of 174 to 1889 seconds on the 40-task slice, a deployed
+cap of 1800 on every submission through the wiring fault of Section~\ref{sec:results}, and a cap of 1200
+in the strongest public build. Whether the wall binds on the hidden set is not observable from outside,
+the model predicts sensitivity to $C$ exactly when $\sum_i \min(\tau_i, C)$ approaches $T$, and the
+control submission is the experiment that decides it. One operational corollary came from the same smoke
+that validated the cap. Any work placed after the capped loop re-enters as unaccounted growth in
+$\tau_i$, the greedy fallback measured about 80 seconds per fill past the cap, so post-loop work must
+carry a budget of its own.
+
+\subsection{Composition and coverage}
+
+A heuristic closes the appendix because it frames the benchmark itself. If evaluation tasks are
+compositions of $k$ primitives drawn from a library of size $n$, the composition space grows like $n^k$
+while any training set covers a fixed $m$ of them, so coverage $m/n^k$ vanishes and memorizing
+compositions cannot transfer. The design intent of the benchmark is exactly this regime, and the body
+measured its signature, a continued fine-tune on the public training distribution scored 11.63 against
+the stock model's 12.79 (Section~\ref{sec:limits}). What transfers is whatever captures the primitives
+and the composition operator rather than the compositions, which is the formal reason the interesting
+levers in this work kept reducing to training-side changes, and why compression-style approaches that fit
+tiny models per task remain interesting despite modest absolute scores.
 
 \begin{thebibliography}{9}
 \bibitem{chollet} F.~Chollet. On the Measure of Intelligence. arXiv:1911.01547, 2019.
