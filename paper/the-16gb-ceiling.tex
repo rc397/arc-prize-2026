@@ -1509,6 +1509,19 @@ proposition.}
 \label{fig:dominance}
 \end{figure}
 
+The dominance counts carry one more consequence, elementary enough to state in two sentences. A selector
+in $\Sigma_{\mathrm{mono}}$ that is strictly monotone in some coordinate where a dominator strictly leads
+places that dominator strictly above the truth, so a truth with $k$ such dominators ranks at worst
+$k+1$, and two dominators already exclude it from any two-attempt selection. Both deployed selectors are
+strictly monotone in the coordinates that matter here, and the measured counts, one, one, three and two,
+hold simultaneously in the summary statistics and in the exact addends of
+Equation~\eqref{eq:selectors}, checked directly on the pool. The consequence splits the leak.
+\texttt{3dc255db\_0} and \texttt{4c7dc4dd\_1}, together worth 1.5 credits, are unreachable by the entire
+monotone class in either attempt slot, while the two singly-dominated outputs are reachable only at rank
+two and only by rules constructed after seeing the answer, which the multiplicity argument of F.3
+forbids. So the class ceiling on this pool lies between the attained 9.833 and 10.833 credits, against
+the present-in-pool 12.333, and sixty percent of the leak is closed by proof rather than by sweep.
+
 Dominance is what the failure mode predicts rather than an accident. When the model internalizes a wrong
 rule, $q$ concentrates on grids consistent with that rule, and the truth enters the pool only as a
 low-mass fluctuation, which is precisely low multiplicity and high NLL, that is, dominance. The same
@@ -1543,6 +1556,74 @@ of 0.0031, so the discrimination lives inside its own noise. Outputs beyond 0.06
 the edge bins.}
 \label{fig:margins}
 \end{figure}
+
+The negative extends from the monotone class to everything the pipeline can compute about itself. Model
+the task as a rule $\theta$ drawn from a prior, with truth $Y^\star = g_\theta(x_\star)$, and let $q$
+stand for the trained model's entire belief state on the task, of which the sampling distribution over
+grids is the visible part. Let $W$ collect everything the pipeline computes internally, the pool, its
+statistics, and any negative log-likelihood the model can be asked to evaluate. Two assumptions. The
+pool is exchangeable given $q$, which is how it is generated. And the internal-channel assumption,
+$Y^\star \perp W \mid q$, the internal data reads the task only through the model's beliefs. The second
+is the load-bearing idealization, and everything below is conditional on it.
+
+\textbf{Theorem (internal ceiling).} Under the two assumptions, every two-attempt rule $\sigma$ that is
+a function of $W$ satisfies
+\begin{equation}
+\mathbb{E}\bigl[\mathbf{1}\{Y^\star \in \sigma(W)\}\bigr] \;\le\;
+\mathbb{E}\Bigl[\max_{|A|=2}\sum_{c \in A} P\bigl(Y^\star = c \mid q\bigr)\Bigr],
+\label{eq:ceiling}
+\end{equation}
+the expected top-two mass of the posterior given the model's beliefs. \textit{Proof.} Tower over
+$(W, q)$, note $\sigma(W)$ is fixed given $W$, replace $P(Y^\star = c \mid W, q)$ by
+$P(Y^\star = c \mid q)$ using the independence, and bound the resulting two-term sum by the best
+two-term sum pointwise. \hfill$\square$
+
+Equality needs the top-two set of the $q$-posterior to be recoverable from $W$, which holds
+approximately once the pool is large. The reading is Blackwell's, the map from $q$ to $W$ is a garbling,
+and no processing of a garbled channel creates information about a variable the channel never saw. Two
+corollaries follow. The round-trip score of Equation~\eqref{eq:roundtrip} is built entirely from model
+likelihoods, so $\Delta$ is a function of $W$ and the theorem bounds it, which retires that family at
+theorem level rather than experiment level and explains the measurement, the signal collapsed into a
+functional of the model's beliefs because it never had anything else to be. And the escape routes are
+exactly the channels that break the assumption, executing a candidate program against the
+demonstrations, or scoring under a second independently trained model, both of which read the task
+through something other than $q$.
+
+Identifiability closes the pool-only question from below. The pool is exchangeable given $q$, so its
+law depends on the draws only through the recorded multiset, the empirical measure is sufficient, and
+the best pool-only rule is a function of it. If two rules $\theta_0 \ne \theta_1$ induce the same $q$
+but different truths, the pool laws coincide and the posterior odds equal the prior odds, the pool
+contributes nothing toward telling the truths apart. A quantitative form needs three hypotheses rather
+than two, since with two confusable truths a two-attempt rule submits both and never errs. Take three
+rules with pairwise distinct truths whose pool laws sit within total variation $\eta$ of a common
+anchor. Any two-attempt rule misses at least one of the three truths pointwise, so the three error
+probabilities sum to at least $1 - 2\eta$, and the worst-case error of any pool-only rule is at least
+$(1 - 2\eta)/3$, approaching one third as the profiles coincide. The three outputs whose truth was
+decoded exactly once are the natural place to hunt for such triples. Published separations sharpen the
+margins. With $\Delta_{\mathrm{gap}}$ the gap between the truth's mass and the best wrong mass,
+majority-style selection needs order $1/\Delta_{\mathrm{gap}}^2$ samples and best-of-$n$ order
+$1/\Delta_{\mathrm{gap}}$, and a nonpositive gap, the measured case here, defeats every sample
+size~\cite{huang2025ttscaling}, while coverage-style analyses tie the value of any inference-time
+selection to the policy's mass on the truth~\cite{huang2025bon}.
+
+What survives for practice is an estimator design, stated as a proposition. To first order the round
+trip decomposes as $\Delta(c) = \alpha K(c) + \beta R(c) + \varepsilon$, a description-length term, a
+rule-consistency term, and noise, and the measured pathology is the first term dominating. Let $\pi$
+scramble the test input by a fixed cell permutation, preserving the candidate, its size and its palette
+while destroying the spatial link between input and candidate.
+
+\textbf{Proposition (control variate).}
+\begin{equation}
+\widetilde{\Delta}(c) \;=\; \Delta(c \mid x_\star) - \Delta(c \mid \pi(x_\star))
+\;=\; \beta R(c) + (\varepsilon - \varepsilon'),
+\label{eq:cv}
+\end{equation}
+the complexity term cancels to first order, and detecting a mean effect $\beta R$ at $z$ standard
+errors needs $F \ge (z\sigma/\beta R)^2$ held-out folds, with the measured margin scale of 0.0043 nats
+setting the bar. The ceiling still applies, $\widetilde{\Delta}$ is built from model likelihoods, so at
+best it recovers the consistency component the recorded statistics discard and cannot exceed
+Equation~\eqref{eq:ceiling}. Any deployment claim passes through the discipline of F.2 and F.3, stated
+before testing, validated on a disjoint pool.
 
 \subsection{Time as the decision variable}
 
@@ -1586,6 +1667,55 @@ the deployed 1800, and yield only on completed searches.}
 \label{fig:cap}
 \end{figure}
 
+The model has a closed form worth recording, because it turns the cap from a swept knob into a solved
+problem given one estimable distribution. Write $F$ for the distribution of the natural time $\tau$,
+$\bar F = 1 - F$, $h = f/\bar F$ its hazard, $\mu(C) = \mathbb{E}\min(\tau, C) = \int_0^C \bar F(t)\,dt$
+the capped mean, and $\nu(C) = \mathbb{E}[s\,\mathbf{1}\{\tau \le C\}]$ the capped credit. Tasks consume
+independent amounts $\min(\tau_i, C)$, so by Wald's identity the queue admits
+\begin{equation}
+\mathbb{E}[k(C)] \;\approx\; \min\Bigl(n,\; \frac{T_w}{\mu(C)}\Bigr),
+\qquad \text{the wall binds} \iff \mu(C) > T_w / n,
+\label{eq:binding}
+\end{equation}
+with $T_w$ the per-worker wall and $n$ its queue share. The numbers are immediate. Net of the deadline
+margin and startup, $T_w \approx 42000$ seconds and $n = 60$, so the threshold is about 700 seconds,
+and the measured capped mean is $\hat\mu(1800) = 24821/40 = 620.5$ seconds, needing no censoring
+correction since the observations are themselves capped at the deployed limit, up to the small
+overshoot of the between-batch check. The wall is borderline non-binding, which is the analytic route
+to the verdict Figure~\ref{fig:cap} reached by bootstrap, and two independent methods agreeing is the
+reason to trust the flat plateau.
+
+In the regime where the wall does bind, the objective is reached-count times credit per reached task,
+and the optimum has a first-order condition,
+\begin{equation}
+\mathbb{E}[S(C)] \;\approx\; \frac{T_w}{\mu(C)}\,\nu(C),
+\qquad
+\mathbb{E}[s \mid \tau = C]\;h(C) \;=\; \frac{\nu(C)}{\mu(C)} \;\;\text{at } C^\ast,
+\label{eq:foc}
+\end{equation}
+extend the cap until the hazard-weighted marginal credit per second falls to the average credit per
+second. With task values constant the condition reduces to $f(C)\,\mu(C) = F(C)\,\bar F(C)$,
+equivalently $C^\ast = \arg\min_C \mu(C)/F(C)$, and that ratio is exactly the fixed-cutoff objective of
+restart theory~\cite{luby1993}, whose universal schedule pays a logarithmic factor precisely for not
+knowing $F$. Here $F$ is estimable, so the fixed cap is the right target, and the coincidence of the
+renewal derivation with the restart objective is a consistency check between two independent routes.
+Estimating $F$ beyond the historical cap needs the censoring handled, everything above 1800 is
+right-censored, and the product-limit estimator with the capped-mean integral does it, after which a
+bootstrap resamples the joint rows to preserve the dependence between training loss, time and yield,
+imputes the censored tail, and simulates the four queues. The decision rule ties back to F.2, a cap
+change ships only when the bootstrap's lower confidence bound on the gain clears two credits, or a live
+paired read clears the six-flip bound.
+
+Three classical problems sit adjacent, and each maps with a break worth naming. Pandora's box gates
+inspection on an index, and the deployed loss cut is that gate in disguise, run the expensive search
+only when the conditional credit per second given the cheap pre-search signal clears the budget's
+shadow price, and the measurement that no task finishing above loss 0.05 ever yielded is the index
+saying skip. The stochastic-knapsack adaptivity gap bounds how much any signal-adaptive cap can beat
+the best static one, a constant factor, so the static $C^\ast$ is the primary lever and the signal is a
+bounded refinement, though the imported constant is heuristic here since the policy classes differ. And
+the prophet inequality's half-optimal fixed threshold is the floor under all of it, one fixed cap is
+never catastrophically worse than clairvoyance.
+
 \subsection{Composition and coverage}
 
 A heuristic closes the appendix because it frames the benchmark itself. If evaluation tasks are
@@ -1608,6 +1738,14 @@ tiny models per task remain interesting despite modest absolute scores.
 Generation. arXiv:2404.07353, 2024.
 \bibitem{longt5arc} W.~Lemes de Oliveira et al. ARC-AGI-2 Technical Report (LongT5-based system with
 test-time training). arXiv:2603.06590, 2026.
+\bibitem{luby1993} M.~Luby, A.~Sinclair, and D.~Zuckerman. Optimal speedup of Las Vegas algorithms.
+\emph{Information Processing Letters}, 47(4):173--180, 1993.
+\bibitem{huang2025ttscaling} B.~Huang, S.~Li, T.~Wu, Y.~Yang, A.~Talwalkar, K.~Ramchandran,
+M.~I.~Jordan, and J.~Jiao. Sample complexity and representation ability of test-time scaling paradigms.
+arXiv:2506.05295, 2025.
+\bibitem{huang2025bon} A.~Huang, A.~Block, Q.~Liu, N.~Jiang, A.~Krishnamurthy, and D.~J.~Foster. Is
+best-of-$N$ the best of them? Coverage, scaling, and optimality in inference-time alignment.
+arXiv:2503.21878, 2025.
 \end{thebibliography}
 
 \end{document}
