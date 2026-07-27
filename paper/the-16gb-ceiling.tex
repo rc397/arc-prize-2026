@@ -411,8 +411,9 @@ v5   & + white-box plausibility filter               & 12.78 \\
 v6   & deep-regularized TTT (60 steps, rank 32), disk-exhausted & 12.36 \\
 v6.1 & deep-regularized TTT, all 232 tasks trained   & \textbf{18.19} \\
 v7   & sorokin reproduction as ported (Section~\ref{sec:architects}), not servable in budget on one card & 16.81 \\
-v7.1 & same pipeline with both port defects repaired, per-task cap 1200~s & 30.56 \\
-v7.2 & identical to v7.1 at the upstream per-task cap of 1800~s & \textbf{30.97} \\
+v7.1 & same pipeline with both port defects repaired   & 30.56 \\
+v7.2 & identical build, cap knob inert in both, a repeat run & \textbf{30.97} \\
+v7.3 & + loss-gated search skip, greedy fill of empty slots & 28.61 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -465,14 +466,15 @@ than approximately, and that is stronger evidence that the two port defects we i
 whole difference than the near-agreement we claimed before. It is also, plainly, a reproduction rather than
 a differentiating result, and we report it as one.
 
-The tie settles a methodological question against an earlier reading of our own. A sixty-way exact
-agreement means the reproduced pipeline is deterministic across machines, so the 0.41 points between our
-two runs of it is not run-to-run variance. It is the cap. Raising the per-task budget from 1200 to 1800
-seconds recovered about one task credit, which makes time allocation a live lever on a pipeline whose every
-other knob we have measured dead, and it means a one-credit difference inside this pipeline is signal
-rather than noise. The scope of that claim is narrow and worth stating. It is determinism of the reproduced
-pipeline on the contest node, and it says nothing about the bf16 per-task training in our own earlier
-submissions, where variance has never been excludable from outside. One further observation follows for
+We first read the 0.41 points between our two runs of it as the per-task cap, since the two builds
+differed by nothing else we had declared. That reading was wrong, and its correction is the most useful
+thing in this section. An audit of the generated notebooks found the cap knob had never reached the solver
+at all. The build script rewrote a guard it expected to find as a local variable comparison, the source
+writes the same test inline, the pattern never matched, and so every submission from the first reproduction
+onward ran the same hardcoded 1800-second cap while its configuration banner printed whichever value we
+had set. The two runs were therefore the identical build at the identical cap, and their 0.41-point spread
+is run-to-run variance, which is worth about one task credit on 240 tasks. That is the noise floor for
+every hidden comparison in this work, and having it changes how the rest of the table should be read. One further observation follows for
 anyone reading the leaderboard rather than the method. A single task credit separates an entire sixty-entry
 cluster, so on this board the cheapest available gain is not a better model but a better use of the twelve
 hours.
@@ -505,7 +507,15 @@ method lever we measured this month. It also reframes the sixty-entry cluster at
 included, as a population unknowingly running a numerically degraded environment. The engine lesson of
 Section~\ref{sec:engine} returns in its sharpest form, what carries the score is not only the method but
 the exact software it deploys on, and the next submission is rebased onto the 33.89 condition with the
-scheduler on top, so its delta attributes to the scheduler alone.
+scheduler on top, so its delta attributes to the scheduler alone. That attribution did not survive either. The build in question
+scored 	extbf{28.61}, a regression, and the same audit that found the cap bug found it in this run too,
+so the comparison we had framed as identical code in two environments was in fact two different per-task
+caps as well. The dependency tree may still matter and we no longer have evidence that it does. What we
+have instead is a candidate mechanism that fits the whole table. On a 240-task rerun against a fixed
+twelve-hour wall, a looser per-task cap does not buy depth, it lets slow tasks consume the budget until
+the tail of the queue is dropped unstarted, and the public build we were chasing runs the tighter cap we
+had believed ourselves to be running. The next submission wires the knob for the first time and tests
+exactly that.
 
 \subsection{The engine speedup}
 The $13\times$ decode improvement from changing engines (Section~\ref{sec:engine},

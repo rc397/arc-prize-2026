@@ -377,7 +377,7 @@ def worker(rank, queue, end_time):
 
         with torch.inference_mode():
             for subkeys in batches:
-                if time.time() - start_time > 1800 or time.time() > end_time:
+                if time.time() - start_time > int(os.environ.get("ARC_TASK_TIMEOUT", "1800")) or time.time() > end_time:
                     print(f"[Rank {rank}] timeout after {time.time()-start_time:.1f}s for {key}")
                     break
 

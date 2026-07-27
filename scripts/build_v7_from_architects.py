@@ -48,7 +48,23 @@ VARIANTS = {
                  "the rc7530 fork, and runs cap 1200 to match. On top of that condition it adds the two "
                  "do-no-harm scheduler rules priced on the v7.2 measurement run, the loss-gated search "
                  "skip and the greedy fill of search-empty slots, so any delta against 33.89 is the "
-                 "scheduler's."),
+                 "scheduler's. SCORED 28.61, a regression, and the post-mortem found the cap knob had "
+                 "never been wired, so this ran at 1800 like every build before it. See v7.4."),
+    },
+    "v7.4": {
+        "file": "arc_submission_v7_4.ipynb",
+        "env": {"ARC_TASK_TIMEOUT": "1200", "ARC_LOSS_CUT": "0", "ARC_GREEDY_FALLBACK": "1",
+                "ARC_N_EVAL": "0"},
+        "note": ("The cap, wired for the first time. ARC_TASK_TIMEOUT was echoed by the config cell from "
+                 "v7.1 onward but the builder's replace targeted a spend_time form the source does not "
+                 "use, so it never matched and v7.1, v7.2 and v7.3 all ran the hardcoded 1800 while "
+                 "reporting otherwise. The public 33.89 build runs 1200. On a 240-task rerun against a "
+                 "twelve-hour wall a looser per-task cap does not buy depth, it lets slow tasks eat the "
+                 "budget until the tail of the queue is dropped unstarted, which is the standing "
+                 "candidate explanation for a three-point gap we had wrongly attributed to the "
+                 "dependency tree. The loss cut is OFF here, it is the leading suspect for v7.3's "
+                 "regression and its justification was five tasks. The greedy fill stays on, it can only "
+                 "write where the search left nothing."),
     },
 }
 # The search-width arms (old v7.2 at floor 0.1, v7.3 at floor 0.35) were measured dead, the DFS floor
@@ -206,9 +222,13 @@ def rewire(text):
         '    max_score = -np.log(float(os.environ.get("ARC_DFS_FLOOR", "0.2")))\n')
     # per-task time cap as an env knob. The aimo edit raised sorokin's 1200 to 1800; the stripped
     # pipeline needs the tighter cap to fit 240 hidden tasks inside the 12h rerun.
+    # The source writes this inline rather than through a spend_time local, and an earlier version of
+    # this replace targeted the spend_time form. It never matched, so every v7 submission ran the
+    # hardcoded 1800 while its config cell printed whatever ARC_TASK_TIMEOUT said. The assert below
+    # is the real fix, the pattern is now verified to have fired.
     text = text.replace(
-        "if spend_time > 1800 or time.time() > end_time:",
-        'if spend_time > int(os.environ.get("ARC_TASK_TIMEOUT", "1800")) or time.time() > end_time:')
+        "if time.time() - start_time > 1800 or time.time() > end_time:",
+        'if time.time() - start_time > int(os.environ.get("ARC_TASK_TIMEOUT", "1800")) or time.time() > end_time:')
     # adapt the hardcoded 4-worker/4-GPU launch to whatever GPUs the session actually has
     text = text.replace(
         "    args = parser.parse_args()",
@@ -391,6 +411,14 @@ nb["cells"] = [intro, config, nb["cells"][0], nb["cells"][1], install] + nb["cel
 
 assert "src.arc" not in alltext and "from src" not in alltext, "v7 must not import our repo"
 assert alltext.count("final_loss = float(") == 1, "loss capture not patched exactly once"
+# every env knob must actually reach the code. A knob that only reaches the config echo is worse than
+# no knob, it reports a setting the run is not using, which is how three submissions ran the wrong cap.
+for knob, marker in (("ARC_TASK_TIMEOUT", 'os.environ.get("ARC_TASK_TIMEOUT"'),
+                     ("ARC_DFS_FLOOR", 'os.environ.get("ARC_DFS_FLOOR"'),
+                     ("ARC_RANK", 'os.environ.get("ARC_RANK"'),
+                     ("ARC_MAXSEQ", 'os.environ.get("ARC_MAXSEQ"')):
+    assert marker in alltext, "%s is echoed but never read by the solver" % knob
+assert "start_time > 1800" not in alltext, "per-task cap still hardcoded"
 assert alltext.count("ARC_LOSS_CUT") >= 1, "loss-cut gate missed"
 assert alltext.count("ARC_GREEDY_FALLBACK") >= 1, "greedy fallback missed"
 
