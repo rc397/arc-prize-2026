@@ -14,6 +14,7 @@ import json
 import os
 import re
 import sys
+import textwrap
 
 # Named variants. The pipeline is identical in every one, only the config cell differs, so a variant is
 # a documented set of knob values rather than a fork. v7.1 is the 30.56 submission and its knobs are the
@@ -69,7 +70,50 @@ VARIANTS = {
                  "is near two hours of unbudgeted work on a 240-task rerun, a better candidate for "
                  "v7.3's regression than the loss cut. It now takes ARC_GFB_BUDGET seconds of its own, "
                  "default 180, but v7.4 leaves it off so this build is a pure control against the 33.89 "
-                 "public notebook, identical pipeline, identical cap, nothing of ours added."),
+                 "public notebook, identical pipeline, identical cap, nothing of ours added. SCORED "
+                 "29.44, and it was neither pure nor a matched control. The fill ran anyway through a "
+                 "truthy-string gate, and the cap was wrong in the other direction: the 33.89 notebook "
+                 "forks the aimo source, which hardcodes 1800, so 1200 was a deviation from the control "
+                 "rather than a match to it. Both are fixed, the cap claim is withdrawn."),
+    },
+    # ---- the bisection. v7.1 (30.56) and the 33.89 public notebook differ in exactly two factors,
+    # everything else in the diff being byte-identical, neutral at its default, or identical under
+    # rerun_mode. The three builds below vary one factor at a time off that pair, at the 1800 cap both
+    # sides actually ran. Run v7.5c FIRST if the pending control does not land near 33.89, since it
+    # tests our builder rather than our edits.
+    "v7.5a": {
+        "file": "arc_submission_v7_5a.ipynb",
+        "env": {"ARC_AIF": "prune", "ARC_DFS_BATCH": "4", "ARC_TASK_TIMEOUT": "1800", "ARC_N_EVAL": "0"},
+        "note": ("The theory build, and the one worth a submission slot. Keeps our 4-view batching and "
+                 "restores only the AIF object-count prune, leaving the fast-path preemption off. The "
+                 "2026-07-20 A/B deleted the arm on the strength of the preemption alone, 12 of 39 tasks "
+                 "fast-pathed with zero correct, but expected_count is returned on every branch of "
+                 "run_aif_analysis including the no-rule fallback and re-ranks beams without ever "
+                 "preempting. Appendix F's internal-ceiling theorem says a selector reading only model "
+                 "likelihoods cannot exceed the top-two posterior mass, and names program execution "
+                 "against the demonstrations as one of two channels that break the assumption. This is "
+                 "that channel. No configuration on either side has run it."),
+    },
+    "v7.5b": {
+        "file": "arc_submission_v7_5b.ipynb",
+        "env": {"ARC_AIF": "off", "ARC_DFS_BATCH": "2", "ARC_TASK_TIMEOUT": "1800", "ARC_N_EVAL": "0"},
+        "note": ("Isolates the batching. v7.1 with sorokin's 4-view grouping reverted to the aimo pair "
+                 "form, AIF still off. The restoration was credited with an eleven-point eval gain, but "
+                 "the recorded mechanism was pool coverage, 155 correct answers present in the beams "
+                 "against 105, and Section 5.7 measures 12.333 credits present in pool against 9.833 "
+                 "attained. Widening a pool the selector cannot rank is the paper's own documented "
+                 "failure mode, and pairs of 2 also double the granularity at which the cap can cut. "
+                 "Against v7.1's 30.56 this prices the batching on the hidden set alone."),
+    },
+    "v7.5c": {
+        "file": "arc_submission_v7_5c.ipynb",
+        "env": {"ARC_AIF": "full", "ARC_DFS_BATCH": "2", "ARC_TASK_TIMEOUT": "1800", "ARC_N_EVAL": "0"},
+        "note": ("Our builder reproducing the public notebook's behaviour exactly, both factors upstream "
+                 "at the cap both sides ran. This is a check on us, not on the method. If it lands near "
+                 "33.89 the pipeline is faithful and the deficit is entirely our two edits, so v7.5a and "
+                 "v7.5b price them. If it lands near 30 with the pending unmodified-fork control also "
+                 "near 30, then 33.89 does not reproduce on this account at all, the deficit was never "
+                 "ours, and the last week chased a ghost that the paper should record as such."),
     },
 }
 # The search-width arms (old v7.2 at floor 0.1, v7.3 at floor 0.35) were measured dead, the DFS floor
@@ -104,14 +148,13 @@ def rewire(text):
     text = text.replace(
         'model_name="%s",' % MODEL_DEFAULT,
         'model_name=os.environ.get("ARC_MODEL_PATH", "%s"),' % MODEL_DEFAULT)
-    # disable the AIF arm: on the 40-task eval slice it fast-pathed 12 tasks with zero correct,
-    # sacrificing the LLM pipeline on each. One neutered dict kills the early-exit, the beam
-    # pruning, and keeps the confidence print alive. Reverts behavior to sorokin's original.
-    # Strip the launch too, not just the result. Neutering the result left the thread pool spawning and
-    # the CPU analysis running on every task with its answer thrown away, which is waste on a shared CPU
-    # and a difference from the 33.89 public build that deletes the arm outright. The stub keeps the
-    # three downstream readers (the confidence print, expected_count, the early-exit test) valid, and
-    # expected_count of -1 keeps the object-count beam pruning permanently off.
+    # AIF arm, gated on ARC_AIF rather than deleted. The arm returns two independent things and
+    # v7.1 through v7.4 killed both with one stub. is_solved preempts the LLM search entirely and was
+    # measured harmful, 12 of 39 eval tasks fast-pathed with zero correct. expected_count only
+    # re-ranks beams by an object count read off the demonstrations, costs nothing, and was never
+    # measured on its own. Appendix F names that second half as one of exactly two channels that can
+    # beat the internal-ceiling theorem, since it reads the task through something other than the
+    # model's beliefs, so deleting it was the expensive half of a cheap decision.
     text = text.replace(
         "        # ================================================================\n"
         "        # LAUNCH AIF IN BACKGROUND THREAD\n"
@@ -130,8 +173,25 @@ def rewire(text):
         "        except Exception as e:\n"
         "            print(f\"[Rank {rank}] Failed to launch AIF: {e}\")\n"
         "            aif_future = None\n",
-        "        # AIF arm removed. It fast-pathed 12 of 39 tasks with zero correct on the eval slice,\n"
-        "        # so the arm is not launched at all and this stub stands in for its result.\n")
+        "        # off = arm never launched (the v7.1 default), prune = object-count signal with the\n"
+        "        # preemption suppressed, full = upstream including the fast path.\n"
+        '        _aif_mode = os.environ.get("ARC_AIF", "off")\n'
+        "        aif_future = None\n"
+        "        executor = None\n"
+        '        if _aif_mode != "off":\n'
+        "            executor = ThreadPoolExecutor(max_workers=1)\n"
+        "            try:\n"
+        "                raw_train_data = puzzle_ds.queries[key]['train']\n"
+        "                raw_test_input = puzzle_ds.queries[key]['test'][0]['input']\n"
+        "                aif_future = executor.submit(\n"
+        "                    run_aif_analysis,\n"
+        "                    raw_train_data,\n"
+        "                    raw_test_input\n"
+        "                )\n"
+        '                print(f"[Rank {rank}] AIF ({_aif_mode}) launched for {key}...")\n'
+        "            except Exception as e:\n"
+        '                print(f"[Rank {rank}] Failed to launch AIF: {e}")\n'
+        "                aif_future = None\n")
     text = text.replace(
         "        # ================================================================\n"
         "        # GET AIF RESULT (should be ready, runs <0.1s on CPU)\n"
@@ -143,11 +203,25 @@ def rewire(text):
         "            except Exception as e:\n"
         "                print(f\"[Rank {rank}] AIF retrieval error: {e}\")\n"
         "        executor.shutdown(wait=False)\n",
-        "        aif_result = {'confidence': 0.0, 'grid': None, 'expected_count': -1, 'is_solved': False}\n")
-    text = text.replace("from arc_aif import run_aif_analysis  # <-- NEW IMPORT\n", "")
-    text = text.replace("from concurrent.futures import ThreadPoolExecutor  # <-- NEW\n", "")
-    # restore sorokin's DFS batching. The aimo edit split his 4-view batches into pairs, halving
-    # decode throughput at zero semantic benefit. Same views, same order, grouped 4 per DFS call.
+        "        aif_result = {'confidence': 0.0, 'grid': None, 'expected_count': -1, 'is_solved': False}\n"
+        "        if aif_future is not None:\n"
+        "            try:\n"
+        "                aif_result = aif_future.result(timeout=1.0) or aif_result\n"
+        "            except Exception as e:\n"
+        '                print(f"[Rank {rank}] AIF retrieval error: {e}")\n'
+        "        if executor is not None:\n"
+        "            executor.shutdown(wait=False)\n"
+        '        if _aif_mode == "prune":\n'
+        "            aif_result = dict(aif_result, is_solved=False)\n"
+        "        # per-task telemetry, so a smoke run measures how often the prune is actually live\n"
+        "        # instead of us assuming it from the fast path's firing rate\n"
+        "        print(f\"[Rank {rank}] AIF mode={_aif_mode} count={aif_result.get('expected_count')} \"\n"
+        "              f\"solved={aif_result.get('is_solved')}\")\n")
+    # DFS batch width as an env knob. sorokin grouped 4 views per DFS call, the aimo edit split them
+    # into pairs. Restoring 4 was recorded as buying deeper search, but its measured effect was pool
+    # coverage (155 correct answers present in the beams against 105), and Section 5.7 shows coverage
+    # does not convert. It also halves the granularity at which the per-task cap can cut. Default
+    # stays 4, which is what v7.1 through v7.4 shipped.
     text = text.replace(
         "        batches = []\n"
         "        for test_id, subkeys in test_id_to_subkeys.items():\n"
@@ -161,24 +235,15 @@ def rewire(text):
         "            for offset in [10, 14]:\n"
         "                batches.append(subkeys[offset:offset+2])\n",
         "        batches = []\n"
+        '        _bw = int(os.environ.get("ARC_DFS_BATCH", "4"))\n'
         "        for test_id, subkeys in test_id_to_subkeys.items():\n"
-        "            batch = []\n"
-        "            for offset in [0, 4]:\n"
-        "                batch.extend(subkeys[offset:offset+2])\n"
-        "            batches.append(batch)\n"
-        "            batch = []\n"
-        "            for offset in [2, 6]:\n"
-        "                batch.extend(subkeys[offset:offset+2])\n"
-        "            batches.append(batch)\n"
+        "            for _pair in ([0, 4], [2, 6]):\n"
+        "                _h = [subkeys[_o:_o+2] for _o in _pair]\n"
+        "                batches.extend([_h[0] + _h[1]] if _bw == 4 else _h)\n"
         "        for test_id, subkeys in test_id_to_subkeys.items():\n"
-        "            batch = []\n"
-        "            for offset in [8, 12]:\n"
-        "                batch.extend(subkeys[offset:offset+2])\n"
-        "            batches.append(batch)\n"
-        "            batch = []\n"
-        "            for offset in [10, 14]:\n"
-        "                batch.extend(subkeys[offset:offset+2])\n"
-        "            batches.append(batch)\n")
+        "            for _pair in ([8, 12], [10, 14]):\n"
+        "                _h = [subkeys[_o:_o+2] for _o in _pair]\n"
+        "                batches.extend([_h[0] + _h[1]] if _bw == 4 else _h)\n")
     # Deployed selector as an env knob. The default stays kgmon, which is upstream's choice.
     # A 40-task read had kgmon's solved set as a strict subset of probmul's, three discordant tasks all
     # favouring probmul, and probmul weights each vote by confidence where kgmon only counts votes, so
@@ -382,6 +447,8 @@ config = code_cell(
     "#   ARC_RANK         LoRA rank (default 256)      ARC_MAXSEQ  training context (default 8192)\n"
     "#   ARC_LOSS_CUT     skip the search when training loss ends above this, 0 disables (v7.3: 0.05)\n"
     "#   ARC_GREEDY_FALLBACK  fill search-empty tasks with a greedy decode (v7.3: 1)\n"
+    "#   ARC_AIF          symbolic arm: off (default) | prune (count signal, no preemption) | full\n"
+    "#   ARC_DFS_BATCH    views per DFS call, 4 = sorokin (default), 2 = the aimo pair form\n"
     + ("".join('os.environ["%s"] = "%s"\n' % (k, v) for k, v in sorted(SPEC["env"].items()))
        or '# os.environ["ARC_DFS_FLOOR"]    = "0.1"\n'
           '# os.environ["ARC_TASK_TIMEOUT"] = "1200"\n')
@@ -389,11 +456,12 @@ config = code_cell(
     'print("MODEL ", os.environ["ARC_MODEL_PATH"], "exists:", os.path.isdir(os.environ["ARC_MODEL_PATH"]))\n'
     'print("DATA  ", os.environ["ARC_DATA_DIR"], "exists:", os.path.isdir(os.environ["ARC_DATA_DIR"]))\n'
     "# echo every knob so a smoke run proves the config landed instead of silently defaulting\n"
-    'print("CONFIG N_EVAL=%s RANK=%s MAXSEQ=%s TIMEOUT=%s DFS_FLOOR=%s LOSS_CUT=%s GFB=%s" % (\n'
+    'print("CONFIG N_EVAL=%s RANK=%s MAXSEQ=%s TIMEOUT=%s DFS_FLOOR=%s LOSS_CUT=%s GFB=%s AIF=%s BATCH=%s" % (\n'
     '    os.environ.get("ARC_N_EVAL", "40"), os.environ.get("ARC_RANK", "256"),\n'
     '    os.environ.get("ARC_MAXSEQ", "8192"), os.environ.get("ARC_TASK_TIMEOUT", "1800"),\n'
     '    os.environ.get("ARC_DFS_FLOOR", "0.2"), os.environ.get("ARC_LOSS_CUT", "0"),\n'
-    '    os.environ.get("ARC_GREEDY_FALLBACK", "0")))\n'
+    '    os.environ.get("ARC_GREEDY_FALLBACK", "0"), os.environ.get("ARC_AIF", "off"),\n'
+    '    os.environ.get("ARC_DFS_BATCH", "4")))\n'
     'assert os.path.isdir(os.environ["ARC_MODEL_PATH"]), "model not found under /kaggle/input, attach it"\n'
     'assert os.path.isdir(os.environ["ARC_DATA_DIR"]), "competition data not found, attach it"\n')
 
@@ -431,6 +499,65 @@ assert "start_time > 1800" not in alltext, "per-task cap still hardcoded"
 assert 'os.environ.get("ARC_GREEDY_FALLBACK"):' not in alltext, "truthy-string gate on the fill"
 assert alltext.count("ARC_LOSS_CUT") >= 1, "loss-cut gate missed"
 assert alltext.count("ARC_GREEDY_FALLBACK") >= 1, "greedy fallback missed"
+# the two bisection factors. Both arms must reach the solver, and the prune mode must actually
+# suppress the fast path rather than merely name it.
+assert 'os.environ.get("ARC_AIF"' in alltext, "ARC_AIF is echoed but never read by the solver"
+assert 'os.environ.get("ARC_DFS_BATCH"' in alltext, "ARC_DFS_BATCH is echoed but never read"
+assert "run_aif_analysis" in alltext, "AIF import stripped, the prune arm cannot run"
+assert alltext.count('_aif_mode = os.environ.get') == 1, "AIF launch gate missed, _aif_mode undefined"
+assert alltext.count('_aif_mode == "prune"') == 1, "prune mode does not suppress the fast path"
+assert "batches.append(subkeys[offset:offset+2])" not in alltext, "ungated batching form survived"
+
+# ---- behavioural self-test on the emitted batching. A replace that lands but computes the wrong
+# thing is precisely the failure that shipped three wrong caps, so execute the generated block at
+# both widths and check it against the two reference forms rather than trusting the patterns.
+_i = alltext.index('_bw = int(os.environ.get("ARC_DFS_BATCH"')
+_start = alltext.rindex("\n", 0, alltext.rindex("batches = []", 0, _i)) + 1
+_end = alltext.index("\n", alltext.index("batches.extend(", alltext.index("([8, 12], [10, 14])", _i))) + 1
+_block = textwrap.dedent(alltext[_start:_end])
+
+
+def _emitted(fixture, width):
+    os.environ["ARC_DFS_BATCH"] = str(width)
+    ns = {"os": os, "test_id_to_subkeys": fixture}
+    exec(_block, ns)
+    return ns["batches"]
+
+
+def _aimo_pairs(d):  # the upstream form ARC_DFS_BATCH=2 must reproduce exactly
+    b = []
+    for _, sk in d.items():
+        for o in [0, 4]:
+            b.append(sk[o:o + 2])
+        for o in [2, 6]:
+            b.append(sk[o:o + 2])
+    for _, sk in d.items():
+        for o in [8, 12]:
+            b.append(sk[o:o + 2])
+        for o in [10, 14]:
+            b.append(sk[o:o + 2])
+    return b
+
+
+def _sorokin_quads(d):  # the v7.1 grouping ARC_DFS_BATCH=4 must reproduce exactly
+    b = []
+    for pairs in (([0, 4], [2, 6]), ([8, 12], [10, 14])):
+        for _, sk in d.items():
+            for p in pairs:
+                b.append(sk[p[0]:p[0] + 2] + sk[p[1]:p[1] + 2])
+    return b
+
+
+_fix = {"0": ["a%d" % i for i in range(16)], "1": ["b%d" % i for i in range(16)]}
+assert _emitted(_fix, 2) == _aimo_pairs(_fix), "ARC_DFS_BATCH=2 does not reproduce the aimo pair form"
+assert _emitted(_fix, 4) == _sorokin_quads(_fix), "ARC_DFS_BATCH=4 does not reproduce v7.1's grouping"
+# whatever the width, the same 32 views must be searched, or the knob is changing coverage as well
+assert sorted(sum(_emitted(_fix, 2), [])) == sorted(sum(_emitted(_fix, 4), [])), \
+    "the two batch widths do not cover the same views"
+os.environ.pop("ARC_DFS_BATCH", None)
+print("batching self-test passed: %d pair-batches, %d quad-batches, same 32 views"
+      % (len(_emitted(_fix, 2)), len(_emitted(_fix, 4))))
+os.environ.pop("ARC_DFS_BATCH", None)
 
 json.dump(nb, open(DST, "w", encoding="utf-8"), indent=1)
 print("wrote", DST)

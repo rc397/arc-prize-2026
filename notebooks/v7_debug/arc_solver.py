@@ -1,5 +1,6 @@
 from unsloth import FastLanguageModel, UnslothTrainingArguments, UnslothTrainer
 from arc_loader import ArcDataset, QwenFormatter
+from arc_aif import run_aif_analysis  # <-- NEW IMPORT
 
 import gc
 import os
@@ -17,6 +18,7 @@ from contextlib import redirect_stdout, redirect_stderr
 from peft import get_peft_model_state_dict, set_peft_model_state_dict
 import bz2
 import pickle
+from concurrent.futures import ThreadPoolExecutor  # <-- NEW
 from scipy.ndimage import label  # <-- NEW for pruning
 
 logging.disable(logging.WARNING)
@@ -286,8 +288,25 @@ def worker(rank, queue, end_time):
         train_ds = puzzle_ds.augment(n=16, shfl_keys=True, seed=1)
         train_ds = train_ds.cut_to_len(formatter=formatter, name="text", max_len=max_seq_length)
 
-        # AIF arm removed. It fast-pathed 12 of 39 tasks with zero correct on the eval slice,
-        # so the arm is not launched at all and this stub stands in for its result.
+        # off = arm never launched (the v7.1 default), prune = object-count signal with the
+        # preemption suppressed, full = upstream including the fast path.
+        _aif_mode = os.environ.get("ARC_AIF", "off")
+        aif_future = None
+        executor = None
+        if _aif_mode != "off":
+            executor = ThreadPoolExecutor(max_workers=1)
+            try:
+                raw_train_data = puzzle_ds.queries[key]['train']
+                raw_test_input = puzzle_ds.queries[key]['test'][0]['input']
+                aif_future = executor.submit(
+                    run_aif_analysis,
+                    raw_train_data,
+                    raw_test_input
+                )
+                print(f"[Rank {rank}] AIF ({_aif_mode}) launched for {key}...")
+            except Exception as e:
+                print(f"[Rank {rank}] Failed to launch AIF: {e}")
+                aif_future = None
 
         # ================================================================
         # TRAINING PHASE (GPU busy for ~3.5 minutes)
@@ -314,6 +333,19 @@ def worker(rank, queue, end_time):
         final_loss = float(getattr(stats, "training_loss", 0.0) or 0.0)
 
         aif_result = {'confidence': 0.0, 'grid': None, 'expected_count': -1, 'is_solved': False}
+        if aif_future is not None:
+            try:
+                aif_result = aif_future.result(timeout=1.0) or aif_result
+            except Exception as e:
+                print(f"[Rank {rank}] AIF retrieval error: {e}")
+        if executor is not None:
+            executor.shutdown(wait=False)
+        if _aif_mode == "prune":
+            aif_result = dict(aif_result, is_solved=False)
+        # per-task telemetry, so a smoke run measures how often the prune is actually live
+        # instead of us assuming it from the fast path's firing rate
+        print(f"[Rank {rank}] AIF mode={_aif_mode} count={aif_result.get('expected_count')} "
+              f"solved={aif_result.get('is_solved')}")
 
         # ================================================================
         # EARLY EXIT: IF AIF SOLVED PERFECTLY AND ONLY ONE TEST CASE
@@ -348,24 +380,15 @@ def worker(rank, queue, end_time):
             test_id_to_subkeys[test_id].append(subkey)
 
         batches = []
+        _bw = int(os.environ.get("ARC_DFS_BATCH", "4"))
         for test_id, subkeys in test_id_to_subkeys.items():
-            batch = []
-            for offset in [0, 4]:
-                batch.extend(subkeys[offset:offset+2])
-            batches.append(batch)
-            batch = []
-            for offset in [2, 6]:
-                batch.extend(subkeys[offset:offset+2])
-            batches.append(batch)
+            for _pair in ([0, 4], [2, 6]):
+                _h = [subkeys[_o:_o+2] for _o in _pair]
+                batches.extend([_h[0] + _h[1]] if _bw == 4 else _h)
         for test_id, subkeys in test_id_to_subkeys.items():
-            batch = []
-            for offset in [8, 12]:
-                batch.extend(subkeys[offset:offset+2])
-            batches.append(batch)
-            batch = []
-            for offset in [10, 14]:
-                batch.extend(subkeys[offset:offset+2])
-            batches.append(batch)
+            for _pair in ([8, 12], [10, 14]):
+                _h = [subkeys[_o:_o+2] for _o in _pair]
+                batches.extend([_h[0] + _h[1]] if _bw == 4 else _h)
 
         model = FastLanguageModel.for_inference(model)
         _loss_cut = float(os.environ.get("ARC_LOSS_CUT", "0") or 0)
