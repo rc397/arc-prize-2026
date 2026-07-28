@@ -442,7 +442,7 @@ def worker(rank, queue, end_time):
                             pickle.dump(decoded_result, f)
 
         memory_allocated = torch.cuda.max_memory_allocated() // 1024**2
-        if os.environ.get("ARC_GREEDY_FALLBACK"):
+        if os.environ.get("ARC_GREEDY_FALLBACK", "0") not in ("", "0", "false", "False"):
             _done = {fn.split(".")[0] for fn in os.listdir(dir_outputs)}
             _missing = [k2 for k2 in sorted(puzzle_ds_multi.keys) if k2 not in _done]
             _fb_stop = start_time + int(os.environ.get("ARC_TASK_TIMEOUT", "1800")) + int(os.environ.get("ARC_GFB_BUDGET", "180"))

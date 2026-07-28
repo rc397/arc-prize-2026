@@ -271,7 +271,7 @@ def rewire(text):
     # tasks with no output file, so it cannot displace a searched answer.
     text = text.replace(
         '\n        print(f"[Rank {rank}] allocated {memory_allocated}MB for inference")',
-        '\n        if os.environ.get("ARC_GREEDY_FALLBACK"):\n'
+        '\n        if os.environ.get("ARC_GREEDY_FALLBACK", "0") not in ("", "0", "false", "False"):\n'
         '            _done = {fn.split(".")[0] for fn in os.listdir(dir_outputs)}\n'
         "            _missing = [k2 for k2 in sorted(puzzle_ds_multi.keys) if k2 not in _done]\n"
         '            _fb_stop = start_time + int(os.environ.get("ARC_TASK_TIMEOUT", "1800")) + int(os.environ.get("ARC_GFB_BUDGET", "180"))\n'
@@ -426,6 +426,9 @@ for knob, marker in (("ARC_TASK_TIMEOUT", 'os.environ.get("ARC_TASK_TIMEOUT"'),
                      ("ARC_MAXSEQ", 'os.environ.get("ARC_MAXSEQ"')):
     assert marker in alltext, "%s is echoed but never read by the solver" % knob
 assert "start_time > 1800" not in alltext, "per-task cap still hardcoded"
+# a knob whose "off" value is truthy is worse than no knob. "0" is a non-empty string, so the
+# greedy fill ran through the entire v7.4 control that was supposed to have it disabled.
+assert 'os.environ.get("ARC_GREEDY_FALLBACK"):' not in alltext, "truthy-string gate on the fill"
 assert alltext.count("ARC_LOSS_CUT") >= 1, "loss-cut gate missed"
 assert alltext.count("ARC_GREEDY_FALLBACK") >= 1, "greedy fallback missed"
 
