@@ -414,6 +414,7 @@ v7   & sorokin reproduction as ported (Section~\ref{sec:architects}) & 16.81 \\
 v7.1 & same pipeline with both port defects repaired   & 30.56 \\
 v7.2 & identical build, an accidental repeat run & \textbf{30.97} \\
 v7.3 & + loss-gated skip and greedy fill of empty slots & 28.61 \\
+v7.4 & cap wired to 1200, intended as a control, confounded by 24 unbudgeted fills & 29.44 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -474,8 +475,7 @@ writes the same test inline, the pattern never matched, and so every submission 
 onward ran the same hardcoded 1800-second cap while its configuration banner printed whichever value we
 had set. The two runs were therefore the identical build at the identical cap, and their 0.41-point spread
 is run-to-run variance, which is worth about one task credit on 240 tasks. That is the noise floor for
-every hidden comparison in this work, and having it changes how the rest of the table should be read. Appendix~
-ef{app:math} derives the
+every hidden comparison in this work, and having it changes how the rest of the table should be read. Appendix~\ref{app:math} derives the
 resolution limit that number instantiates. One further observation follows for
 anyone reading the leaderboard rather than the method. A single task credit separates an entire sixty-entry
 cluster, so on this board the cheapest available gain is not a better model but a better use of the twelve
@@ -495,30 +495,62 @@ skips the expensive search. And the time both changes reclaim becomes margin for
 knob already measured to buy a task credit. The next submission carries these as a scheduling variant of
 the unchanged pipeline.
 
-The public board then handed us one more controlled measurement, and it is the largest of the three. A
-public notebook restoring this same pipeline is byte-equivalent to our restored variant in every module,
-the loader, launcher, decoder and solver all cancel in diff once its removed symbolic arm and comment
-noise are set aside, yet it scores \textbf{33.89} where our submission of the same code at the same
-1200-second cap scored 30.56. Its kernel metadata names the only difference left. It mounts the original
-author's own dependency tree and model upload, where our builds mount a rebuilt wheel set whose pins
-predate the current execution image, and our own run logs had carried the tell throughout, a warning that
-compiled extensions were being skipped for a mismatched framework version. Identical code, weights, seeds
-and caps, submitted to the same hidden set from two software environments, differ by 3.33 points, about
-eight tasks. The dependency tree is a hyperparameter, and on this pipeline it is worth more than any
-method lever we measured this month. It also reframes the sixty-entry cluster at 30.97, ourselves
-included, as a population unknowingly running a numerically degraded environment. The engine lesson of
-Section~\ref{sec:engine} returns in its sharpest form, what carries the score is not only the method but
-the exact software it deploys on, and the next submission is rebased onto the 33.89 condition with the
-scheduler on top, so its delta attributes to the scheduler alone. That attribution did not survive either. The build in question
-scored 	extbf{28.61}, a regression, and the same audit that found the cap bug found it in this run too,
-so the comparison we had framed as identical code in two environments was in fact two different per-task
-caps as well. The dependency tree may still matter and we no longer have evidence that it does. What we
-have instead is a candidate mechanism that fits the whole table. On a 240-task rerun against a fixed
-twelve-hour wall, a looser per-task cap does not buy depth, it lets slow tasks consume the budget until
-the tail of the queue is dropped unstarted, and the public build we were chasing runs the tighter cap we
-had believed ourselves to be running. The next submission wires the knob for the first time and tests
-exactly that, and Appendix~
-ef{app:math} gives the allocation model behind the prediction.
+The public board then handed us one more measurement, and the story we told about it was wrong three
+times before it came out right. It is worth reporting in that order, because the error was not in any
+single reading but in a habit of attributing a gap to whatever we had most recently changed.
+
+A public notebook restoring this same pipeline scores \textbf{33.89} where our restoration scored 30.56.
+We first read the two builds as byte-equivalent in every module and attributed the gap to the only
+difference the kernel metadata showed, the dependency tree: it mounts the original author's own wheel
+set and model upload where ours mounts a rebuild whose pins predate the current execution image, and our
+run logs had carried a warning throughout that compiled extensions were being skipped for a mismatched
+framework version. That reading priced the software environment at 3.33 points and reframed the
+sixty-entry cluster at 30.97 as a population unknowingly running a degraded one. The next submission
+rebased onto that environment and scored \textbf{28.61}. The audit that followed found the per-task cap
+knob had never been wired, so the comparison had confounded the environment with the cap, and the
+environment claim was withdrawn for want of evidence rather than confirmed.
+
+The replacement candidate was the cap itself, on the argument that a looser per-task limit does not buy
+depth on a 240-task rerun but lets slow tasks eat the wall until the queue tail is dropped unstarted. It
+had one fact behind it, that the public build ran the tighter 1200-second cap we had wrongly believed
+ourselves to be running. That fact is false. The public notebook forks the community port, whose solver
+hardcodes 1800, and the wiring fault means every submission of ours ran 1800 as well. The two sides
+agreed on the cap all along. The build sent to test the cap therefore tested a difference that did not
+exist, ran 1200 against the public build's 1800, and was not the matched control its own header claimed.
+It scored \textbf{29.44}.
+
+What survives is narrower and better posed. Reading the diff module by module rather than by metadata,
+the loader is byte-identical, the decoder differs only in a selector default that resolves to upstream's
+own choice and a measurement dump gated off, the task filter collapses to the identical loop under
+rerun mode, and the worker count resolves to the same four on the contest node. Two differences remain,
+both introduced by our restoration and both in the solver: we deleted the port's symbolic arm, and we
+regrouped its two-view search batches into fours. On the public evaluation slice that pair was worth
+eleven points in our favour, 16.2 to 27.2, which is why it was never revisited. On the hidden set the
+same pair sits on the wrong side of a 3.33-point deficit. The ordering inverts across the public-hidden
+boundary, which is this project's recurring failure and is treated as such in
+Section~\ref{sec:lessons} rather than explained away here.
+
+The symbolic arm repays a closer look than we gave it, because it returns two things and we removed
+both with one stub. One is a solved flag that preempts the whole learned search, and that half is
+measured harmful, taking 12 of 39 slice tasks with nothing correct to show. The other is an object
+count read off the demonstration pairs, which never preempts anything and only re-ranks the beams the
+search already produced. That half was never measured on its own, and it is precisely the kind of
+signal Appendix~\ref{app:math} identifies as able to exceed the ceiling of
+Section~\ref{sec:selection}, since it reads the task through an execution against the demonstrations
+rather than through the model's own beliefs. We deleted the one component whose form the theory says
+can beat the selector, as collateral damage from a decision about a different component that happened
+to share a return value. The batching change deserves the symmetric scepticism: its recorded benefit
+was candidates present in the beams, 155 against 105, and Section~\ref{sec:selection} measures 12.333
+credits present in pool against 9.833 attained, so a wider pool the selector cannot rank is this
+paper's own documented failure mode rather than evidence of a deeper search.
+
+Three builds are staged to price this, each moving one factor at the 1800-second cap both sides ran.
+One restores the object-count signal alone and keeps our batching, one reverts the batching alone, and
+one runs both factors upstream and so tests our build process rather than the method. Section
+\ref{sec:limits} records that none of the three has returned at the time of writing, and the prediction
+registered before they run is that the symbolic signal carries most of the gap. Appendix~\ref{app:math}
+gives the allocation model that the withdrawn cap argument rested on, which remains correct as
+mathematics and is now simply attached to no observed effect.
 
 \subsection{The engine speedup}
 The $13\times$ decode improvement from changing engines (Section~\ref{sec:engine},
@@ -737,6 +769,22 @@ largest grids where the small proposer exhausts the card before it can search. T
 therefore real but bounded by model scale on one GPU, the same wall the refinement family hits from the
 other side. The lever exists but needs a larger model to grip, which is exactly the move the full contest
 hardware allows (Section~\ref{sec:scale}).
+
+Three submissions are open at the time of writing, and they are the reason this section ends without a
+number. Section~\ref{sec:architects} narrows the gap between our restoration and the stronger public
+build to two changes we made in the solver, deleting its symbolic arm and regrouping its search batches,
+and the three builds move one factor each at a matched cap. The first is the one this section predicts
+should matter. The argument above says the next lever must be an external signal valid where the base is
+lost, and reports that our own attempt at it, a 1.5B model emitting checkable programs, failed on scale.
+The symbolic arm is a far weaker version of the same idea that costs no GPU at all: it reads an object
+count off the demonstration pairs on the CPU while the adapter trains, and that count re-ranks the
+beams. We removed it for a defect in a different half of the same component, its habit of preempting the
+learned search outright, and never measured the ranking half alone. If restoring it moves the hidden
+score, the lesson is not that the symbolic arm is good but that we discarded an external signal for
+reasons that applied only to the part of it we happened to measure, having argued two pages earlier that
+an external signal was the thing most worth having. We record the prediction here so it cannot be
+adjusted after the fact, and we expect the reader to weigh it against the fact that every previous
+prediction in this table about a public-validated lever has been wrong in the same direction.
 
 Finally, the significance of the TTT lift is directional
 rather than conclusive (Appendix~\ref{app:results}). A full-eval paired run is the obvious next
@@ -1096,8 +1144,7 @@ right rule that clever aggregation could denoise, it holds the wrong rule, and e
 expresses that same wrong rule. This is the bimodality of Section~\ref{sec:scale} surfacing at cell level,
 and it relocates the leak from a selection problem to a training problem. The information needed to pick
 the correct grid is absent from the pool and from the model that produced it, so any repair has to change
-what the model believes, not how its outputs are ranked. Appendix~
-ef{app:math} states this as a
+what the model believes, not how its outputs are ranked. Appendix~\ref{app:math} states this as a
 dominance proposition over the pool's statistics and verifies its premise on all four missed outputs.
 
 \subsection{Revisiting the big-grid wall with the host's memory}
@@ -1646,10 +1693,20 @@ contributes zero, so $S(C)$ is in general non-monotone and its maximizer can be 
 never binds, larger $C$ is weakly better, which is why a 120-task public run cannot exhibit the effect
 while a 240-task hidden run can, and why the public and hidden reads of a cap change may legitimately
 disagree. The measured inputs are a $\tau$ range of 174 to 1889 seconds on the 40-task slice, a deployed
-cap of 1800 on every submission through the wiring fault of Section~\ref{sec:results}, and a cap of 1200
-in the strongest public build. Whether the wall binds on the hidden set is not observable from outside,
-the model predicts sensitivity to $C$ exactly when $\sum_i \min(\tau_i, C)$ approaches $T$, and the
-control submission is the experiment that decides it. One operational corollary came from the same smoke
+cap of 1800 on every submission through the wiring fault of Section~\ref{sec:results}. The strongest
+public build was believed to run 1200, which is what made the cap the leading candidate for the gap;
+it forks a source that hardcodes 1800, so both sides ran the same cap and the candidate is withdrawn.
+The model below stands as mathematics and is reported because the cap remains a real lever on a
+240-task queue, not because any measured gap is now attributed to it. Whether the wall binds on the
+hidden set is not observable from outside,
+the model predicts sensitivity to $C$ exactly when $\sum_i \min(\tau_i, C)$ approaches $T$. The
+submission built to decide it did not. It moved the cap from 1800 to 1200 and lost 1.53 points, four
+credits against a one-credit noise floor, which reads as a violation of the flat-plateau prediction
+until one notices that the same run also executed 24 unbudgeted greedy fills through a gate that
+treated the string \texttt{"0"} as true. Two factors moved, so the experiment is void rather than
+adverse, and the prediction stands untested. We report it as void because a confounded run that
+happens to point the way our model does not is exactly the run one is tempted to quietly keep.
+One operational corollary came from the same smoke
 that validated the cap. Any work placed after the capped loop re-enters as unaccounted growth in
 $\tau_i$, the greedy fallback measured about 80 seconds per fill past the cap, so post-loop work must
 carry a budget of its own. Figure~\ref{fig:cap} draws the model against the measured timings.
@@ -1661,9 +1718,10 @@ carry a budget of its own. Figure~\ref{fig:cap} draws the model against the meas
 task timings and the credits the measurement run harvested. Under the public-eval timing distribution
 the wall never binds, the queue is always fully reached, and the projected score is flat from a cap of
 1200 upward, so the model itself predicts the cap change is neutral unless the hidden tasks run
-meaningfully slower than the public ones. That is a pre-registered prediction, not a hope, and the
-control submission is its test. The projection carries stated limits, forty samples, right-censoring at
-the deployed 1800, and yield only on completed searches.}
+meaningfully slower than the public ones. That is a pre-registered prediction, not a hope. Its intended
+test was voided by a second uncontrolled change in the same run and it remains open. The projection
+carries stated limits, forty samples, right-censoring at the deployed 1800, and yield only on completed
+searches.}
 \label{fig:cap}
 \end{figure}
 
