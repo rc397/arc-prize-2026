@@ -1,0 +1,24 @@
+Paste into a FRESH Kaggle notebook in this order, one cell each.
+The first is a Markdown cell, every other is Code.
+Files marked SKIP execute nothing (every non-blank line is a comment, or the cell is
+empty) and can be left out. They are kept here only so the numbering matches the
+notebook.
+
+01_intro.md                        markdown    12 lines
+02_config.py                       code        52 lines
+03_endtime.py                      code         2 lines
+04_uninstall_tf.py                 code         1 lines
+05_install_unsloth.py              code        14 lines
+06_arc_loader.py                   code       281 lines
+07_arc_decoder.py                  code       138 lines
+08_SKIP_commented_arc_aif.py       code       175 lines   <- skip
+09_arc_aif.py                      code       469 lines
+10_SKIP_commented_arc_solver.py    code       470 lines   <- skip
+11_arc_solver.py                   code       494 lines
+12_run.py                          code        51 lines
+13_starter.py                      code        61 lines
+14_endtime.py                      code         1 lines
+15_scoring.py                      code        27 lines
+16_SKIP_empty.py                   code         0 lines   <- skip
+
+13 cells to paste, 3 skippable (645 lines saved).
