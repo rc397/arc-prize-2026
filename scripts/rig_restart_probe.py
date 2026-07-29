@@ -223,7 +223,11 @@ def build_model(tokenizer):
 def train_one(peft_model, tokenizer, collator, formatter, train_ds):
     base = peft_model.get_base_model()
     base.config.use_cache = False
-    base.gradient_checkpointing_enable()
+    # Reentrant checkpointing forks and restores the CUDA RNG so recomputation replays it, and on
+    # this torch build that restore faults with an illegal memory access before the first step
+    # completes. The non-reentrant implementation uses saved-tensor hooks instead and does not
+    # touch the device generator, which is also the variant torch now recommends.
+    base.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
     base.enable_input_require_grads()
     peft_model.train()
 

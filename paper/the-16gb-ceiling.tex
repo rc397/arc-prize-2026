@@ -1234,6 +1234,94 @@ from unaffordable inside a contest budget to ordinary. We have not measured that
 the obvious next probe rather than as a result, and we leave the streaming numbers above as they were
 measured.
 
+\subsection{What the budget is actually spent on, and a policy the pipeline cannot express}
+\label{sec:restart}
+Every lever in Section~\ref{sec:selection} operates on candidates the system already produced, and that
+section closes them by proof. The measurement run's own timing log points somewhere else. Instrumenting
+each of the forty tasks with its wall time, final training loss and outcome gives Table~\ref{tab:budget},
+and three readings follow that no selector can act on.
+
+\begin{table}[H]
+\centering
+\caption{Where the 24821 task-seconds of the measurement run went. Outcomes are exclusive: \emph{solved}
+means the deployed selector returned the truth, \emph{in pool} means the truth was decoded but not
+selected, \emph{miss} means it was never decoded, \emph{empty} means the search returned nothing at all.}
+\label{tab:budget}
+\begin{tabular}{lrrrr}
+\toprule
+outcome & tasks & share of budget & mean seconds & mean final loss \\
+\midrule
+miss    & 25 & 69.3\% & 688 & 0.0203 \\
+solved  & 11 & 23.4\% & 528 & 0.0076 \\
+in pool & 3  & 5.8\%  & 481 & 0.0228 \\
+empty   & 1  & 1.5\%  & 367 & 0.0172 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+First, the search is not time-starved, it is capability-starved. Sixty-two percent of tasks never
+produce the correct grid under any of the sixteen views, and they consume sixty-nine percent of the
+budget doing it. Second, final training loss does not separate the outcomes. Solved tasks span 0.00063
+to 0.02531 and unsolved tasks span 0.00269 to 0.09104, overlapping across almost their whole range, so
+the natural progress signal is not informative enough to gate on, which is also the retrospective
+explanation for why the loss-cut scheduler rule of Section~\ref{sec:phantom} did not help. Third, and
+most usable, solves land early. The eleven solved tasks finished at 316, 316, 346, 363, 456, 491, 528,
+547, 581, 742 and 1118 seconds. The slowest solve of the entire run arrived at 1118 seconds, while the
+four tasks that ran past 1200 seconds consumed 26.3\% of the budget and returned nothing at all.
+
+A cap at 1200 seconds therefore costs zero measured solves and frees about 7800 seconds per worker
+against a 42480-second wall, roughly eighteen percent. Decide-early, heavy-tailed, and with no usable
+progress signal is precisely the regime in which restart theory says a hard cutoff plus a fresh attempt
+dominates waiting, and Appendix~\ref{app:math} already derives the fixed-cutoff objective for exactly
+this queue. We derived the mathematics and never applied the policy, which is the same failure this
+paper records elsewhere in a different costume.
+
+The proposal is to cap hard and spend the reclaimed time on a second independent adapter for tasks that
+missed, unioning the candidate pools. Seven thousand eight hundred seconds per worker buys roughly
+fifteen restarts each, sixty across the node, against about one hundred and fifty misses on a 240-task
+set. Whether that is worth anything depends entirely on one quantity we do not have: whether a second
+independent run fails the same tasks.
+
+Here the pipeline turns out to forbid its own experiment. Every stochastic choice in the deployed solver
+is seeded by a constant: the adapter initialiser at 42, the trainer at 42, the training augmentation
+draw at 1, and the evaluation augmentation draw at 2. Rerunning a task therefore reproduces the same
+adapter bit for bit, and a restart in the naive sense returns the identical pool. The lever exists only
+if the training augmentation seed is varied, which changes which sixteen of the dihedral-and-colour
+permutation space the adapter ever sees, and that is a genuinely different training set for the same
+task. A determinism that reads as good hygiene is, for this purpose, the thing standing in the way.
+
+We built the probe that answers it. It trains the deployed configuration on the same task under three
+different augmentation seeds and records, per test output, whether the truth is present in the decoded
+pool, so the comparison is union against single. The two hypotheses are far apart and easy to separate:
+at the measured single-seed rate, three independent runs would place the truth in the union pool for
+about sixty percent of outputs where three perfectly correlated ones would stay at twenty-seven. At the
+time of writing the probe has produced no completed cell, and we report the argument without the number
+rather than the other way around.
+
+Porting the deployed solver to a current software stack surfaced a portability result worth more than
+the probe, and we are careful below to say exactly how far it is established. The depth-first search
+recurses with a single key-value cache object and calls the model repeatedly inside a loop, passing that
+same cache each time. That is correct only if a forward pass leaves its input cache untouched, which was
+true of the legacy tuple interface the pipeline was written against, where the returned cache was a new
+object. Current library versions replaced it with cache objects that append in place. On those versions
+the second branch of every search node would continue from an already-extended cache, so positions
+advance past what the cache holds and the search explores from the wrong prefix. Restoring the original
+behaviour needs only a truncation back to the branch point before each call, after which the algorithm
+is unchanged, and that is what our port does.
+
+The status of this is an inspection result, not a measured one. Our own run faults before reaching the
+decoder at all, for an unrelated reason in the training path, so we have observed the incompatibility in
+the code and the interface change rather than in a failure we reproduced end to end. We say so because
+the alternative is the mistake of Section~\ref{sec:phantom}, where a plausible mechanism was fitted to
+an effect nobody had confirmed. What is solid is the dependency itself: the pipeline every entry in the
+thirty-point cluster is running relies on a deprecated interface contract, that reliance is invisible in
+the notebook, it produces no warning, and it is held in place only by the competition image's pinned
+versions. If that image moves, the failure is not a crash in the general case but a search proceeding
+from a corrupted prefix, which would surface as a quiet drop in solve rate that no log would explain.
+A dependency tree really can be worth points, which Section~\ref{sec:phantom} claimed on bad evidence
+and withdrew. This is what a defensible version looks like, and it is offered as a specific mechanism
+with a stated failure mode, still awaiting its own control.
+
 \section{Conclusion}
 \label{sec:conclusion}
 The 2025 winning recipe survives a single 16~GB consumer GPU, but only after the inference engine is
