@@ -24,6 +24,13 @@ checkpointing is forced on where deployment leaves it off, which costs speed and
 batches run two views at a time rather than four, which the builder's own self-test proves covers the
 identical thirty-two views.
 
+One caveat to carry into any writeup. The base sets tie_word_embeddings, so embed_tokens and lm_head
+share a weight, and peft warns when both are adapted; Unsloth handles that pairing itself and plain peft
+does not. Deployment adapts both, so this keeps both, and the comparison stays internally valid because
+every seed runs the identical setup. It does mean the absolute solve rate here is not directly
+comparable to a Kaggle number, only seed against seed. The same applies if the adapter degrades to the
+seven-module tier under memory pressure, which the summary detects and refuses to compare across.
+
 One measurement is omitted deliberately. The deployed selector's score_aug term needs a second forward
 pass per candidate under fresh augmentations, which doubles the cost and only affects RANKING. Since the
 pool analysis already closes selection by proof, the primary metric here is whether the truth is present
@@ -46,8 +53,11 @@ import typing
 from collections import defaultdict
 
 BASE = r"D:\arc"
-REPO = r"D:\ARC_AGI-2,3"
-V7 = os.path.join(REPO, "notebooks", "v7_debug")
+# runs on the rig (D:\arc) or from a laptop checkout, so resolve rather than assume
+V7 = next((p for p in (os.path.join(BASE, "notebooks", "v7_debug"),
+                       os.path.join(r"D:\ARC_AGI-2,3", "notebooks", "v7_debug"))
+           if os.path.isdir(p)), None)
+assert V7, "v7_debug modules not found, sync them to D:\\arc\\notebooks\\v7_debug"
 sys.path.insert(0, V7)
 
 N_TASKS = int(sys.argv[1]) if len(sys.argv) > 1 else 20
@@ -55,7 +65,9 @@ K_SEEDS = int(sys.argv[2]) if len(sys.argv) > 2 else 3
 
 MODEL_DIR = os.path.join(BASE, "models", "kagglehub", "models", "sorokin",
                          "qwen3_4b_grids15_sft139", "transformers", "bfloat16", "1")
-DATA_DIR = os.path.join(BASE, "data")
+DATA_DIR = next((p for p in (os.path.join(BASE, "data", "kaggle"), os.path.join(BASE, "data"))
+                 if os.path.isfile(os.path.join(p, "arc-agi_evaluation_challenges.json"))), None)
+assert DATA_DIR, "evaluation challenges not found under D:\\arc\\data"
 EXP = os.path.join(BASE, "experiments")
 STATUS = os.path.join(BASE, "eval_status_restart.json")
 RESULTS = os.path.join(EXP, "restart_probe.jsonl")
@@ -116,23 +128,24 @@ def heartbeat(phase, extra=""):
     os.replace(tmp, STATUS)
 
 
+# The adapter itself fits at 8.87 GB with all nine targets, but its 530M trainable parameters carry
+# AdamW moments and gradients that only allocate on the first training step, which is where 16GB runs
+# out. So the tier is global and degrades on the first OOM ANYWHERE, not just at adapter creation, and
+# every record carries the tier it ran under. The summary refuses to compare across tiers.
+TIERS = [("full", TARGETS), ("no-embed", TARGETS[:7])]
+TIER_IDX = [0]
+
+
 def build_model(tokenizer):
-    """Load the base and attach a fresh deployed-spec adapter. Degrades once on OOM and says so."""
+    """Load the base and attach a fresh adapter at the current global tier."""
+    tier, targets = TIERS[TIER_IDX[0]]
     model = AutoModelForCausalLM.from_pretrained(MODEL_DIR, dtype=torch.bfloat16,
                                                  attn_implementation="sdpa")
     model.to("cuda")
-    for tier, targets in (("full", TARGETS), ("no-embed", TARGETS[:7])):
-        try:
-            torch.cuda.empty_cache()
-            peft_model = get_peft_model(model, LoraConfig(
-                r=RANK, lora_alpha=ALPHA, lora_dropout=DROPOUT, target_modules=targets,
-                bias="none", use_rslora=True, task_type="CAUSAL_LM"))
-            return peft_model, tier
-        except torch.cuda.OutOfMemoryError:
-            print("  adapter tier %s did not fit, degrading" % tier, flush=True)
-            gc.collect()
-            torch.cuda.empty_cache()
-    raise RuntimeError("no adapter tier fits this card")
+    peft_model = get_peft_model(model, LoraConfig(
+        r=RANK, lora_alpha=ALPHA, lora_dropout=DROPOUT, target_modules=targets,
+        bias="none", use_rslora=True, task_type="CAUSAL_LM"))
+    return peft_model, tier
 
 
 def train_one(peft_model, tokenizer, collator, formatter, train_ds):
@@ -157,9 +170,13 @@ def train_one(peft_model, tokenizer, collator, formatter, train_ds):
         for b in batches:
             batch = collator([b])
             batch = {k: v.to("cuda") for k, v in batch.items()}
+            # forward AND backward must sit inside the same backend context. Gradient checkpointing
+            # replays the forward during backward, and if that replay picks a different kernel it
+            # saves a different number of tensors and torch raises CheckpointError. rig_attnprobe.py
+            # had this right by keeping the whole step in one context.
             with sdpa_kernel(SDPBackend.CUDNN_ATTENTION):
                 loss = peft_model(**batch).loss
-            loss.backward()
+                loss.backward()
             torch.nn.utils.clip_grad_norm_(params, GRAD_CLIP)
             opt.step()
             sched.step()
@@ -274,38 +291,53 @@ def main():
             if (key, seed) in done:
                 continue
             heartbeat("cell", "%s seed%d" % (key, seed))
-            t0 = time.time()
-            rec = {"task": key, "seed": seed}
-            peft_model = None
-            try:
-                torch.manual_seed(seed)        # LoRA init, deployment fixes this at 42
-                torch.cuda.empty_cache()
-                torch.cuda.reset_peak_memory_stats()
-                peft_model, tier = build_model(tokenizer)
-                rec["tier"] = tier
+            rec = None
+            for attempt in (0, 1):            # a second pass only happens after a tier degrade
+                t0 = time.time()
+                rec = {"task": key, "seed": seed}
+                peft_model = None
+                try:
+                    torch.manual_seed(seed)    # LoRA init, deployment fixes this at 42
+                    torch.cuda.empty_cache()
+                    torch.cuda.reset_peak_memory_stats()
+                    peft_model, tier = build_model(tokenizer)
+                    rec["tier"] = tier
 
-                puzzle_ds = arc.change_keys([key])
-                # THE varied axis: which sixteen augmentations the adapter trains on
-                train_ds = puzzle_ds.augment(n=16, shfl_keys=True, seed=seed)
-                train_ds = train_ds.cut_to_len(formatter=formatter, name="text", max_len=MAXSEQ)
+                    puzzle_ds = arc.change_keys([key])
+                    # THE varied axis: which sixteen augmentations the adapter trains on
+                    train_ds = puzzle_ds.augment(n=16, shfl_keys=True, seed=seed)
+                    train_ds = train_ds.cut_to_len(formatter=formatter, name="text", max_len=MAXSEQ)
 
-                rec["train_loss"] = train_one(peft_model, tokenizer, collator, formatter, train_ds)
-                rec["train_s"] = round(time.time() - t0, 1)
+                    rec["train_loss"] = train_one(peft_model, tokenizer, collator, formatter, train_ds)
+                    rec["train_s"] = round(time.time() - t0, 1)
 
-                pool, trunc = decode_pool(peft_model, tokenizer, formatter, lifted, puzzle_ds,
-                                          t0 + DECODE_DEADLINE)
-                rec["truncated"] = trunc
-                rec["outputs"] = grade(pool, labels)
-                rec["peak_gb"] = round(torch.cuda.max_memory_allocated() / 1024 ** 3, 2)
-                rec["wall_s"] = round(time.time() - t0, 1)
-                rec["ok"] = True
-            except Exception as e:
-                rec["ok"] = False
-                rec["error"] = "%s %s" % (type(e).__name__, str(e).replace("\n", " ")[:200])
-            finally:
-                del peft_model
-                gc.collect()
-                torch.cuda.empty_cache()
+                    pool, trunc = decode_pool(peft_model, tokenizer, formatter, lifted, puzzle_ds,
+                                              t0 + DECODE_DEADLINE)
+                    rec["truncated"] = trunc
+                    rec["outputs"] = grade(pool, labels)
+                    rec["peak_gb"] = round(torch.cuda.max_memory_allocated() / 1024 ** 3, 2)
+                    rec["wall_s"] = round(time.time() - t0, 1)
+                    rec["ok"] = True
+                except torch.cuda.OutOfMemoryError as e:
+                    rec["ok"] = False
+                    rec["error"] = "OOM at tier %s" % TIERS[TIER_IDX[0]][0]
+                    if attempt == 0 and TIER_IDX[0] + 1 < len(TIERS):
+                        TIER_IDX[0] += 1
+                        print("  OOM, degrading global tier to %s and retrying"
+                              % TIERS[TIER_IDX[0]][0], flush=True)
+                        del peft_model
+                        peft_model = None
+                        gc.collect()
+                        torch.cuda.empty_cache()
+                        continue
+                except Exception as e:
+                    rec["ok"] = False
+                    rec["error"] = "%s %s" % (type(e).__name__, str(e).replace("\n", " ")[:200])
+                finally:
+                    del peft_model
+                    gc.collect()
+                    torch.cuda.empty_cache()
+                break
 
             with open(RESULTS, "a") as f:
                 f.write(json.dumps(rec, default=str) + "\n")
@@ -326,6 +358,28 @@ def summarize():
     rows = [r for r in rows if r.get("ok")]
     if not rows:
         print("no completed cells")
+        return
+    # a mid-run tier degrade changes the adapter, so comparing across tiers would attribute a
+    # capacity difference to seed variance. Keep only the tier with the most complete coverage.
+    tiers = defaultdict(list)
+    for r in rows:
+        tiers[r.get("tier", "?")].append(r)
+    if len(tiers) > 1:
+        best = max(tiers, key=lambda t: len(tiers[t]))
+        print("mixed tiers present %s, restricting to %r (%d of %d cells)"
+              % ({k: len(v) for k, v in tiers.items()}, best, len(tiers[best]), len(rows)))
+        rows = tiers[best]
+    # a task is only comparable if every seed of it completed
+    per_task = defaultdict(set)
+    for r in rows:
+        per_task[r["task"]].add(r["seed"])
+    full = {t for t, s in per_task.items() if len(s) == len({r["seed"] for r in rows})}
+    dropped = len(per_task) - len(full)
+    if dropped:
+        print("dropping %d task(s) that did not complete every seed" % dropped)
+    rows = [r for r in rows if r["task"] in full]
+    if not rows:
+        print("no task completed all seeds yet")
         return
 
     by_seed = defaultdict(dict)          # seed -> output key -> in_pool
