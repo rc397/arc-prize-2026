@@ -119,6 +119,56 @@ from arc_loader import ArcDataset, QwenFormatter                       # noqa: E
 from arc_decoder import score_kgmon                                    # noqa: E402
 
 
+def encoder_for(tokenizer):
+    """Return an exact encoder for this prompt format, because the shipped tokenizer is not one.
+
+    The model's tokenizer is WordLevel with no merges over a 16-token vocabulary, and its
+    pre-tokenizer cannot reach the entries 'user' (11) and 'assistant' (12): tokenizer.encode("user")
+    returns the empty list, and "<|im_start|>user\\n" and "<|im_start|>assistant\\n" both encode to
+    [14, 10], indistinguishable. The completion-only collator keys on exactly 11 and 12 to find the
+    assistant spans, so with this tokenizer every label stays -100, the loss is NaN over zero
+    targets, and the gradient norm is 0. Measured: four training rows, zero supervised labels,
+    NaN loss at every rank and both optimizers.
+
+    Kaggle does not hit this. paper/data/task_timing.csv records finite converged losses from the
+    deployed run, so there the collator does find spans, which fixes the intended tokenization:
+    "<|im_start|>user\\n" is [im_start, user, newline]. This builds exactly that, taking every id
+    from the model's own vocabulary rather than hardcoding, and the round-trip assertion below
+    checks the result decodes back to the original text.
+    """
+    v = tokenizer.get_vocab()
+    need = ["<|im_start|>", "<|im_end|>", "user", "assistant"]
+    missing = [t for t in need if t not in v]
+    assert not missing, "vocabulary lacks %s, this encoder does not apply" % missing
+    nl = next((i for t, i in v.items() if tokenizer.convert_tokens_to_string([t]) == "\n"), None)
+    assert nl is not None, "no newline token in the vocabulary"
+    digits = {str(d): v[str(d)] for d in range(10)}
+    parts = [("<|im_start|>user\n", [v["<|im_start|>"], v["user"], nl]),
+             ("<|im_start|>assistant\n", [v["<|im_start|>"], v["assistant"], nl]),
+             ("<|im_end|>", [v["<|im_end|>"]])]
+
+    def encode(text):
+        ids, i = [], 0
+        while i < len(text):
+            for lit, seq in parts:
+                if text.startswith(lit, i):
+                    ids += seq
+                    i += len(lit)
+                    break
+            else:
+                c = text[i]
+                if c in digits:
+                    ids.append(digits[c])
+                elif c == "\n":
+                    ids.append(nl)
+                else:
+                    raise ValueError("unencodable character %r at %d" % (c, i))
+                i += 1
+        return ids
+
+    return encode
+
+
 def data_dir():
     """Resolved lazily so the offline stages can import this module without the rig's data tree."""
     d = next((p for p in (os.path.join(BASE, "data", "kaggle"), os.path.join(BASE, "data"))
@@ -386,8 +436,19 @@ def train_one(peft_model, tokenizer, collator, formatter, train_ds, deadline=Non
     peft_model.train()
 
     rows = train_ds.as_list(formatter)
-    batches = [{"input_ids": tokenizer(r["text"], return_tensors=None)["input_ids"][:MAXSEQ]}
-               for r in rows]
+    # cut_to_len drops demonstration pairs from the front until the text fits, and if MAXSEQ is
+    # small enough it drops them all, after which fmt_train indexes an empty list and the failure
+    # surfaces as an IndexError deep in the loader. Fail here with a legible reason instead.
+    assert rows, ("cut_to_len left no training examples at MAXSEQ=%d; the cap is below this task's "
+                  "shortest single demonstration pair" % MAXSEQ)
+    enc = encoder_for(tokenizer)
+    batches = [{"input_ids": enc(r["text"])[:MAXSEQ]} for r in rows]
+    # zero supervision produces a NaN loss over no targets rather than an error, which is how the
+    # broken tokenization stayed invisible. Refuse to train on it.
+    probe = collator([batches[0]])
+    assert int((probe["labels"] != -100).sum()) > 0, (
+        "collator produced no supervised labels; the encoder is not emitting the user/assistant "
+        "control ids the completion-only mask keys on")
     # max_batches is for the smoke stages only. The schedule length follows it so a reduced run
     # still sees a complete warmup-and-decay curve rather than only its opening.
     if max_batches:
@@ -440,6 +501,7 @@ def decode_pool(peft_model, tokenizer, formatter, lifted, puzzle_ds, deadline):
     base.gradient_checkpointing_disable()
     peft_model.eval()
 
+    enc = encoder_for(tokenizer)
     max_new_tokens = formatter.max_new_tokens()
     multi = puzzle_ds.split_multi_replies()
     eval_ds = multi.augment(n=2, seed=2)
@@ -466,7 +528,7 @@ def decode_pool(peft_model, tokenizer, formatter, lifted, puzzle_ds, deadline):
             if time.time() > deadline:
                 truncated = True
                 break
-            tokens = [tokenizer.encode(eval_ds.get(sk, formatter)["input"]) for sk in subkeys]
+            tokens = [enc(eval_ds.get(sk, formatter)["input"]) for sk in subkeys]
             with sdpa_kernel(SDPBackend.CUDNN_ATTENTION):
                 dfs_result = run_deep(lifted["inference_turbo_dfs"],
                                       peft_model, tokens, max_new_tokens, max_score, deadline)

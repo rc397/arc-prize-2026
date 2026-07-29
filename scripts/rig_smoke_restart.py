@@ -94,6 +94,23 @@ def stage_s0():
     check("collator.masks_completion_only", lab == want, "got %s" % lab)
     check("collator.some_supervision", any(x != -100 for x in lab))
 
+    # The shipped tokenizer cannot emit the control ids the collator keys on: it is WordLevel with no
+    # merges, and encode("user") returns []. Both turn markers collapse to [im_start, newline], so
+    # every label stays masked and the loss is NaN over zero targets. This is the regression guard.
+    check("tokenizer.cannot_reach_controls", tok.encode("user") == [],
+          "shipped tokenizer drops it, which is why the exact encoder exists")
+    enc = P.encoder_for(tok)
+    sample = "<|im_start|>user\n12\n34<|im_end|><|im_start|>assistant\n56<|im_end|>"
+    got = enc(sample)
+    v = tok.get_vocab()
+    check("encoder.emits_user_and_assistant", v["user"] in got and v["assistant"] in got,
+          "ids %s" % got)
+    check("encoder.roundtrips", tok.decode(got) == sample,
+          "decode must reproduce the source text exactly")
+    lab2 = col([{"input_ids": got}])["labels"][0].tolist()
+    check("encoder.gives_supervision", any(x != -100 for x in lab2),
+          "%d supervised of %d tokens" % (sum(1 for x in lab2 if x != -100), len(lab2)))
+
     # an output with no parseable candidate is in_pool=False, not an absent observation
     labels = {"t_0": np.array([[1, 2], [3, 4]]), "t_1": np.array([[5]])}
     g = P.grade({"t_1": [{"beam_score": 1.0, "solution": np.array([[5]])}]}, labels, ["t_0", "t_1"])
@@ -432,8 +449,16 @@ def _one_cell(P, task, seed, rank, maxseq, max_batches, decode_budget):
 
 def stage_s1b():
     import rig_restart_probe as P
-    keys, _, _ = P.select_tasks(20)
-    r = _one_cell(P, keys[0], 1, rank=16, maxseq=2048, max_batches=8,
+    # Rank is what makes this cheap, not sequence length. Shrinking MAXSEQ instead sends cut_to_len
+    # past the cliff where it has dropped every training pair and fmt_train indexes an empty list,
+    # so the cap stays at the production value and the shortest task keeps the stage fast.
+    lp = os.path.join(P.EXP, "smoke_lengths.json")
+    assert os.path.isfile(lp), "run stage s0b first"
+    per = json.load(open(lp))["per_task_max"]
+    task = min(per, key=per.get)
+    print("  shortest task %s at %d tokens, rank 16, cap %d" % (task, per[task], P.MAXSEQ),
+          flush=True)
+    r = _one_cell(P, task, 1, rank=16, maxseq=P.MAXSEQ, max_batches=8,
                   decode_budget=420)
     s = r["stats"]
     check("s1b.train_finite", s["train_loss_final"] == s["train_loss_final"]
