@@ -506,21 +506,28 @@ def stage_s2():
     order = [p50, p50, p100, p50, p100, p50]
     print("  worst task %s, p50 %d tokens, p100 %d tokens" % (task, len(p50), len(p100)), flush=True)
 
-    candidates = [("expandable+adamw", {"ARC_PROBE_OPTIM": "adamw"}),
-                  ("expandable+offload", {"ARC_PROBE_OPTIM": "adamw_offload"}),
-                  ("expandable+adafactor", {"ARC_PROBE_OPTIM": "adafactor"}),
-                  ("rank128+offload", {"ARC_PROBE_OPTIM": "adamw_offload", "ARC_PROBE_RANK": "128"})]
+    # Fidelity order: keep rank as high as fits. bf16 adapters come first because they cost nothing
+    # semantically (it is what unsloth does) and halve both the parameter and gradient terms, and
+    # the first pass showed every fp32 arm reserving past the card and thrashing into host memory.
+    candidates = [("r256 bf16 adamw", 256, "adamw", True),
+                  ("r256 bf16 offload", 256, "adamw_offload", True),
+                  ("r128 bf16 adamw", 128, "adamw", True),
+                  ("r64 bf16 adamw", 64, "adamw", True),
+                  ("r32 bf16 adamw", 32, "adamw", True)]
     picked, results = None, []
-    for name, env in candidates:
-        P.OPTIM = env.get("ARC_PROBE_OPTIM", P.OPTIM)
-        P.RANK = int(env.get("ARC_PROBE_RANK", P.RANK))
-        rec = {"config": name, "optim": P.OPTIM, "rank": P.RANK}
+    for name, rank, optim, bf16 in candidates:
+        P.OPTIM, P.RANK, P.ADAPTER_BF16 = optim, rank, bf16
+        rec = {"config": name, "optim": optim, "rank": rank, "adapter_bf16": bf16}
         m = None
         try:
             torch.cuda.empty_cache()
             torch.cuda.reset_peak_memory_stats()
+            g0 = torch.cuda.memory_allocated()
             m = P.build_model()
             rec.update(P.adapter_stats(m))
+            # where the bytes actually go, so a failure names its own cause instead of needing
+            # arithmetic after the fact
+            rec["weights_gb"] = round((torch.cuda.memory_allocated() - g0) / 1024 ** 3, 2)
             base = m.get_base_model()
             base.config.use_cache = False
             base.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
@@ -541,7 +548,11 @@ def stage_s2():
             rec["s_step"] = round((time.time() - t0) / len(order), 2)
             rec["peak_reserved_gb"] = round(torch.cuda.max_memory_reserved() / 1024 ** 3, 2)
             rec["peak_alloc_gb"] = round(torch.cuda.max_memory_allocated() / 1024 ** 3, 2)
-            rec["verdict"] = "OK" if rec["peak_reserved_gb"] <= 14.5 else "TIGHT"
+            # Memory alone is not the test. Windows lets torch reserve past physical VRAM and spill
+            # to host rather than raising, so a config can "fit" and still crawl. Require both.
+            fits = rec["peak_reserved_gb"] <= 14.5
+            fast = rec["s_step"] <= 15.0
+            rec["verdict"] = "OK" if (fits and fast) else ("SPILL" if not fits else "SLOW")
             del opt
         except Exception as e:                                          # noqa: BLE001
             rec["verdict"] = "OOM" if P.is_memory_error(e) else "ERROR"
@@ -552,9 +563,11 @@ def stage_s2():
             _gc.collect()
             torch.cuda.empty_cache()
         results.append(rec)
-        print("  %-22s %-6s reserved %-6s s/step %-6s %s"
+        print("  %-20s %-6s reserved %-6s alloc %-6s weights %-5s trainable %-7s s/step %-7s %s"
               % (name, rec["verdict"], rec.get("peak_reserved_gb", "-"),
-                 rec.get("s_step", "-"), rec.get("error", "")), flush=True)
+                 rec.get("peak_alloc_gb", "-"), rec.get("weights_gb", "-"),
+                 rec.get("trainable_m", "-"), rec.get("s_step", "-"),
+                 rec.get("error", "")), flush=True)
         if picked is None and rec["verdict"] == "OK":
             picked = rec
     json.dump({"picked": picked, "all": results, "task": task},
@@ -563,8 +576,14 @@ def stage_s2():
           picked and "%s at %.2f GB reserved" % (picked["config"], picked["peak_reserved_gb"]))
     check("s2.headroom", picked is not None and picked["peak_reserved_gb"] <= 14.5,
           picked and "%.2f GB of 16" % picked["peak_reserved_gb"])
+    check("s2.step_time_sane", picked is not None and picked["s_step"] <= 15.0,
+          picked and "%.2f s/step, 128 steps is %.0f min per cell"
+          % (picked["s_step"], 128 * picked["s_step"] / 60.0))
     check("s2.adapter_dtype_bf16", picked is not None and "bfloat16" in str(picked.get("param_dtype")),
           picked and picked.get("param_dtype"))
+    if picked and picked["rank"] < 256:
+        print("  NOTE: rank %d, below the deployed 256. State this as a limitation: a weaker adapter"
+              " may have a different seed-correlation structure." % picked["rank"], flush=True)
     finish("s2")
 
 

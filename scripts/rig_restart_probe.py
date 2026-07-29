@@ -406,15 +406,30 @@ def set_lr(opt, lr):
 
 # ---------------------------------------------------------------- model, train, decode
 
+ADAPTER_BF16 = os.environ.get("ARC_PROBE_ADAPTER_BF16", "1") not in ("", "0", "false", "False")
+
+
 def build_model():
-    """Load the base and attach a fresh adapter. LoRA init is fixed so only augmentation varies."""
+    """Load the base and attach a fresh adapter. LoRA init is fixed so only augmentation varies.
+
+    get_peft_model defaults to autocast_adapter_dtype=True, which upcasts lora_A and lora_B to fp32.
+    At rank 256 over seven modules that is 500M parameters, so the upcast costs a gigabyte of
+    parameters and another of gradients on top of an 8 GB base, and s2 measured every optimizer
+    reserving past the 16 GB card and thrashing into host memory at 62 to 150 seconds per step.
+    Keeping the adapter in bf16 is what unsloth does and costs nothing semantically here.
+    """
     torch.manual_seed(LORA_INIT_SEED)
     model = AutoModelForCausalLM.from_pretrained(MODEL_DIR, dtype=torch.bfloat16,
                                                  attn_implementation="sdpa")
     model.to("cuda")
     peft_model = get_peft_model(model, LoraConfig(
         r=RANK, lora_alpha=ALPHA, lora_dropout=DROPOUT, target_modules=TARGETS,
-        bias="none", use_rslora=True, task_type="CAUSAL_LM"))
+        bias="none", use_rslora=True, task_type="CAUSAL_LM"),
+        autocast_adapter_dtype=not ADAPTER_BF16)
+    if ADAPTER_BF16:
+        for n, p in peft_model.named_parameters():
+            if p.requires_grad and p.dtype == torch.float32:
+                p.data = p.data.to(torch.bfloat16)
     return peft_model
 
 
