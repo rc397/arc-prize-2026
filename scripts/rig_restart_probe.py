@@ -8,115 +8,149 @@ that is the regime where restart theory says a hard cap plus a fresh attempt bea
 Appendix F already carries the mathematics. Capping at 1200 costs no measured solve and frees about 7800
 seconds per worker, which is roughly fifteen restarts.
 
-All of that is worthless if a second run fails the same tasks. This measures exactly that, and nothing
-else. Note the deployed pipeline cannot answer it as shipped, because every seed in it is hardcoded
-(random_state 42, trainer seed 42, train augment seed 1, eval augment seed 2), so rerunning a task
-reproduces the same adapter bit for bit. The restart lever exists only if the training augmentation seed
-is varied, which changes WHICH sixteen of the D4-and-colour-permutation space the adapter sees. That is
-the axis varied here, and it is also the one most likely to decorrelate.
+All of that is worthless if a second run fails the same tasks. This measures exactly that.
 
-Fidelity. The training condition is the deployed one, rank 256 with alpha 32 and rslora over the same
-nine target modules at 8192 context, one epoch, lr 5e-5 cosine with 0.1 warmup, completion-only loss
-through the notebook's own collator, and the decoder is the deployed turbo_dfs lifted verbatim out of
-arc_solver.py by AST extraction rather than reimplemented. Three things differ and none is semantic.
-Unsloth is unavailable here so the model loads through plain transformers and peft. Gradient
-checkpointing is forced on where deployment leaves it off, which costs speed and not gradients. And DFS
-batches run two views at a time rather than four, which the builder's own self-test proves covers the
-identical thirty-two views.
+WHAT THE ANSWER LICENSES, precisely. The deployed pipeline hardcodes every seed (adapter init 42,
+trainer 42, train augment 1, eval augment 2), so rerunning a task reproduces the same adapter bit for
+bit and a naive restart returns the identical pool. The lever exists only if the training augmentation
+seed varies. But augment(n=16, seed=s) ALWAYS applies all eight dihedral views; the seed selects which
+sixteen of the colour-permutation space, plus example order. So a null result licenses "colour
+permutation restarts do not help", NOT "restarts do not help". Say so wherever the number appears.
 
-One caveat to carry into any writeup. The base sets tie_word_embeddings, so embed_tokens and lm_head
-share a weight, and peft warns when both are adapted; Unsloth handles that pairing itself and plain peft
-does not. Deployment adapts both, so this keeps both, and the comparison stays internally valid because
-every seed runs the identical setup. It does mean the absolute solve rate here is not directly
-comparable to a Kaggle number, only seed against seed. The same applies if the adapter degrades to the
-seven-module tier under memory pressure, which the summary detects and refuses to compare across.
+THE NEGATIVE CONTROL IS NOT OPTIONAL. The DFS admits a continuation on a hard threshold,
+score < -log(0.2), evaluated on bf16 logits. Kernel nondeterminism can flip a borderline token and
+prune or admit a whole subtree, so two runs of the SAME seed need not agree. Without measuring that,
+"union above single" is guaranteed to look positive whether or not seeds decorrelate. The claim is
+cross-seed disagreement MINUS replicate disagreement, and the replicate arm measures the subtrahend.
+
+Fidelity, stated honestly. Training matches the deployed rank 256, alpha 32, rslora, 8192 context, one
+epoch at lr 5e-5 cosine with 0.1 warmup, completion-only loss through the notebook's own collator, and
+the decoder is the deployed turbo_dfs lifted out of arc_solver.py by AST rather than reimplemented.
+Four things differ. Unsloth is unavailable so the model loads through plain transformers and peft.
+Gradient checkpointing is forced on to fit 16GB. DFS batches run two views rather than four, which the
+builder's self-test proves covers the identical thirty-two views. And LoRA covers seven modules, not
+nine: vocab_size is 16, so embed_tokens and lm_head adapters are 1.3M of 501.5M parameters, and our own
+best single-card TTT (src/arc/ttt.py) trains the same seven. Absolute solve rate here is therefore not
+comparable to a Kaggle number. Seed against seed is, because every cell shares one configuration.
 
 One measurement is omitted deliberately. The deployed selector's score_aug term needs a second forward
-pass per candidate under fresh augmentations, which doubles the cost and only affects RANKING. Since the
-pool analysis already closes selection by proof, the primary metric here is whether the truth is present
-in the pool at all, which is exact. A multiplicity-and-beam proxy for the selector is reported alongside
-and is labelled as a proxy wherever it appears.
-
-Reads: is the union over K seeds meaningfully larger than one seed. If yes, restarts are the plateau
-lever and the cap pays for them. If no, the misses are hard for the model and no scheduling buys them.
+pass per candidate and only affects RANKING, and the pool analysis already closes selection by proof, so
+the primary metric is truth-in-pool, which is exact. The selector figure is a labelled proxy.
 
 Usage: python rig_restart_probe.py [N_TASKS=20] [K_SEEDS=3]
-Resumable, one JSON line per (task, seed); rerunning skips completed cells.
+       python rig_restart_probe.py summary
+Env:   ARC_PROBE_OPTIM   adamw | adamw_offload (default) | adafactor
+       ARC_PROBE_RANK    default 256      ARC_PROBE_MAXSEQ  default 8192
+       ARC_PROBE_BASE    override D:\\arc (lets the offline stages run anywhere)
+Resumable: one JSON line per (task, seed, replicate). Completed cells are skipped, failed cells are
+retried up to MAX_ATTEMPTS, and a cell that faults hard still leaves a marker so it cannot loop.
 """
 import ast
 import builtins
 import gc
 import json
+import math
 import os
 import sys
+import threading
 import time
 import typing
-from collections import defaultdict
+from collections import Counter, defaultdict
 
-BASE = r"D:\arc"
-# runs on the rig (D:\arc) or from a laptop checkout, so resolve rather than assume
+# turbo_dfs recurses once per generated token and max_new_tokens is about 931 for a 30x30 grid,
+# against CPython's default limit of 1000. Raising the limit alone segfaults on Windows, whose
+# default thread stack is 1 MB, so decode also runs on a thread created with a 64 MB stack.
+sys.setrecursionlimit(20000)
+STACK_BYTES = 64 * 1024 * 1024
+
+BASE = os.environ.get("ARC_PROBE_BASE", r"D:\arc")
 V7 = next((p for p in (os.path.join(BASE, "notebooks", "v7_debug"),
                        os.path.join(r"D:\ARC_AGI-2,3", "notebooks", "v7_debug"))
            if os.path.isdir(p)), None)
-assert V7, "v7_debug modules not found, sync them to D:\\arc\\notebooks\\v7_debug"
+assert V7, "v7_debug modules not found, sync them to %s" % os.path.join(BASE, "notebooks", "v7_debug")
 sys.path.insert(0, V7)
 
-N_TASKS = int(sys.argv[1]) if len(sys.argv) > 1 else 20
-K_SEEDS = int(sys.argv[2]) if len(sys.argv) > 2 else 3
-
-MODEL_DIR = os.path.join(BASE, "models", "kagglehub", "models", "sorokin",
-                         "qwen3_4b_grids15_sft139", "transformers", "bfloat16", "1")
-DATA_DIR = next((p for p in (os.path.join(BASE, "data", "kaggle"), os.path.join(BASE, "data"))
-                 if os.path.isfile(os.path.join(p, "arc-agi_evaluation_challenges.json"))), None)
-assert DATA_DIR, "evaluation challenges not found under D:\\arc\\data"
+REPO = r"D:\ARC_AGI-2,3"
 EXP = os.path.join(BASE, "experiments")
 STATUS = os.path.join(BASE, "eval_status_restart.json")
 RESULTS = os.path.join(EXP, "restart_probe.jsonl")
 SUMMARY = os.path.join(EXP, "restart_probe_summary.json")
+MODEL_DIR = os.path.join(BASE, "models", "kagglehub", "models", "sorokin",
+                         "qwen3_4b_grids15_sft139", "transformers", "bfloat16", "1")
 
 # the deployed configuration, from arc_solver.py's peft_params and train_args
-RANK, ALPHA, DROPOUT = 256, 32, 0.0
-TARGETS = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj",
-           "embed_tokens", "lm_head"]
-MAXSEQ = 8192
+RANK = int(os.environ.get("ARC_PROBE_RANK", "256"))
+ALPHA, DROPOUT = 32, 0.0
+TARGETS = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
+MAXSEQ = int(os.environ.get("ARC_PROBE_MAXSEQ", "8192"))
 LR, EPOCHS, WARMUP_RATIO, GRAD_CLIP = 5e-5, 1, 0.1, 1.0
+LORA_INIT_SEED = 42       # deployment's random_state. Held FIXED so only augmentation varies.
 DFS_FLOOR = 0.2
-BATCH_VIEWS = 2          # 2 or 4, provably the same thirty-two views either way
-# Decode gets its own budget measured from the END of training, not from the start of the cell.
-# Deployment caps the whole task at 1800s but trains in about 210s on an L4 under unsloth, so decode
-# there gets roughly 1590s. Training here takes about 770s, so a cell-relative cap would have left
-# decode barely 400s and shrunk every pool against the deployed condition. That would depress the
-# solve rate for every seed and bias the union-against-single contrast this probe exists to measure.
-DECODE_BUDGET = 1500
+BATCH_VIEWS = 2           # 2 or 4, provably the same thirty-two views either way
+OPTIM = os.environ.get("ARC_PROBE_OPTIM", "adamw_offload")
+# Decode gets its own budget measured from the END of training. Deployment caps the whole task at
+# 1800s but trains in about 210s on an L4 under unsloth, so decode there gets roughly 1590s. Training
+# here takes far longer, so a cell-relative cap would shrink every pool against the deployed condition,
+# depressing every seed and compressing the very contrast this probe exists to measure.
+DECODE_BUDGET = int(os.environ.get("ARC_PROBE_DECODE_BUDGET", "1500"))
+TRAIN_BUDGET = int(os.environ.get("ARC_PROBE_TRAIN_BUDGET", "2400"))
+POOL_CAP = 200_000        # a flat-distribution adapter can explode the tree; abort rather than host-OOM
+MAX_ATTEMPTS = 2          # per (task, seed, replicate)
+
+# The cuBLAS failure that killed run 4 was a workspace allocation at 15836 MiB of 16384: the
+# allocator had the bytes but not a contiguous block. Expandable segments target exactly that, cost
+# nothing, and must be set before torch initialises its allocator.
+os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
 
 import numpy as np                                                     # noqa: E402
 import torch                                                           # noqa: E402
 from torch.nn.attention import sdpa_kernel, SDPBackend                 # noqa: E402
 from peft import LoraConfig, get_peft_model                            # noqa: E402
 from transformers import (AutoModelForCausalLM, AutoTokenizer,         # noqa: E402
-                          DataCollatorForLanguageModeling, get_cosine_schedule_with_warmup)
+                          DataCollatorForLanguageModeling)
 
 from arc_loader import ArcDataset, QwenFormatter                       # noqa: E402
 from arc_decoder import score_kgmon                                    # noqa: E402
 
 
-def _restore_cache(cache, pos):
+def data_dir():
+    """Resolved lazily so the offline stages can import this module without the rig's data tree."""
+    d = next((p for p in (os.path.join(BASE, "data", "kaggle"), os.path.join(BASE, "data"))
+              if os.path.isfile(os.path.join(p, "arc-agi_evaluation_challenges.json"))), None)
+    assert d, "evaluation challenges not found under %s" % os.path.join(BASE, "data")
+    return d
+
+
+# ---------------------------------------------------------------- lifting the deployed decoder
+
+CACHE_STATS = {"calls": 0, "shrinks": 0}
+
+
+def _branch_cache(cache, pos):
     """Undo the in-place growth a model call leaves on a Cache, restoring the branch point.
 
     turbo_dfs recurses with one cache object and calls the model repeatedly inside a while loop,
     passing the SAME cache each time. That is only correct if a model call leaves its input cache
-    untouched, which was true of the legacy tuple API the deployed pipeline was written against:
-    outputs.past_key_values came back as a new tuple. transformers 5 replaced that with Cache
-    objects that append in place, so the second iteration branches from an already-extended cache,
-    positions run past what was allocated, and CUDA raises an illegal memory access. On entry to
-    turbo_dfs the cache holds exactly `pos` tokens, so cropping back to pos before each call
-    reproduces the old semantics precisely rather than approximating them.
+    untouched, which was true of the legacy tuple API the deployed pipeline was written against.
+    transformers 5 replaced that with Cache objects that append in place, so the second branch
+    continues from an already-extended cache while position_ids still says pos, RoPE and the causal
+    mask disagree, and CUDA raises an illegal memory access. On entry the cache holds exactly pos
+    tokens, so cropping back to pos reproduces the old semantics rather than approximating them.
+
+    The counters exist because the previous version swallowed every exception here, which made a
+    silent no-op indistinguishable from success. The smoke stage asserts both are non-zero.
+
+    Returns the cache so the injected statement is an assignment. That costs nothing here and lets
+    the smoke stage substitute an implementation that rebuilds the cache from manually sliced
+    tensors, which is independent of Cache.crop and so can check it rather than assume it.
     """
-    try:
-        if hasattr(cache, "crop") and cache.get_seq_length() > pos:
-            cache.crop(pos)
-    except Exception:
-        pass
+    CACHE_STATS["calls"] += 1
+    if cache.get_seq_length() > pos:
+        cache.crop(pos)
+        CACHE_STATS["shrinks"] += 1
+        assert cache.get_seq_length() == pos, "crop left %d tokens, expected %d" % (
+            cache.get_seq_length(), pos)
+    return cache
 
 
 class _CropBeforeEachBranch(ast.NodeTransformer):
@@ -125,18 +159,18 @@ class _CropBeforeEachBranch(ast.NodeTransformer):
 
     def visit_While(self, node):
         self.generic_visit(node)
-        node.body.insert(0, ast.parse("_restore_cache(cache, pos)").body[0])
+        node.body.insert(0, ast.parse("cache = _branch_cache(cache, pos)").body[0])
         self.hits += 1
         return node
 
 
-def lift_from_solver():
+def lift_from_solver(patch_cache=True):
     """Pull the deployed decoder and collator out of arc_solver.py without importing it.
 
     That module imports unsloth on line 1, which does not exist here. Taking the definitions through
-    the AST keeps them byte-faithful to what actually ships, which a hand reimplementation would not.
-    The single exception is the cache restore documented on _restore_cache, inserted into turbo_dfs's
-    loop, which is required to run the algorithm at all on this transformers version.
+    the AST keeps them byte-faithful to what ships, which a reimplementation would not. The single
+    exception is the cache restore documented on _branch_cache. patch_cache=False yields the
+    unpatched decoder, which the smoke stage needs for its clone-arm comparison.
     """
     src = open(os.path.join(V7, "arc_solver.py"), encoding="utf-8").read()
     body = ast.parse(src).body
@@ -145,9 +179,9 @@ def lift_from_solver():
     missing = want_def - {n.name for n in keep}
     assert not missing, "could not lift %s from arc_solver.py" % sorted(missing)
 
-    # Pull in the module-level constants the lifted code reads, transitively, rather than naming
-    # them by hand. Hand-listing missed ARC_TOKENS and PAD_ID, which turbo_dfs reads on every
-    # branch, and the resulting NameError only showed up deep inside a rig run.
+    # Pull in the module-level constants the lifted code reads, transitively, rather than naming them
+    # by hand. Hand-listing missed ARC_TOKENS and PAD_ID, which turbo_dfs reads on every branch, and
+    # the NameError only surfaced deep inside a rig run.
     assigns = {}
     for n in body:
         if isinstance(n, ast.Assign):
@@ -170,7 +204,7 @@ def lift_from_solver():
         return out - {None}
 
     supplied = {"torch", "np", "time", "defaultdict", "DataCollatorForLanguageModeling",
-                "Any", "Union", "_restore_cache"} | set(dir(builtins))
+                "Any", "Union", "_branch_cache"} | set(dir(builtins))
     while True:
         need = free_names(keep) - bound_names(keep) - supplied
         pull = [assigns[n] for n in sorted(need) if n in assigns and assigns[n] not in keep]
@@ -181,21 +215,43 @@ def lift_from_solver():
     unresolved = free_names(keep) - bound_names(keep) - supplied
     assert not unresolved, "lifted code reads names nothing provides: %s" % sorted(unresolved)
 
-    patcher = _CropBeforeEachBranch()
-    for node in keep:
-        if getattr(node, "name", None) == "turbo_dfs":
-            patcher.visit(node)
-            ast.fix_missing_locations(node)
-    # a patch that silently fails to apply is worse than no patch, and this one is the difference
-    # between a correct search and a CUDA fault twenty minutes in
-    assert patcher.hits == 1, "expected exactly one DFS loop to patch, found %d" % patcher.hits
+    if patch_cache:
+        patcher = _CropBeforeEachBranch()
+        for node in keep:
+            if getattr(node, "name", None) == "turbo_dfs":
+                patcher.visit(node)
+                ast.fix_missing_locations(node)
+        # a patch that silently fails to apply is worse than no patch
+        assert patcher.hits == 1, "expected exactly one DFS loop to patch, found %d" % patcher.hits
 
     # the collator's method signature is annotated, so these must be the real typing objects
     ns = {"torch": torch, "np": np, "time": time, "defaultdict": defaultdict,
           "DataCollatorForLanguageModeling": DataCollatorForLanguageModeling,
-          "Any": typing.Any, "Union": typing.Union, "_restore_cache": _restore_cache}
+          "Any": typing.Any, "Union": typing.Union, "_branch_cache": _branch_cache}
     exec(compile(ast.Module(body=keep, type_ignores=[]), "<lifted>", "exec"), ns)
     return ns
+
+
+def run_deep(fn, *args, **kwargs):
+    """Run fn on a thread with a large stack, so deep DFS recursion raises rather than segfaults."""
+    out = {}
+
+    def target():
+        try:
+            out["r"] = fn(*args, **kwargs)
+        except BaseException as e:                                     # noqa: BLE001
+            out["e"] = e
+
+    prev = threading.stack_size(STACK_BYTES)
+    try:
+        t = threading.Thread(target=target)
+        t.start()
+        t.join()
+    finally:
+        threading.stack_size(prev)
+    if "e" in out:
+        raise out["e"]
+    return out["r"]
 
 
 def heartbeat(phase, extra=""):
@@ -205,32 +261,11 @@ def heartbeat(phase, extra=""):
     os.replace(tmp, STATUS)
 
 
-# The adapter itself fits at 8.87 GB with all nine targets, but its 530M trainable parameters carry
-# AdamW moments and gradients that only allocate on the first training step, which is where 16GB runs
-# out. So the tier is global and degrades on the first OOM ANYWHERE, not just at adapter creation, and
-# every record carries the tier it ran under. The summary refuses to compare across tiers.
-TIERS = [("full", TARGETS), ("no-embed", TARGETS[:7])]
-# Start at no-embed. The nine-target adapter loads in 8.87 GB but its 530M trainable parameters carry
-# about 4.2 GB of AdamW moments and 1 GB of gradients, leaving under 2 GB for activations at 8192, and
-# it was measured surviving short examples then dying on long ones with a cuBLAS workspace failure at
-# 15836 MiB of 16384. Dropping embed_tokens and lm_head is also the configuration our own best
-# single-card TTT used (src/arc/ttt.py trains the same seven modules), so it is a known-workable setup
-# rather than an improvised one. The tier is persisted so a relaunch after a fault does not climb back.
-TIER_FILE = os.path.join(BASE, "experiments", "restart_probe_tier.txt")
-TIER_IDX = [1]
-if os.path.isfile(TIER_FILE):
-    try:
-        TIER_IDX = [max(1, min(len(TIERS) - 1, int(open(TIER_FILE).read().strip())))]
-    except Exception:
-        pass
-
-
 def is_memory_error(e):
     """Memory pressure does not always arrive as OutOfMemoryError.
 
-    Once the allocator is near the ceiling, cuBLAS fails to obtain workspace and surfaces
-    CUBLAS_STATUS_INTERNAL_ERROR from an ordinary matmul, as a plain RuntimeError. Treating only
-    OutOfMemoryError as memory pressure meant the tier never degraded and the run just died.
+    Near the ceiling cuBLAS fails to obtain a contiguous workspace and surfaces
+    CUBLAS_STATUS_INTERNAL_ERROR from an ordinary matmul, as a plain RuntimeError.
     """
     if isinstance(e, torch.cuda.OutOfMemoryError):
         return True
@@ -239,65 +274,161 @@ def is_memory_error(e):
             or "cublas_status_alloc_failed" in m)
 
 
-def build_model(tokenizer):
-    """Load the base and attach a fresh adapter at the current global tier."""
-    tier, targets = TIERS[TIER_IDX[0]]
+# ---------------------------------------------------------------- optimizer
+
+class CPUOffloadAdamW:
+    """AdamW whose fp32 master weights and moments live on the host.
+
+    Identical update rule to torch.optim.AdamW; only residency changes. The moments dominate GPU
+    footprint (about 4 GB for 500M parameters against an 8 GB base and 16 GB card) and are touched
+    once per step, so hosting them trades PCIe bandwidth for headroom at zero semantic cost. That
+    matters here because the alternatives, a lower rank or a shorter context, both change the
+    quantity being measured rather than the memory used to measure it.
+    """
+
+    def __init__(self, params, lr, betas=(0.9, 0.999), eps=1e-8, weight_decay=0.0):
+        self.params = [p for p in params if p.requires_grad]
+        self.lr, self.betas, self.eps, self.wd = lr, betas, eps, weight_decay
+        self.master = [p.detach().to("cpu", torch.float32).clone() for p in self.params]
+        self.m = [torch.zeros_like(x) for x in self.master]
+        self.v = [torch.zeros_like(x) for x in self.master]
+        self.t = 0
+
+    def zero_grad(self, set_to_none=True):
+        for p in self.params:
+            p.grad = None
+
+    @torch.no_grad()
+    def step(self):
+        self.t += 1
+        b1, b2 = self.betas
+        bc1, bc2 = 1 - b1 ** self.t, 1 - b2 ** self.t
+        for i, p in enumerate(self.params):
+            if p.grad is None:
+                continue
+            g = p.grad.detach().to("cpu", torch.float32)
+            w = self.master[i]
+            if self.wd:
+                w.mul_(1 - self.lr * self.wd)
+            self.m[i].mul_(b1).add_(g, alpha=1 - b1)
+            self.v[i].mul_(b2).addcmul_(g, g, value=1 - b2)
+            denom = (self.v[i] / bc2).sqrt_().add_(self.eps)
+            w.addcdiv_(self.m[i] / bc1, denom, value=-self.lr)
+            p.copy_(w.to(p.dtype))
+
+
+def cosine_lr(step, total, warmup_ratio, base_lr):
+    """transformers' get_cosine_schedule_with_warmup at num_cycles=0.5, inlined.
+
+    Inlined so the offloaded and stock optimizers share one schedule; the smoke stage asserts it
+    matches the library's curve to 1e-12 rather than taking the equivalence on trust.
+    """
+    w = max(1, int(warmup_ratio * total))
+    if step < w:
+        return base_lr * float(step) / float(w)
+    prog = float(step - w) / float(max(1, total - w))
+    return base_lr * max(0.0, 0.5 * (1.0 + math.cos(math.pi * prog)))
+
+
+def make_optimizer(params):
+    if OPTIM == "adamw":
+        return torch.optim.AdamW(params, lr=LR, weight_decay=0.0), "adamw"
+    if OPTIM == "adafactor":
+        from transformers.optimization import Adafactor
+        return Adafactor(params, lr=LR, scale_parameter=False, relative_step=False,
+                         warmup_init=False, weight_decay=0.0), "adafactor"
+    return CPUOffloadAdamW(params, lr=LR, weight_decay=0.0), "adamw_offload"
+
+
+def set_lr(opt, lr):
+    if isinstance(opt, CPUOffloadAdamW):
+        opt.lr = lr
+    else:
+        for g in opt.param_groups:
+            g["lr"] = lr
+
+
+# ---------------------------------------------------------------- model, train, decode
+
+def build_model():
+    """Load the base and attach a fresh adapter. LoRA init is fixed so only augmentation varies."""
+    torch.manual_seed(LORA_INIT_SEED)
     model = AutoModelForCausalLM.from_pretrained(MODEL_DIR, dtype=torch.bfloat16,
                                                  attn_implementation="sdpa")
     model.to("cuda")
     peft_model = get_peft_model(model, LoraConfig(
-        r=RANK, lora_alpha=ALPHA, lora_dropout=DROPOUT, target_modules=targets,
+        r=RANK, lora_alpha=ALPHA, lora_dropout=DROPOUT, target_modules=TARGETS,
         bias="none", use_rslora=True, task_type="CAUSAL_LM"))
-    return peft_model, tier
+    return peft_model
 
 
-def train_one(peft_model, tokenizer, collator, formatter, train_ds):
+def adapter_stats(peft_model):
+    tp = [p for p in peft_model.parameters() if p.requires_grad]
+    return {"trainable_m": round(sum(p.numel() for p in tp) / 1e6, 1),
+            "param_dtype": str(tp[0].dtype) if tp else "none"}
+
+
+def train_one(peft_model, tokenizer, collator, formatter, train_ds, deadline=None,
+              max_batches=None):
     base = peft_model.get_base_model()
     base.config.use_cache = False
-    # Reentrant checkpointing forks and restores the CUDA RNG so recomputation replays it, and on
-    # this torch build that restore faults with an illegal memory access before the first step
-    # completes. The non-reentrant implementation uses saved-tensor hooks instead and does not
-    # touch the device generator, which is also the variant torch now recommends.
+    # Reentrant checkpointing forks and restores the CUDA RNG so recomputation can replay it, and on
+    # this torch build that restore faults with an illegal memory access. The non-reentrant variant
+    # uses saved-tensor hooks and never touches the device generator.
     base.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
     base.enable_input_require_grads()
     peft_model.train()
 
     rows = train_ds.as_list(formatter)
-    batches = []
-    for r in rows:
-        ids = tokenizer(r["text"], return_tensors=None)["input_ids"][:MAXSEQ]
-        batches.append({"input_ids": ids})
-    steps = len(batches) * EPOCHS
+    batches = [{"input_ids": tokenizer(r["text"], return_tensors=None)["input_ids"][:MAXSEQ]}
+               for r in rows]
+    # max_batches is for the smoke stages only. The schedule length follows it so a reduced run
+    # still sees a complete warmup-and-decay curve rather than only its opening.
+    if max_batches:
+        batches = batches[:max_batches]
+    steps = max(1, len(batches) * EPOCHS)
     params = [p for p in peft_model.parameters() if p.requires_grad]
-    opt = torch.optim.AdamW(params, lr=LR, weight_decay=0.0)
-    sched = get_cosine_schedule_with_warmup(opt, int(WARMUP_RATIO * steps), steps)
+    opt, opt_name = make_optimizer(params)
 
-    losses = []
+    losses, step, truncated = [], 0, False
     for _ in range(EPOCHS):
         for b in batches:
-            batch = collator([b])
-            batch = {k: v.to("cuda") for k, v in batch.items()}
-            # forward AND backward must sit inside the same backend context. Gradient checkpointing
-            # replays the forward during backward, and if that replay picks a different kernel it
-            # saves a different number of tensors and torch raises CheckpointError. rig_attnprobe.py
-            # had this right by keeping the whole step in one context.
+            if deadline is not None and time.time() > deadline:
+                truncated = True
+                break
+            set_lr(opt, cosine_lr(step, steps, WARMUP_RATIO, LR))
+            batch = {k: v.to("cuda") for k, v in collator([b]).items()}
+            # forward AND backward inside one backend context. Gradient checkpointing replays the
+            # forward during backward, and a replay under a different kernel saves a different number
+            # of tensors, which raises CheckpointError. rig_attnprobe.py had this right.
             with sdpa_kernel(SDPBackend.CUDNN_ATTENTION):
                 loss = peft_model(**batch).loss
                 loss.backward()
             torch.nn.utils.clip_grad_norm_(params, GRAD_CLIP)
             opt.step()
-            sched.step()
             opt.zero_grad(set_to_none=True)
             losses.append(float(loss.detach()))
-    del opt, sched
+            step += 1
+        if truncated:
+            break
+    del opt
     gc.collect()
     torch.cuda.empty_cache()
-    # the deployed banner reports the trainer's mean loss over the run, so match that
-    return float(np.mean(losses)) if losses else 0.0
+    # task_timing.csv holds a FINAL loss, so record all three rather than one and compare like
+    # with like later.
+    return {"train_loss_mean": float(np.mean(losses)) if losses else 0.0,
+            "train_loss_final": float(losses[-1]) if losses else 0.0,
+            "train_loss_last10": float(np.mean(losses[-10:])) if losses else 0.0,
+            "train_steps": len(losses), "train_truncated": truncated, "optim": opt_name}
 
 
 def decode_pool(peft_model, tokenizer, formatter, lifted, puzzle_ds, deadline):
-    """Run the deployed DFS over the sixteen eval views and return the candidate pool per base key."""
+    """Run the deployed DFS over the sixteen eval views, returning the pool keyed by base key.
+
+    Every expected base key is created up front. A key with no parseable candidate is an
+    in_pool=False observation, not a missing one; letting it vanish would drop that output from the
+    seed comparison entirely and bias the headline number in an uncontrolled direction.
+    """
     base = peft_model.get_base_model()
     base.config.use_cache = True
     base.gradient_checkpointing_disable()
@@ -319,9 +450,9 @@ def decode_pool(peft_model, tokenizer, formatter, lifted, puzzle_ds, deadline):
                 h = [subkeys[o:o + 2] for o in p]
                 batches.extend([h[0] + h[1]] if BATCH_VIEWS == 4 else h)
 
+    pool = {sk.split(".")[0]: [] for sk in eval_ds.keys}
     max_score = -np.log(DFS_FLOOR)
-    pool = defaultdict(list)
-    truncated = False
+    truncated = overflow = False
     with torch.inference_mode():
         for subkeys in batches:
             if not subkeys:
@@ -331,8 +462,8 @@ def decode_pool(peft_model, tokenizer, formatter, lifted, puzzle_ds, deadline):
                 break
             tokens = [tokenizer.encode(eval_ds.get(sk, formatter)["input"]) for sk in subkeys]
             with sdpa_kernel(SDPBackend.CUDNN_ATTENTION):
-                dfs_result = lifted["inference_turbo_dfs"](
-                    peft_model, tokens, max_new_tokens, max_score, deadline)
+                dfs_result = run_deep(lifted["inference_turbo_dfs"],
+                                      peft_model, tokens, max_new_tokens, max_score, deadline)
             for subkey_id, scored_beams in dfs_result:
                 subkey = subkeys[subkey_id]
                 bk = subkey.split(".")[0]
@@ -341,17 +472,22 @@ def decode_pool(peft_model, tokenizer, formatter, lifted, puzzle_ds, deadline):
                     if arr is None:
                         continue
                     sol = multi.invert_mod(arr, subkey, inv_perm=True)
-                    pool[bk].append({"beam_score": float(beam_score), "solution": sol})
-    return pool, truncated
+                    pool.setdefault(bk, []).append(
+                        {"beam_score": float(beam_score), "solution": sol})
+            if sum(len(v) for v in pool.values()) > POOL_CAP:
+                overflow = True
+                break
+    return pool, truncated, overflow
 
 
-def grade(pool, labels):
-    """Exact truth-in-pool per base key, plus a labelled proxy for the deployed selector."""
+def grade(pool, labels, expected_keys):
+    """Exact truth-in-pool per expected base key, plus a labelled proxy for the deployed selector."""
     out = {}
-    for bk, cands in pool.items():
+    for bk in expected_keys:
         lab = labels.get(bk)
         if lab is None:
             continue
+        cands = pool.get(bk, [])
         in_pool = any(np.array_equal(c["solution"], lab) for c in cands)
         # score_aug needs a second forward pass per candidate and only affects ranking, so the
         # deployed selector is approximated by its multiplicity term with beam score as tiebreak.
@@ -363,15 +499,111 @@ def grade(pool, labels):
     return out
 
 
+# ---------------------------------------------------------------- task selection
+
+def select_tasks(n_tasks):
+    """Stratified sample from the measurement slice, with population weights for reweighting.
+
+    Sampling the first N tasks wastes the run: of the first twenty, fifteen are outright misses that
+    cannot discriminate between seeds and only four ever had the truth in the pool, so most cells
+    would land where no seed can differ while still inflating the denominator. Strata come from the
+    Kaggle outcomes in paper/data/task_timing.csv:
+      A  reachable      solved or in-pool, the truth entered the pool at least once
+      B  near miss      missed, but trained to a below-median final loss, so it trained fine and
+                        decoded wrong, which is where a restart could plausibly recover it
+      C  hard           missed at above-median loss, or decoded nothing at all: the floor
+    Returns (keys, weight_by_key, stratum_by_key). Weight is N_stratum / n_sampled_from_stratum, so a
+    weighted mean estimates the population rate over the 40-task slice.
+    """
+    import csv
+    # the rig has no repo checkout, so resolve rather than assume a laptop path
+    path = next((p for p in (os.path.join(BASE, "data", "task_timing.csv"),
+                             os.path.join(EXP, "task_timing.csv"),
+                             os.path.join(REPO, "paper", "data", "task_timing.csv"))
+                 if os.path.isfile(p)), None)
+    assert path, "task_timing.csv not found; copy it to %s" % os.path.join(BASE, "data")
+    rows = list(csv.DictReader(open(path)))
+    for r in rows:
+        r["loss"] = float(r["train_loss"])
+    misses = [r for r in rows if r["outcome"] not in ("solved", "in-pool")]
+    med = float(np.median([r["loss"] for r in misses])) if misses else 0.0
+    strat = {}
+    for r in rows:
+        if r["outcome"] in ("solved", "in-pool"):
+            strat[r["task"]] = "A"
+        elif r["outcome"] != "empty" and r["loss"] <= med:
+            strat[r["task"]] = "B"
+        else:
+            strat[r["task"]] = "C"
+    pop = Counter(strat.values())
+
+    # Take all of A (it is the only stratum where seeds can differ on a reachable truth), then fill
+    # with B, then C as a floor. Deterministic: sorted order, no RNG, so the sample is reproducible.
+    order = {"A": 0, "B": 1, "C": 2}
+    want = {"A": pop["A"], "B": max(0, min(pop["B"], n_tasks - pop["A"] - 2)), "C": 2}
+    while sum(want.values()) > n_tasks:
+        for s in ("C", "B", "A"):
+            if sum(want.values()) > n_tasks and want[s] > 0:
+                want[s] -= 1
+    keys, taken = [], Counter()
+    for t in sorted(strat, key=lambda k: (order[strat[k]], k)):
+        s = strat[t]
+        if taken[s] < want[s]:
+            keys.append(t)
+            taken[s] += 1
+    weight = {t: pop[strat[t]] / float(taken[strat[t]]) for t in keys}
+    return sorted(keys), weight, {t: strat[t] for t in keys}
+
+
+def cell_plan(keys, k_seeds, n_replicates, strat):
+    """(task, seed, replicate) cells. replicate=1 repeats seed 1 as the negative control."""
+    cells = [(t, s, 0) for t in keys for s in range(1, k_seeds + 1)]
+    reach = [t for t in keys if strat.get(t) == "A"][:n_replicates]
+    cells += [(t, 1, 1) for t in reach]
+    return cells
+
+
+def plan_todo(cells, records):
+    """Split cells into still-to-run, already-done, and attempt-exhausted.
+
+    A completed cell is skipped. A FAILED cell is retried, which the previous version did not do:
+    it added every seen cell to the done set regardless of outcome, so one fault removed that cell
+    permanently and the supervisor's relaunching accomplished nothing. Attempts are counted from
+    the started markers written before each cell, so a hard crash that never writes a result still
+    counts against the cap and cannot loop forever.
+    """
+    done_ok, attempts = set(), Counter()
+    for r in records:
+        cid = (r["task"], r["seed"], r.get("replicate", 0))
+        if r.get("marker") == "started":
+            attempts[cid] += 1
+        elif r.get("ok"):
+            done_ok.add(cid)
+    todo = [c for c in cells if c not in done_ok and attempts[c] < MAX_ATTEMPTS]
+    exhausted = [c for c in cells if c not in done_ok and attempts[c] >= MAX_ATTEMPTS]
+    return todo, done_ok, exhausted
+
+
+# ---------------------------------------------------------------- main
+
 def main():
     os.makedirs(EXP, exist_ok=True)
     heartbeat("start")
+    n_tasks = int(sys.argv[1]) if len(sys.argv) > 1 else 20
+    k_seeds = int(sys.argv[2]) if len(sys.argv) > 2 else 3
+    n_reps = int(sys.argv[3]) if len(sys.argv) > 3 else 5
 
-    ch = os.path.join(DATA_DIR, "arc-agi_evaluation_challenges.json")
-    sol = os.path.join(DATA_DIR, "arc-agi_evaluation_solutions.json")
-    solutions = json.load(open(sol))
+    dd = data_dir()
+    ch = os.path.join(dd, "arc-agi_evaluation_challenges.json")
+    solutions = json.load(open(os.path.join(dd, "arc-agi_evaluation_solutions.json")))
     arc = ArcDataset.from_file(ch)
-    keys = sorted(json.load(open(ch)).keys())[:N_TASKS]
+
+    keys, weight, strat = select_tasks(n_tasks)
+    cells = cell_plan(keys, k_seeds, n_reps, strat)
+    print("CONFIG rank=%d maxseq=%d optim=%s targets=%d tasks=%d seeds=%d reps=%d cells=%d"
+          % (RANK, MAXSEQ, OPTIM, len(TARGETS), len(keys), k_seeds, n_reps, len(cells)), flush=True)
+    print("STRATA " + " ".join("%s=%d" % (s, sum(1 for t in keys if strat[t] == s))
+                               for s in ("A", "B", "C")), flush=True)
 
     labels = {}
     for k in keys:
@@ -383,166 +615,219 @@ def main():
     lifted = lift_from_solver()
     collator = lifted["QwenDataCollatorForCompletionOnlyLM"](tokenizer=tokenizer, mlm=False)
 
-    done = set()
+    records = []
     if os.path.exists(RESULTS):
         for line in open(RESULTS):
             try:
-                r = json.loads(line)
-                done.add((r["task"], r["seed"]))
+                records.append(json.loads(line))
             except Exception:
-                pass
-    print("resuming with %d cells already done" % len(done), flush=True)
-
-    for key in keys:
-        for seed in range(1, K_SEEDS + 1):     # seed 1 IS the deployed adapter
-            if (key, seed) in done:
                 continue
-            heartbeat("cell", "%s seed%d" % (key, seed))
-            # No in-process retry. A memory or allocator fault leaves the CUDA context unreliable, so
-            # the cell is recorded, the tier is persisted, and the process exits for the supervisor
-            # to relaunch. Retrying in a poisoned context just produces a second misleading failure.
-            if True:
-                t0 = time.time()
-                rec = {"task": key, "seed": seed}
-                peft_model = None
-                try:
-                    torch.manual_seed(seed)    # LoRA init, deployment fixes this at 42
-                    torch.cuda.empty_cache()
-                    torch.cuda.reset_peak_memory_stats()
-                    peft_model, tier = build_model(tokenizer)
-                    rec["tier"] = tier
+    todo, done_ok, exhausted = plan_todo(cells, records)
+    print("resume: %d done, %d exhausted, %d to run"
+          % (len(done_ok), len(exhausted), len(todo)), flush=True)
 
-                    puzzle_ds = arc.change_keys([key])
-                    # THE varied axis: which sixteen augmentations the adapter trains on
-                    train_ds = puzzle_ds.augment(n=16, shfl_keys=True, seed=seed)
-                    train_ds = train_ds.cut_to_len(formatter=formatter, name="text", max_len=MAXSEQ)
+    for key, seed, rep in todo:
+        cid = "%s seed%d rep%d" % (key, seed, rep)
+        heartbeat("cell", cid)
+        with open(RESULTS, "a") as f:
+            f.write(json.dumps({"task": key, "seed": seed, "replicate": rep,
+                                "marker": "started", "ts": time.time()}) + "\n")
+        t0 = time.time()
+        rec = {"task": key, "seed": seed, "replicate": rep, "stratum": strat[key],
+               "weight": weight[key]}
+        peft_model = None
+        try:
+            torch.cuda.empty_cache()
+            torch.cuda.reset_peak_memory_stats()
+            peft_model = build_model()
+            rec.update(adapter_stats(peft_model))
 
-                    rec["train_loss"] = train_one(peft_model, tokenizer, collator, formatter, train_ds)
-                    rec["train_s"] = round(time.time() - t0, 1)
+            puzzle_ds = arc.change_keys([key])
+            # THE varied axis: which sixteen augmentations the adapter trains on
+            train_ds = puzzle_ds.augment(n=16, shfl_keys=True, seed=seed)
+            train_ds = train_ds.cut_to_len(formatter=formatter, name="text", max_len=MAXSEQ)
 
-                    t1 = time.time()
-                    pool, trunc = decode_pool(peft_model, tokenizer, formatter, lifted, puzzle_ds,
-                                              t1 + DECODE_BUDGET)
-                    rec["decode_s"] = round(time.time() - t1, 1)
-                    rec["truncated"] = trunc
-                    rec["outputs"] = grade(pool, labels)
-                    rec["peak_gb"] = round(torch.cuda.max_memory_allocated() / 1024 ** 3, 2)
-                    rec["wall_s"] = round(time.time() - t0, 1)
-                    rec["ok"] = True
-                except Exception as e:
-                    rec["ok"] = False
-                    rec["error"] = "%s %s" % (type(e).__name__, str(e).replace("\n", " ")[:200])
-                    if is_memory_error(e):
-                        rec["memory_pressure"] = True
-                        if TIER_IDX[0] + 1 < len(TIERS):
-                            TIER_IDX[0] += 1
-                            open(TIER_FILE, "w").write(str(TIER_IDX[0]))
-                            print("  memory pressure, tier degraded to %s for the relaunch"
-                                  % TIERS[TIER_IDX[0]][0], flush=True)
-                        # cuBLAS and allocator faults leave the context unreliable, so do not retry
-                        # in this process. The record is written below and a relaunch resumes.
-                        rec["cuda_poisoned"] = True
-                finally:
-                    # An exception raised in finally escapes every except above it, which is how a
-                    # single poisoned cell killed the whole run instead of being recorded. Cleanup
-                    # is never allowed to propagate.
-                    try:
-                        del peft_model
-                        gc.collect()
-                        torch.cuda.empty_cache()
-                    except Exception as ce:
-                        rec.setdefault("error", "cleanup %s %s"
-                                       % (type(ce).__name__, str(ce).replace("\n", " ")[:120]))
-                        # never clear a poison flag the handler above already set
-                        if "illegal memory access" in str(ce).lower() or is_memory_error(ce):
-                            rec["cuda_poisoned"] = True
+            rec.update(train_one(peft_model, tokenizer, collator, formatter, train_ds,
+                                 deadline=t0 + TRAIN_BUDGET))
+            rec["train_s"] = round(time.time() - t0, 1)
 
-            with open(RESULTS, "a") as f:
-                f.write(json.dumps(rec, default=str) + "\n")
-            # a CUDA illegal access poisons the context for the life of the process, so every
-            # later cell would fail too. Stop and let a relaunch resume from the record above.
-            if rec.get("cuda_poisoned"):
-                print("CUDA context poisoned, stopping so a relaunch can resume", flush=True)
-                heartbeat("poisoned", "%s seed%d" % (key, seed))
-                return
-            n_in = sum(1 for v in rec.get("outputs", {}).values() if v["in_pool"])
-            n_out = len(rec.get("outputs", {}))
-            print("%-10s seed%d  %-5s loss %-9s in-pool %d/%d  train %4.0fs decode %4.0fs %s" % (
-                key, seed, "OK" if rec.get("ok") else "FAIL",
-                round(rec.get("train_loss", 0), 5), n_in, n_out,
-                rec.get("train_s", 0), rec.get("decode_s", 0), rec.get("error", "")), flush=True)
+            t1 = time.time()
+            CACHE_STATS.update(calls=0, shrinks=0)
+            pool, trunc, overflow = decode_pool(peft_model, tokenizer, formatter, lifted,
+                                                puzzle_ds, t1 + DECODE_BUDGET)
+            rec["decode_s"] = round(time.time() - t1, 1)
+            rec["truncated"] = trunc
+            rec["pool_overflow"] = overflow
+            rec["cache_calls"] = CACHE_STATS["calls"]
+            rec["cache_shrinks"] = CACHE_STATS["shrinks"]
+            rec["outputs"] = grade(pool, labels, [k for k in labels if k.startswith(key + "_")])
+            rec["peak_alloc_gb"] = round(torch.cuda.max_memory_allocated() / 1024 ** 3, 2)
+            rec["peak_reserved_gb"] = round(torch.cuda.max_memory_reserved() / 1024 ** 3, 2)
+            rec["wall_s"] = round(time.time() - t0, 1)
+            rec["ok"] = True
+        except Exception as e:                                          # noqa: BLE001
+            rec["ok"] = False
+            rec["error"] = "%s %s" % (type(e).__name__, str(e).replace("\n", " ")[:200])
+            if is_memory_error(e):
+                rec["memory_pressure"] = True
+            # An allocator or cuBLAS fault leaves the context unreliable; continuing in this process
+            # only manufactures more misleading failures.
+            rec["cuda_poisoned"] = is_memory_error(e) or "illegal memory access" in str(e).lower()
+        finally:
+            # An exception raised in finally escapes every except above it, which is how one bad
+            # cell killed a whole run instead of being recorded. Cleanup never propagates, and it
+            # never clears a poison flag the handler already set.
+            try:
+                del peft_model
+                gc.collect()
+                torch.cuda.empty_cache()
+            except Exception as ce:                                     # noqa: BLE001
+                rec.setdefault("error", "cleanup %s" % type(ce).__name__)
+                if "illegal memory access" in str(ce).lower() or is_memory_error(ce):
+                    rec["cuda_poisoned"] = True
+
+        with open(RESULTS, "a") as f:
+            f.write(json.dumps(rec, default=str) + "\n")
+        n_in = sum(1 for v in rec.get("outputs", {}).values() if v["in_pool"])
+        n_out = len(rec.get("outputs", {}))
+        print("%-10s s%d r%d %-4s %s loss %-8s in-pool %d/%d  train %4.0fs decode %4.0fs %s" % (
+            key, seed, rep, strat[key], "OK" if rec.get("ok") else "FAIL",
+            round(rec.get("train_loss_final", 0), 5), n_in, n_out,
+            rec.get("train_s", 0), rec.get("decode_s", 0), rec.get("error", "")), flush=True)
+        if rec.get("cuda_poisoned"):
+            print("CUDA context unreliable, stopping so a relaunch resumes", flush=True)
+            heartbeat("poisoned", cid)
+            return
 
     summarize()
     heartbeat("done")
 
 
-def summarize():
-    """The decision: does the union over seeds beat one seed, and by how much."""
-    rows = [json.loads(l) for l in open(RESULTS)] if os.path.exists(RESULTS) else []
-    rows = [r for r in rows if r.get("ok")]
+def summarize(path=None):
+    """The decision: union over seeds against one seed, net of the replicate floor."""
+    src = path or RESULTS
+    rows = []
+    if os.path.exists(src):
+        for line in open(src):
+            try:
+                r = json.loads(line)
+            except Exception:
+                continue
+            if r.get("marker") != "started" and r.get("ok"):
+                rows.append(r)
     if not rows:
         print("no completed cells")
-        return
-    # a mid-run tier degrade changes the adapter, so comparing across tiers would attribute a
-    # capacity difference to seed variance. Keep only the tier with the most complete coverage.
-    tiers = defaultdict(list)
-    for r in rows:
-        tiers[r.get("tier", "?")].append(r)
-    if len(tiers) > 1:
-        best = max(tiers, key=lambda t: len(tiers[t]))
-        print("mixed tiers present %s, restricting to %r (%d of %d cells)"
-              % ({k: len(v) for k, v in tiers.items()}, best, len(tiers[best]), len(rows)))
-        rows = tiers[best]
-    # a task is only comparable if every seed of it completed
-    per_task = defaultdict(set)
-    for r in rows:
-        per_task[r["task"]].add(r["seed"])
-    full = {t for t, s in per_task.items() if len(s) == len({r["seed"] for r in rows})}
-    dropped = len(per_task) - len(full)
-    if dropped:
-        print("dropping %d task(s) that did not complete every seed" % dropped)
-    rows = [r for r in rows if r["task"] in full]
-    if not rows:
-        print("no task completed all seeds yet")
-        return
+        return None
 
-    by_seed = defaultdict(dict)          # seed -> output key -> in_pool
-    by_seed_sel = defaultdict(dict)
-    for r in rows:
+    bad = [r for r in rows if r.get("truncated") or r.get("train_truncated")
+           or r.get("pool_overflow")]
+    if bad:
+        print("EXCLUDING %d truncated/overflow cell(s): %s" % (
+            len(bad), sorted({"%s s%d r%d" % (r["task"], r["seed"], r.get("replicate", 0))
+                              for r in bad})))
+        rows = [r for r in rows if r not in bad]
+
+    main_rows = [r for r in rows if r.get("replicate", 0) == 0]
+    rep_rows = [r for r in rows if r.get("replicate", 0) == 1]
+
+    per_task = defaultdict(set)
+    for r in main_rows:
+        per_task[r["task"]].add(r["seed"])
+    seeds = sorted({r["seed"] for r in main_rows})
+    full = {t for t, s in per_task.items() if s == set(seeds)}
+    dropped = sorted(set(per_task) - full)
+    if dropped:
+        print("DROPPED %d task(s) missing a seed: %s" % (len(dropped), dropped))
+    if not full:
+        print("no task completed all seeds yet")
+        return None
+
+    by_seed, weight, strat = defaultdict(dict), {}, {}
+    for r in main_rows:
+        if r["task"] not in full:
+            continue
+        weight[r["task"]] = r.get("weight", 1.0)
+        strat[r["task"]] = r.get("stratum", "?")
         for bk, v in r["outputs"].items():
             by_seed[r["seed"]][bk] = v["in_pool"]
-            by_seed_sel[r["seed"]][bk] = v["selected_proxy"]
-    seeds = sorted(by_seed)
-    common = set.intersection(*[set(by_seed[s]) for s in seeds]) if seeds else set()
+
+    common = sorted(set.intersection(*[set(by_seed[s]) for s in seeds]))
     n = len(common)
+    task_of = {b: b.rsplit("_", 1)[0] for b in common}
+    w = {b: weight.get(task_of[b], 1.0) for b in common}
+    tw = sum(w.values()) or 1.0
 
-    single = {s: sum(by_seed[s][b] for b in common) for s in seeds}
-    union = sum(any(by_seed[s][b] for s in seeds) for b in common)
-    inter = sum(all(by_seed[s][b] for b in seeds) for b in common)
-    sel1 = sum(by_seed_sel[seeds[0]][b] for b in common) if seeds else 0
+    def wrate(pred):
+        return sum(w[b] for b in common if pred(b)) / tw
 
-    print("\n=== restart decision, %d test outputs covered by all %d seeds ===" % (n, len(seeds)))
-    for s in seeds:
-        print("  seed %d alone : truth in pool for %d/%d (%.1f%%)" % (s, single[s], n, 100 * single[s] / max(n, 1)))
-    print("  union of %d   : %d/%d (%.1f%%)" % (len(seeds), union, n, 100 * union / max(n, 1)))
-    print("  all seeds     : %d/%d   (agreement core)" % (inter, n))
+    single = {s: wrate(lambda b, s=s: by_seed[s][b]) for s in seeds}
+    union = wrate(lambda b: any(by_seed[s][b] for s in seeds))
+    inter = wrate(lambda b: all(by_seed[s][b] for s in seeds))
     mean_single = sum(single.values()) / len(seeds)
-    gain = union - mean_single
-    print("  marginal gain from restarts: %+.1f outputs over the mean single seed (%.1f%% of %d)"
-          % (gain, 100 * gain / max(n, 1), n))
-    if mean_single:
-        print("  scaled to the hidden 240: about %+.1f task credits, %+.2f points"
-              % (gain / n * 240, gain / n * 240 * 100 / 240))
-    print("  selector proxy on seed %d alone: %d/%d, so pool presence exceeds selection by %d"
-          % (seeds[0], sel1, n, single[seeds[0]] - sel1))
-    print("\n  READ: union materially above single means restarts are the lever and the 1200s cap")
-    print("        funds them. Union at or near single means the misses are hard and no scheduling")
-    print("        recovers them, in which case stop here rather than building the policy.")
 
-    json.dump({"n_outputs": n, "seeds": seeds, "single": single, "union": union,
-               "intersection": inter, "selector_proxy_seed1": sel1},
-              open(SUMMARY, "w"), indent=1)
+    print("\n=== restart decision: %d test outputs across %d tasks, %d seeds ==="
+          % (n, len(full), len(seeds)))
+    print("    rates are reweighted to the 40-task slice using stratum weights")
+    for s in seeds:
+        print("  seed %d alone : %.1f%% of outputs have the truth in pool" % (s, 100 * single[s]))
+    print("  union of %d   : %.1f%%" % (len(seeds), 100 * union))
+    print("  all seeds     : %.1f%%  (agreement core)" % (100 * inter))
+    print("  raw counts    : " + " ".join(
+        "s%d=%d" % (s, sum(by_seed[s][b] for b in common)) for s in seeds)
+        + " union=%d of %d" % (sum(any(by_seed[s][b] for s in seeds) for b in common), n))
+
+    # The negative control. Cross-seed disagreement is only evidence of decorrelation to the extent
+    # it exceeds the disagreement two runs of the SAME seed produce through kernel nondeterminism.
+    rep_line, net = "replicate arm not run, gain is NOT interpretable", None
+    if rep_rows:
+        pairs = 0
+        dis_rep = 0
+        for r in rep_rows:
+            base = next((x for x in main_rows
+                         if x["task"] == r["task"] and x["seed"] == r["seed"]), None)
+            if not base:
+                continue
+            for bk, v in r["outputs"].items():
+                if bk in base["outputs"]:
+                    pairs += 1
+                    dis_rep += int(v["in_pool"] != base["outputs"][bk]["in_pool"])
+        dis_cross = cross = 0
+        for b in common:
+            for i in range(len(seeds)):
+                for j in range(i + 1, len(seeds)):
+                    cross += 1
+                    dis_cross += int(by_seed[seeds[i]][b] != by_seed[seeds[j]][b])
+        r_rate = dis_rep / pairs if pairs else float("nan")
+        c_rate = dis_cross / cross if cross else float("nan")
+        net = c_rate - r_rate
+        rep_line = ("replicate disagreement %.3f (%d pairs), cross-seed %.3f (%d pairs), net %+.3f"
+                    % (r_rate, pairs, c_rate, cross, net))
+    print("  NEGATIVE CONTROL: " + rep_line)
+
+    by_strat = defaultdict(lambda: [0, 0])
+    for b in common:
+        s = strat.get(task_of[b], "?")
+        by_strat[s][1] += 1
+        by_strat[s][0] += int(any(by_seed[k][b] for k in seeds))
+    print("  raw union by stratum: " + " ".join(
+        "%s=%d/%d" % (s, v[0], v[1]) for s, v in sorted(by_strat.items())))
+
+    gain = union - mean_single
+    print("\n  reweighted gain from restarts: %+.1f percentage points" % (100 * gain))
+    if net is not None and net <= 0.02:
+        print("  WARNING: cross-seed disagreement does not exceed the replicate floor. This run")
+        print("           measured nondeterminism, not decorrelation. The answer is NO RESULT.")
+    print("  READ: union materially above single, AND net disagreement clearly positive, means")
+    print("        restarts are the lever. Otherwise the misses are hard and scheduling cannot")
+    print("        recover them. The claim is scoped to COLOUR-PERMUTATION restarts either way.")
+
+    out = {"n_outputs": n, "n_tasks": len(full), "seeds": seeds,
+           "single_weighted": single, "union_weighted": union, "intersection_weighted": inter,
+           "gain_weighted": gain, "net_disagreement": net, "dropped_tasks": dropped,
+           "excluded_cells": len(bad)}
+    json.dump(out, open(SUMMARY, "w"), indent=1, default=str)
     print("\nSUMMARY", SUMMARY, flush=True)
+    return out
 
 
 if __name__ == "__main__":
