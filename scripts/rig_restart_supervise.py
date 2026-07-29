@@ -1,15 +1,18 @@
-"""Keep rig_restart_probe.py running until every cell is recorded.
+"""Keep rig_restart_probe.py running until every cell is recorded, unattended.
 
-The probe exits deliberately when a cell faults, because a memory or allocator failure leaves the CUDA
-context unreliable and continuing in the same process only produces more misleading failures. That
-makes relaunching someone's job, and overnight it should not be mine. This is one python process that
-subprocess-runs the probe in a loop, which is the shape the rig notes call for: a detached PowerShell
-orchestrator dies with its launching SSH session, a detached python process does not.
+The probe exits deliberately when a cell faults, because an allocator or cuBLAS failure leaves the
+CUDA context unreliable and continuing in the same process only manufactures more misleading
+failures. Relaunching is therefore someone's job, and overnight it should not be a person's. This is
+one python process that subprocess-runs the probe in a loop, which is the shape the rig requires: a
+detached PowerShell orchestrator dies with its launching SSH session, a detached python process does
+not.
 
-It stops when the probe reports every cell done, when no progress is made across two consecutive
-attempts (so a cell that faults deterministically cannot loop forever), or at the attempt ceiling.
+Two things it does that the previous version did not. It watches the probe's heartbeat and kills a
+subprocess that has gone silent, because nothing read that file before and a hung CUDA call would
+have blocked forever. And it stops on lack of progress rather than on a fixed attempt count, so a
+cell that faults deterministically cannot spin while a run that is simply slow is left alone.
 
-Usage: python rig_restart_supervise.py [N_TASKS=20] [K_SEEDS=3] [MAX_ATTEMPTS=40]
+Usage: python rig_restart_supervise.py [N_TASKS=20] [K_SEEDS=3] [N_REPS=5] [MAX_ATTEMPTS=40]
 """
 import json
 import os
@@ -17,61 +20,83 @@ import subprocess
 import sys
 import time
 
-BASE = r"D:\arc"
+BASE = os.environ.get("ARC_PROBE_BASE", r"D:\arc")
 PROBE = os.path.join(BASE, "scripts", "rig_restart_probe.py")
-RESULTS = os.path.join(BASE, "experiments", "restart_probe.jsonl")
-LOG = os.path.join(BASE, "experiments", "restart_probe.log")
-STATUS = os.path.join(BASE, "experiments", "supervisor_status.json")
+EXP = os.path.join(BASE, "experiments")
+RESULTS = os.path.join(EXP, "restart_probe.jsonl")
+LOG = os.path.join(EXP, "restart_probe.log")
+STATUS = os.path.join(EXP, "supervisor_status.json")
+HEARTBEAT = os.path.join(BASE, "eval_status_restart.json")
 
 N_TASKS = sys.argv[1] if len(sys.argv) > 1 else "20"
 K_SEEDS = sys.argv[2] if len(sys.argv) > 2 else "3"
-MAX_ATTEMPTS = int(sys.argv[3]) if len(sys.argv) > 3 else 40
-TARGET = int(N_TASKS) * int(K_SEEDS)
+N_REPS = sys.argv[3] if len(sys.argv) > 3 else "5"
+MAX_ATTEMPTS = int(sys.argv[4]) if len(sys.argv) > 4 else 40
+# A cell is bounded by TRAIN_BUDGET + DECODE_BUDGET, about 65 minutes. Silence for twice that means
+# the process is wedged rather than slow.
+STALE_S = 2 * 60 * 60
 
 
-def recorded():
-    if not os.path.isfile(RESULTS):
-        return 0, 0
-    n = ok = 0
-    for line in open(RESULTS):
-        try:
-            r = json.loads(line)
-        except Exception:
-            continue
-        n += 1
-        ok += bool(r.get("ok"))
-    return n, ok
+def counts():
+    ok = started = 0
+    if os.path.isfile(RESULTS):
+        for line in open(RESULTS):
+            try:
+                r = json.loads(line)
+            except Exception:
+                continue
+            if r.get("marker") == "started":
+                started += 1
+            elif r.get("ok"):
+                ok += 1
+    return ok, started
+
+
+def run_once(attempt):
+    """Run the probe, killing it if its heartbeat goes stale. Returns its exit code."""
+    with open(LOG, "a", encoding="utf-8") as lf:
+        lf.write("\n=== supervisor attempt %d ===\n" % attempt)
+        lf.flush()
+        p = subprocess.Popen([sys.executable, "-u", PROBE, N_TASKS, K_SEEDS, N_REPS],
+                             stdout=lf, stderr=subprocess.STDOUT, cwd=BASE)
+        while p.poll() is None:
+            time.sleep(60)
+            try:
+                age = time.time() - json.load(open(HEARTBEAT))["ts"]
+            except Exception:
+                age = 0
+            if age > STALE_S:
+                lf.write("heartbeat stale for %.0fs, killing\n" % age)
+                lf.flush()
+                p.kill()
+                return -1
+        return p.returncode
 
 
 def main():
+    os.makedirs(EXP, exist_ok=True)
     stale = 0
     for attempt in range(1, MAX_ATTEMPTS + 1):
-        before, ok_before = recorded()
-        if before >= TARGET:
-            print("all %d cells recorded, stopping" % TARGET, flush=True)
+        ok_before, _ = counts()
+        json.dump({"attempt": attempt, "ok": ok_before, "ts": time.time()},
+                  open(STATUS, "w"))
+        print("=== attempt %d/%d, %d cells ok ===" % (attempt, MAX_ATTEMPTS, ok_before), flush=True)
+        rc = run_once(attempt)
+        ok_after, _ = counts()
+        print("    attempt %d exit %s, ok %d -> %d" % (attempt, rc, ok_before, ok_after), flush=True)
+        if rc == 0:
+            print("probe reported completion", flush=True)
             break
-        print("=== attempt %d/%d, %d/%d cells recorded (%d ok) ==="
-              % (attempt, MAX_ATTEMPTS, before, TARGET, ok_before), flush=True)
-        json.dump({"attempt": attempt, "recorded": before, "ok": ok_before,
-                   "target": TARGET, "ts": time.time()}, open(STATUS, "w"))
-
-        with open(LOG, "a", encoding="utf-8") as lf:
-            lf.write("\n=== supervisor attempt %d ===\n" % attempt)
-            lf.flush()
-            subprocess.run([sys.executable, "-u", PROBE, N_TASKS, K_SEEDS],
-                           stdout=lf, stderr=subprocess.STDOUT, cwd=BASE)
-
-        after, ok_after = recorded()
-        # A faulting cell still writes its record, so no growth at all means the probe died before
-        # recording anything and relaunching will not help.
-        stale = stale + 1 if after == before else 0
+        # A faulting cell still writes its record, so no growth at all means relaunching will not
+        # help. Two such attempts in a row is the stop condition.
+        stale = stale + 1 if ok_after == ok_before else 0
         if stale >= 2:
-            print("no new records across two attempts, stopping", flush=True)
+            print("no progress across two attempts, stopping", flush=True)
             break
 
-    n, ok = recorded()
-    print("SUPERVISOR DONE: %d/%d recorded, %d ok" % (n, TARGET, ok), flush=True)
-    json.dump({"done": True, "recorded": n, "ok": ok, "target": TARGET, "ts": time.time()},
+    ok, started = counts()
+    print("SUPERVISOR DONE: %d cells ok, %d attempts recorded" % (ok, started), flush=True)
+    json.dump({"done": True, "ok": ok, "started": started, "ts": time.time()},
               open(STATUS, "w"))
     subprocess.run([sys.executable, "-u", PROBE, "summary"], cwd=BASE)
 
