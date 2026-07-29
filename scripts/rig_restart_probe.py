@@ -82,7 +82,12 @@ MAXSEQ = 8192
 LR, EPOCHS, WARMUP_RATIO, GRAD_CLIP = 5e-5, 1, 0.1, 1.0
 DFS_FLOOR = 0.2
 BATCH_VIEWS = 2          # 2 or 4, provably the same thirty-two views either way
-DECODE_DEADLINE = 1200   # the cap this experiment is arguing for
+# Decode gets its own budget measured from the END of training, not from the start of the cell.
+# Deployment caps the whole task at 1800s but trains in about 210s on an L4 under unsloth, so decode
+# there gets roughly 1590s. Training here takes about 770s, so a cell-relative cap would have left
+# decode barely 400s and shrunk every pool against the deployed condition. That would depress the
+# solve rate for every seed and bias the union-against-single contrast this probe exists to measure.
+DECODE_BUDGET = 1500
 
 import numpy as np                                                     # noqa: E402
 import torch                                                           # noqa: E402
@@ -387,8 +392,10 @@ def main():
                     rec["train_loss"] = train_one(peft_model, tokenizer, collator, formatter, train_ds)
                     rec["train_s"] = round(time.time() - t0, 1)
 
+                    t1 = time.time()
                     pool, trunc = decode_pool(peft_model, tokenizer, formatter, lifted, puzzle_ds,
-                                              t0 + DECODE_DEADLINE)
+                                              t1 + DECODE_BUDGET)
+                    rec["decode_s"] = round(time.time() - t1, 1)
                     rec["truncated"] = trunc
                     rec["outputs"] = grade(pool, labels)
                     rec["peak_gb"] = round(torch.cuda.max_memory_allocated() / 1024 ** 3, 2)
@@ -433,10 +440,10 @@ def main():
                 return
             n_in = sum(1 for v in rec.get("outputs", {}).values() if v["in_pool"])
             n_out = len(rec.get("outputs", {}))
-            print("%-10s seed%d  %-5s loss %-9s in-pool %d/%d  %5.0fs %s" % (
+            print("%-10s seed%d  %-5s loss %-9s in-pool %d/%d  train %4.0fs decode %4.0fs %s" % (
                 key, seed, "OK" if rec.get("ok") else "FAIL",
                 round(rec.get("train_loss", 0), 5), n_in, n_out,
-                rec.get("wall_s", 0), rec.get("error", "")), flush=True)
+                rec.get("train_s", 0), rec.get("decode_s", 0), rec.get("error", "")), flush=True)
 
     summarize()
     heartbeat("done")
