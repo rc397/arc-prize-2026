@@ -208,9 +208,16 @@ def stage_s0b():
                 uni = len(bys[i] | bys[j])
                 jac.append(inter / uni if uni else 1.0)
     check("augment.seeds_differ", max(jac) < 1.0,
-          "max pairwise Jaccard %.3f across %d pairs" % (max(jac), len(jac)))
-    check("augment.seeds_overlap_some", min(jac) > 0.0,
-          "min %.3f, the eight dihedral views are shared by construction" % min(jac))
+          "pairwise Jaccard %.3f..%.3f across %d pairs" % (min(jac), max(jac), len(jac)))
+    # Measured near-zero: the eight dihedral views are shared as GEOMETRY, but a colour permutation
+    # composes on top of each, so the same view under a different colour map is a different string
+    # and the text sets are almost disjoint. That is what the seed actually re-rolls, and it is why
+    # the scope of a null result is colour, not geometry.
+    # distinct-text ratio: a seed whose colour-permutation sample collided would train on fewer
+    # effective examples than its row count suggests
+    ratios = [len(bys[s]) / float(drops[k][s]) for k, bys in texts_by_seed.items() for s in bys]
+    check("augment.texts_mostly_distinct", min(ratios) >= 0.9,
+          "distinct/rows %.3f..%.3f" % (min(ratios), max(ratios)))
 
     # seed 1 must be byte-stable, since it is the replication target for task_timing.csv
     k0 = keys[0]
@@ -220,7 +227,7 @@ def stage_s0b():
           {r["text"] for r in again.as_list(fmt)} == texts_by_seed[k0][1])
 
     # cut_to_len trims the .ex suffix, which can collide two view keys into one on long tasks
-    bad = []
+    bad, ev_lens = [], []
     for k in keys:
         multi = arc.change_keys([k]).split_multi_replies()
         ev = multi.augment(n=2, seed=2)
@@ -231,8 +238,22 @@ def stage_s0b():
         for bk, sks in by_test.items():
             if len(sks) != 16 or len(set(sks)) != 16:
                 bad.append((bk, len(sks), len(set(sks))))
+        for sk in ev.keys:
+            ev_lens.append(len(tok(ev.get(sk, fmt)["input"], return_tensors=None)["input_ids"]))
     check("eval_views.sixteen_distinct", not bad,
           "collisions would silently shrink pools on long tasks: %s" % bad[:4])
+
+    # MAXSEQ is a cap, not a length. Knowing the true maximum on BOTH paths says how much of it is
+    # dead headroom that could be reclaimed as activation memory at zero fidelity cost.
+    ev = np.array(ev_lens)
+    need = int(max(a.max(), ev.max() + fmt.max_new_tokens()))
+    print("  eval-input tokens: p50=%d p100=%d; decode needs +%d for generation"
+          % (np.percentile(ev, 50), ev.max(), fmt.max_new_tokens()), flush=True)
+    print("  MAXSEQ actually required: %d (configured %d, dead headroom %d)"
+          % (need, P.MAXSEQ, P.MAXSEQ - need), flush=True)
+    check("maxseq.never_truncates", need <= P.MAXSEQ,
+          "no example is cut at the configured cap")
+    json.dump({"required_maxseq": need}, open(os.path.join(P.EXP, "smoke_maxseq.json"), "w"))
 
     nd = {k: sorted(set(v.values())) for k, v in drops.items() if len(set(v.values())) > 1}
     check("cut_to_len.example_count_seed_independent", not nd,

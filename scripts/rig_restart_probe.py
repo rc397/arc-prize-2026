@@ -82,7 +82,13 @@ MODEL_DIR = os.path.join(BASE, "models", "kagglehub", "models", "sorokin",
 RANK = int(os.environ.get("ARC_PROBE_RANK", "256"))
 ALPHA, DROPOUT = 32, 0.0
 TARGETS = ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"]
-MAXSEQ = int(os.environ.get("ARC_PROBE_MAXSEQ", "8192"))
+# Deployment sets 8192, but that is a CAP and not a length. Measured across the twenty selected
+# tasks (smoke stage s0b): the longest training text is 3849 tokens and the longest eval input is
+# 4783, so 5714 covers both including generation. 6144 truncates nothing, which s0b asserts, and
+# reclaims about a quarter of the activation memory for free. The usual objection to this lever,
+# that a tighter cap makes cut_to_len drop pairs seed-dependently and so inflates the measured
+# decorrelation, does not apply when nothing is being cut at all.
+MAXSEQ = int(os.environ.get("ARC_PROBE_MAXSEQ", "6144"))
 LR, EPOCHS, WARMUP_RATIO, GRAD_CLIP = 5e-5, 1, 0.1, 1.0
 LORA_INIT_SEED = 42       # deployment's random_state. Held FIXED so only augmentation varies.
 DFS_FLOOR = 0.2
