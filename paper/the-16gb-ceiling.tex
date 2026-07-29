@@ -415,6 +415,9 @@ v7.1 & same pipeline with both port defects repaired   & 30.56 \\
 v7.2 & identical build, an accidental repeat run & \textbf{30.97} \\
 v7.3 & + loss-gated skip and greedy fill of empty slots & 28.61 \\
 v7.4 & cap wired to 1200, intended as a control, confounded by 24 unbudgeted fills & 29.44 \\
+\midrule
+\multicolumn{3}{l}{\itshape control: the public notebook we spent a week chasing, forked unmodified} \\
+ctrl & displayed 33.89 beside its published source; scored from our account & 28.06 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -495,54 +498,61 @@ skips the expensive search. And the time both changes reclaim becomes margin for
 knob already measured to buy a task credit. The next submission carries these as a scheduling variant of
 the unchanged pipeline.
 
-The public board then handed us one more measurement, and the story we told about it was wrong three
-times before it came out right. It is worth reporting in that order, because the error was not in any
-single reading but in a habit of attributing a gap to whatever we had most recently changed.
+\subsubsection{A number that did not reproduce, and a week spent explaining it}
+\label{sec:phantom}
+The public board then handed us what looked like a controlled measurement and was not one. We report the
+episode in full, including three wrong explanations we published internally along the way, because the
+correction cost a week and the general lesson is worth more than the specific result.
 
-A public notebook restoring this same pipeline scores \textbf{33.89} where our restoration scored 30.56.
-We first read the two builds as byte-equivalent in every module and attributed the gap to the only
-difference the kernel metadata showed, the dependency tree: it mounts the original author's own wheel
-set and model upload where ours mounts a rebuild whose pins predate the current execution image, and our
-run logs had carried a warning throughout that compiled extensions were being skipped for a mismatched
-framework version. That reading priced the software environment at 3.33 points and reframed the
-sixty-entry cluster at 30.97 as a population unknowingly running a degraded one. The next submission
-rebased onto that environment and scored \textbf{28.61}. The audit that followed found the per-task cap
-knob had never been wired, so the comparison had confounded the environment with the cap, and the
-environment claim was withdrawn for want of evidence rather than confirmed.
+A public notebook restoring this same pipeline displayed \textbf{33.89} against our restoration's 30.56.
+Taking that at face value, we spent the following week attributing the 3.33-point deficit. First to the
+dependency tree, since its kernel metadata mounts the original author's wheel set and model upload where
+ours mounts a rebuild whose pins predate the current execution image, and our logs had warned throughout
+that compiled extensions were being skipped for a version mismatch. That reading priced the software
+environment at 3.33 points and reframed the sixty-entry cluster at 30.97 as a population unknowingly
+running a degraded one. Rebasing onto that environment scored \textbf{28.61}. Second to the per-task cap,
+after an audit found the cap knob had never reached the solver, on the argument that a looser cap lets
+slow tasks eat the wall until the queue tail is dropped unstarted. That rested on the belief that the
+public build ran a tighter 1200-second cap; it forks a source that hardcodes 1800, as did every
+submission of ours through the wiring fault, so the two sides had agreed on the cap all along. The build
+sent to test it scored \textbf{29.44} and moved a second factor besides. Third to two changes of our own
+in the solver, deleting the port's symbolic arm and regrouping its two-view search batches into fours,
+which a diff read module by module leaves as the only differences that survive into deployment.
 
-The replacement candidate was the cap itself, on the argument that a looser per-task limit does not buy
-depth on a 240-task rerun but lets slow tasks eat the wall until the queue tail is dropped unstarted. It
-had one fact behind it, that the public build ran the tighter 1200-second cap we had wrongly believed
-ourselves to be running. That fact is false. The public notebook forks the community port, whose solver
-hardcodes 1800, and the wiring fault means every submission of ours ran 1800 as well. The two sides
-agreed on the cap all along. The build sent to test the cap therefore tested a difference that did not
-exist, ran 1200 against the public build's 1800, and was not the matched control its own header claimed.
-It scored \textbf{29.44}.
+Then we forked the public notebook unmodified and submitted it from our own account. It scored
+\textbf{28.06}, the lowest number in Table~\ref{tab:versions} after the ported original, and 2.91 points
+below the restoration it was supposed to be beating. The deficit does not exist. It never existed. Our
+two solver changes were not costing us three points on the hidden set, they were winning us somewhere
+between one and seven task credits, in the same direction as the eleven points they were worth on the
+public slice, and the transfer inversion we had invoked to explain the reversal had nothing to explain.
 
-What survives is narrower and better posed. Reading the diff module by module rather than by metadata,
-the loader is byte-identical, the decoder differs only in a selector default that resolves to upstream's
-own choice and a measurement dump gated off, the task filter collapses to the identical loop under
-rerun mode, and the worker count resolves to the same four on the contest node. Two differences remain,
-both introduced by our restoration and both in the solver: we deleted the port's symbolic arm, and we
-regrouped its two-view search batches into fours. On the public evaluation slice that pair was worth
-eleven points in our favour, 16.2 to 27.2, which is why it was never revisited. On the hidden set the
-same pair sits on the wrong side of a 3.33-point deficit. The ordering inverts across the public-hidden
-boundary, which is this project's recurring failure and is treated as such in
-Section~\ref{sec:lessons} rather than explained away here.
+The exact size stays uncertain and we decline to sharpen it beyond what the design supports. The control
+carries the public author's own attachments, so against our 30.97 it moves both the code and the
+environment and reads $+2.91$; against our 28.61, which shares its environment and cap, it reads $+0.55$
+but that build carried two scheduler additions of its own. Both comparisons favour the restoration and
+neither isolates it. One reading does invert cleanly: our own environment now looks better than the one
+we had priced at $+3.33$, since every build we ran on the public author's mounts scored below every build
+we ran on ours. We state that as a direction, not a number, having just been taught what happens when a
+single uncontrolled comparison is promoted to a price.
 
-The symbolic arm repays a closer look than we gave it, because it returns two things and we removed
-both with one stub. One is a solved flag that preempts the whole learned search, and that half is
-measured harmful, taking 12 of 39 slice tasks with nothing correct to show. The other is an object
-count read off the demonstration pairs, which never preempts anything and only re-ranks the beams the
-search already produced. That half was never measured on its own, and it is precisely the kind of
-signal Appendix~\ref{app:math} identifies as able to exceed the ceiling of
-Section~\ref{sec:selection}, since it reads the task through an execution against the demonstrations
-rather than through the model's own beliefs. We deleted the one component whose form the theory says
-can beat the selector, as collateral damage from a decision about a different component that happened
-to share a return value. The batching change deserves the symmetric scepticism: its recorded benefit
-was candidates present in the beams, 155 against 105, and Section~\ref{sec:selection} measures 12.333
-credits present in pool against 9.833 attained, so a wider pool the selector cannot rank is this
-paper's own documented failure mode rather than evidence of a deeper search.
+What we cannot do is explain the 33.89 itself, and the reason is the point. A score displayed beside a
+public notebook is not a measurement of the code currently published there. A submission binds to the
+notebook version and the attached data at submit time, both of which the author may change afterwards,
+and neither is auditable by a reader. The number may have come from a different version, different
+attachments, or a different notebook entirely. We have no evidence of anything improper and we are not
+alleging any; we are observing that the artefact does not support the inference we drew from it, and that
+we drew it anyway because a precise-looking number beside a runnable notebook feels like data. It is not
+data. It is a claim, and the only version of it that is data is the one you run yourself. Roughly sixty
+leaderboard entries share our 30.97 exactly, which is what forking public notebooks produces; the
+practice that makes those ties also makes their headline numbers unfalsifiable from outside.
+
+The methodological cost is measurable in this document. Three published explanations, two of them
+quantified to two decimal places, one of them elevated to a central claim about software environments
+being worth more than method, all of them explaining a gap that a single control retired in one
+submission. The control was cheap and available on day one. We ran it seventh. Each explanation was
+individually reasonable and collectively they formed a research programme aimed at a phantom, which is
+the failure mode this section exists to record: we never tested whether the thing we were explaining was
+real. Section~\ref{sec:lessons} takes it up as the project's sharpest instance of a recurring habit.
 
 Three builds are staged to price this, each moving one factor at the 1800-second cap both sides ran.
 One restores the object-count signal alone and keeps our batching, one reverts the batching alone, and
@@ -663,7 +673,7 @@ predicting correctness, where full eight-way consensus is right far more often t
 \section{Discussion}
 \label{sec:disc}
 
-\subsection{Four lessons that generalize}
+\subsection{Five lessons that generalize}
 \label{sec:lessons}
 First, on a single GPU the inference engine is the dominant design choice. Quantization and sampling
 mattered far less than the $13\times$ we recovered by moving decode off the eager path. Second, the
@@ -684,6 +694,26 @@ compound. A lever validated on the no-TTT base meets a different system once the
 the vote, and a lever that measures neutral on one task distribution still carries tail risk on
 another. The operational rule this bought is that a lever counts as validated only in the exact
 submission condition, and a lever that measures neutral is never shipped.
+
+That rule has one clean counterexample and it sharpens the rule rather than weakening it. Repairing the
+community port's two defects was worth eleven points on the public slice and carried to the hidden set in
+the same direction (Section~\ref{sec:phantom}). What transferred was a repair, the removal of a component
+that was actively discarding tasks and a batching change inside the search. What failed to transfer, every
+time, was a lever that re-weighted selection among candidates the system already had. The distinction is
+the same one Section~\ref{sec:selection} reaches from the pool statistics, and it is a more useful
+predictor than public magnitude: ask whether the change fixes something broken or tunes something working.
+
+Fifth, and most expensive here, confirm that the effect you are explaining exists before you explain it.
+A public notebook displaying a score three points above ours produced, over one week, three quantified
+explanations of the gap, one of which we elevated to a central claim that the software environment
+outweighed every method lever we had measured. Forking that notebook unmodified and submitting it scored
+2.91 points \emph{below} our own build (Section~\ref{sec:phantom}). There was no gap. The control was
+the cheapest experiment available and we ran it seventh, after the explanations, because each explanation
+felt like progress in a way that re-measuring the baseline did not. Two properties of a research question
+should now trigger the control first: the effect comes from an artefact whose provenance we cannot audit,
+and the effect is the premise for a programme of work rather than one comparison. Both held from day one.
+The general form is that a number is evidence about the thing that produced it, and a leaderboard score
+beside a public notebook is produced by a submission whose code and inputs are not the ones on display.
 
 \subsection{Accuracy per GPU-hour}
 We argue the right framing for compute-poor ARC work is \textbf{accuracy per GPU-hour}
@@ -770,21 +800,27 @@ therefore real but bounded by model scale on one GPU, the same wall the refineme
 other side. The lever exists but needs a larger model to grip, which is exactly the move the full contest
 hardware allows (Section~\ref{sec:scale}).
 
-Three submissions are open at the time of writing, and they are the reason this section ends without a
-number. Section~\ref{sec:architects} narrows the gap between our restoration and the stronger public
-build to two changes we made in the solver, deleting its symbolic arm and regrouping its search batches,
-and the three builds move one factor each at a matched cap. The first is the one this section predicts
-should matter. The argument above says the next lever must be an external signal valid where the base is
-lost, and reports that our own attempt at it, a 1.5B model emitting checkable programs, failed on scale.
-The symbolic arm is a far weaker version of the same idea that costs no GPU at all: it reads an object
-count off the demonstration pairs on the CPU while the adapter trains, and that count re-ranks the
-beams. We removed it for a defect in a different half of the same component, its habit of preempting the
-learned search outright, and never measured the ranking half alone. If restoring it moves the hidden
-score, the lesson is not that the symbolic arm is good but that we discarded an external signal for
-reasons that applied only to the part of it we happened to measure, having argued two pages earlier that
-an external signal was the thing most worth having. We record the prediction here so it cannot be
-adjusted after the fact, and we expect the reader to weigh it against the fact that every previous
-prediction in this table about a public-validated lever has been wrong in the same direction.
+One experiment on this lever is built and unrun, and its motivation changed underneath it in a way worth
+recording. The community port carries a symbolic arm that we deleted wholesale (Section~\ref{sec:phantom}),
+and it returns two independent things. One is a solved flag that preempts the learned search entirely,
+and that half is measured harmful, taking 12 of 39 slice tasks with nothing correct to show. The other is
+an object count read off the demonstration pairs on the CPU while the adapter trains, which never
+preempts anything and only re-ranks beams the search has already produced. Our stub killed the second
+silently along with the first, and it is a weak but free instance of exactly what this section argues for:
+an external signal, valid where the base is lost, obtained by reading the demonstrations rather than the
+model's own beliefs, and therefore outside the ceiling of Appendix~\ref{app:math} that binds every
+selector built from model likelihoods. It costs no GPU, which is the constraint that defeated the 1.5B
+program synthesiser above.
+
+We had staged that experiment to close a three-point deficit to a public notebook. The control in
+Section~\ref{sec:phantom} then showed the deficit was never there, which removes the reason we were
+running it and leaves the reason we should have been running it all along. It is now a single-factor test
+on top of our best configuration rather than a catch-up move, and it is the only one of the three staged
+builds still worth a submission slot: the other two revert our changes toward a configuration the control
+has already measured at 28.06. The prediction registered before it runs is a gain of no more than two or
+three task credits, since the count is a coarse statistic that is silent on most tasks, and we note in
+advance that a coarse external signal producing a small real gain and a coarse external signal producing
+nothing are separated by less than the width of our error bar on a single submission.
 
 Finally, the significance of the TTT lift is directional
 rather than conclusive (Appendix~\ref{app:results}). A full-eval paired run is the obvious next
