@@ -901,6 +901,36 @@ def summarize(path=None):
     print("  raw union by stratum: " + " ".join(
         "%s=%d/%d" % (s, v[0], v[1]) for s, v in sorted(by_strat.items())))
 
+    # Fidelity against the deployed run, on the tasks they share. Compare LIKE WITH LIKE: the CSV
+    # holds the trainer's mean loss over the run, not a final loss, so the probe's mean is the
+    # comparable statistic and its final (about 25x smaller) is not. This is reported before the
+    # headline because a probe training at a different operating point would make the headline mean
+    # something different, and because agreement here is the only evidence that a stack running
+    # plain peft rather than unsloth reproduces the deployed condition at all.
+    try:
+        import csv
+        kag = {r["task"]: r for r in csv.DictReader(open(timing_csv()))}
+        pairs = [(r["task"], r.get("train_loss_mean"), float(kag[r["task"]]["train_loss"]),
+                  r.get("wall_s"), float(kag[r["task"]]["wall_seconds"]),
+                  any(v["in_pool"] for v in r["outputs"].values()),
+                  kag[r["task"]]["outcome"] in ("solved", "in-pool"))
+                 for r in main_rows if r["seed"] == seeds[0] and r["task"] in kag]
+        if pairs:
+            ratios = sorted(p[1] / p[2] for p in pairs if p[1] and p[2])
+            agree = sum(1 for p in pairs if p[5] == p[6])
+            print("\n  FIDELITY vs the deployed run, %d shared tasks at seed %d" % (len(pairs), seeds[0]))
+            print("    loss mean ratio probe/kaggle: median %.2f, range %.2f to %.2f"
+                  % (ratios[len(ratios) // 2], ratios[0], ratios[-1]))
+            print("    wall ratio probe/kaggle     : median %.2f"
+                  % sorted(p[3] / p[4] for p in pairs if p[3] and p[4])[len(pairs) // 2])
+            print("    outcome agreement           : %d/%d tasks" % (agree, len(pairs)))
+            if agree < len(pairs) * 0.7:
+                print("    WARNING: outcomes disagree on more than a third of shared tasks, which")
+                print("             is a porting problem rather than a result. Do not trust the")
+                print("             headline until it is explained.")
+    except Exception as e:                                              # noqa: BLE001
+        print("\n  FIDELITY check unavailable: %s" % type(e).__name__)
+
     gain = union - mean_single
     print("\n  reweighted gain from restarts: %+.1f percentage points" % (100 * gain))
     if net is not None and net <= 0.02:
