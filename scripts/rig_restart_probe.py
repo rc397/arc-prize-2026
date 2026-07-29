@@ -210,7 +210,33 @@ def heartbeat(phase, extra=""):
 # out. So the tier is global and degrades on the first OOM ANYWHERE, not just at adapter creation, and
 # every record carries the tier it ran under. The summary refuses to compare across tiers.
 TIERS = [("full", TARGETS), ("no-embed", TARGETS[:7])]
-TIER_IDX = [0]
+# Start at no-embed. The nine-target adapter loads in 8.87 GB but its 530M trainable parameters carry
+# about 4.2 GB of AdamW moments and 1 GB of gradients, leaving under 2 GB for activations at 8192, and
+# it was measured surviving short examples then dying on long ones with a cuBLAS workspace failure at
+# 15836 MiB of 16384. Dropping embed_tokens and lm_head is also the configuration our own best
+# single-card TTT used (src/arc/ttt.py trains the same seven modules), so it is a known-workable setup
+# rather than an improvised one. The tier is persisted so a relaunch after a fault does not climb back.
+TIER_FILE = os.path.join(BASE, "experiments", "restart_probe_tier.txt")
+TIER_IDX = [1]
+if os.path.isfile(TIER_FILE):
+    try:
+        TIER_IDX = [max(1, min(len(TIERS) - 1, int(open(TIER_FILE).read().strip())))]
+    except Exception:
+        pass
+
+
+def is_memory_error(e):
+    """Memory pressure does not always arrive as OutOfMemoryError.
+
+    Once the allocator is near the ceiling, cuBLAS fails to obtain workspace and surfaces
+    CUBLAS_STATUS_INTERNAL_ERROR from an ordinary matmul, as a plain RuntimeError. Treating only
+    OutOfMemoryError as memory pressure meant the tier never degraded and the run just died.
+    """
+    if isinstance(e, torch.cuda.OutOfMemoryError):
+        return True
+    m = str(e).lower()
+    return ("out of memory" in m or "cublas_status_internal_error" in m
+            or "cublas_status_alloc_failed" in m)
 
 
 def build_model(tokenizer):
@@ -372,8 +398,10 @@ def main():
             if (key, seed) in done:
                 continue
             heartbeat("cell", "%s seed%d" % (key, seed))
-            rec = None
-            for attempt in (0, 1):            # a second pass only happens after a tier degrade
+            # No in-process retry. A memory or allocator fault leaves the CUDA context unreliable, so
+            # the cell is recorded, the tier is persisted, and the process exits for the supervisor
+            # to relaunch. Retrying in a poisoned context just produces a second misleading failure.
+            if True:
                 t0 = time.time()
                 rec = {"task": key, "seed": seed}
                 peft_model = None
@@ -401,21 +429,19 @@ def main():
                     rec["peak_gb"] = round(torch.cuda.max_memory_allocated() / 1024 ** 3, 2)
                     rec["wall_s"] = round(time.time() - t0, 1)
                     rec["ok"] = True
-                except torch.cuda.OutOfMemoryError as e:
-                    rec["ok"] = False
-                    rec["error"] = "OOM at tier %s" % TIERS[TIER_IDX[0]][0]
-                    if attempt == 0 and TIER_IDX[0] + 1 < len(TIERS):
-                        TIER_IDX[0] += 1
-                        print("  OOM, degrading global tier to %s and retrying"
-                              % TIERS[TIER_IDX[0]][0], flush=True)
-                        del peft_model
-                        peft_model = None
-                        gc.collect()
-                        torch.cuda.empty_cache()
-                        continue
                 except Exception as e:
                     rec["ok"] = False
                     rec["error"] = "%s %s" % (type(e).__name__, str(e).replace("\n", " ")[:200])
+                    if is_memory_error(e):
+                        rec["memory_pressure"] = True
+                        if TIER_IDX[0] + 1 < len(TIERS):
+                            TIER_IDX[0] += 1
+                            open(TIER_FILE, "w").write(str(TIER_IDX[0]))
+                            print("  memory pressure, tier degraded to %s for the relaunch"
+                                  % TIERS[TIER_IDX[0]][0], flush=True)
+                        # cuBLAS and allocator faults leave the context unreliable, so do not retry
+                        # in this process. The record is written below and a relaunch resumes.
+                        rec["cuda_poisoned"] = True
                 finally:
                     # An exception raised in finally escapes every except above it, which is how a
                     # single poisoned cell killed the whole run instead of being recorded. Cleanup
@@ -427,8 +453,9 @@ def main():
                     except Exception as ce:
                         rec.setdefault("error", "cleanup %s %s"
                                        % (type(ce).__name__, str(ce).replace("\n", " ")[:120]))
-                        rec["cuda_poisoned"] = "illegal memory access" in str(ce).lower()
-                break
+                        # never clear a poison flag the handler above already set
+                        if "illegal memory access" in str(ce).lower() or is_memory_error(ce):
+                            rec["cuda_poisoned"] = True
 
             with open(RESULTS, "a") as f:
                 f.write(json.dumps(rec, default=str) + "\n")
