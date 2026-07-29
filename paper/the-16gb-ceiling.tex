@@ -1290,13 +1290,38 @@ if the training augmentation seed is varied, which changes which sixteen of the 
 permutation space the adapter ever sees, and that is a genuinely different training set for the same
 task. A determinism that reads as good hygiene is, for this purpose, the thing standing in the way.
 
-We built the probe that answers it. It trains the deployed configuration on the same task under three
-different augmentation seeds and records, per test output, whether the truth is present in the decoded
-pool, so the comparison is union against single. The two hypotheses are far apart and easy to separate:
-at the measured single-seed rate, three independent runs would place the truth in the union pool for
-about sixty percent of outputs where three perfectly correlated ones would stay at twenty-seven. At the
-time of writing the probe has produced no completed cell, and we report the argument without the number
-rather than the other way around.
+We built the probe that answers it, and three details of its design are load-bearing. It trains the
+deployed configuration on the same task under different augmentation seeds and records, per test
+output, whether the truth is present in the decoded pool, so the comparison is union against single.
+Tasks are sampled stratified by their Kaggle outcome rather than taken in order, because of the first
+twenty tasks only four ever had the truth in the pool and fifteen are outright misses that cannot
+discriminate between seeds while still inflating the denominator; rates are reweighted back to the
+slice. The scope of any answer is narrower than the question sounds: the augmentation always applies
+all eight dihedral views and the seed selects only the colour permutation and example order, and we
+measured the resulting training sets to be almost disjoint as text, so a null licenses ``colour
+permutation restarts do not help'' and not ``restarts do not help''.
+
+The third detail is a negative control, and it is not optional. The search admits a continuation on a
+hard threshold over half-precision logits, so a rounding difference at a borderline token prunes or
+admits an entire subtree and two runs of the \emph{same} seed need not agree. We measured that noise
+directly: against a cache-free reference the decoder's scores agree only to about $2\times10^{-3}$,
+which is the same order as the 0.0043-nat margin scale Section~\ref{sec:selection} measures for the
+selector itself. Without subtracting a same-seed replicate, ``union exceeds single'' would look
+positive whether or not seeds decorrelate, so the reported quantity is cross-seed disagreement minus
+replicate disagreement.
+
+Building it also produced a result about our own instrument that we report because it nearly cost us
+the experiment. On the reproduction stack the model's tokenizer cannot represent the prompt format the
+model was trained on. It is a word-level vocabulary of sixteen tokens with no merges, and the entries
+for the two turn markers are unreachable: encoding the word for either returns nothing, and the user
+and assistant preambles encode identically. The completion-only loss mask keys on exactly those two
+ids to find the assistant spans, so every label was masked, the cross-entropy ran over zero targets and
+returned NaN, and the gradient norm was zero at every rank and optimizer we tried. Nothing raised. Left
+undetected it would have trained every adapter to NaN, decoded an empty pool for every task, and
+reported that seeds do not decorrelate, which is both the answer that ends the investigation and the
+answer we had no independent reason to doubt. The deployed runs do not have this defect, since the
+measurement run's recorded losses are finite and converged, which is what pins the intended
+tokenization and let us reconstruct it exactly.
 
 Porting the deployed solver to a current software stack surfaced a portability result worth more than
 the probe, and we are careful below to say exactly how far it is established. The depth-first search
@@ -1309,11 +1334,17 @@ advance past what the cache holds and the search explores from the wrong prefix.
 behaviour needs only a truncation back to the branch point before each call, after which the algorithm
 is unchanged, and that is what our port does.
 
-The status of this is an inspection result, not a measured one. Our own run faults before reaching the
-decoder at all, for an unrelated reason in the training path, so we have observed the incompatibility in
-the code and the interface change rather than in a failure we reproduced end to end. We say so because
-the alternative is the mistake of Section~\ref{sec:phantom}, where a plausible mechanism was fitted to
-an effect nobody had confirmed. What is solid is the dependency itself: the pipeline every entry in the
+The repair is now verified, though not in the way the first draft of this section claimed. We tested it
+by enumerating the search tree with the pruning threshold set so loose that nothing is ever discarded,
+under which the cached decoder and a cache-free reference that recomputes from scratch must agree
+exactly. They do: identical candidate sets, with scores matching to the numerical tolerance quoted
+above. The truncation also agrees with an independent implementation that slices the cache tensors
+directly and never calls the library's own truncation method. What we have \emph{not} observed is the
+unpatched decoder failing on the deployed stack, since that stack pins the older interface, so the
+consequence of the dependency remains an inference from the interface change rather than a reproduction
+of the fault. We are explicit about that split because the alternative is the mistake of
+Section~\ref{sec:phantom}, where a plausible mechanism was fitted to an effect nobody had confirmed.
+What is solid is the dependency itself: the pipeline every entry in the
 thirty-point cluster is running relies on a deprecated interface contract, that reliance is invisible in
 the notebook, it produces no warning, and it is held in place only by the competition image's pinned
 versions. If that image moves, the failure is not a crash in the general case but a search proceeding
