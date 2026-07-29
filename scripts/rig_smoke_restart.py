@@ -615,14 +615,13 @@ def stage_s3():
     check("s3.every_output_graded", len(r["graded"]) > 0
           and all("n_cands" in v for v in r["graded"].values()), len(r["graded"]))
     check("s3.cache_fired", r["cache"]["shrinks"] > 0, r["cache"])
-    rows = {x["task"]: x for x in csv.DictReader(open(
-        os.path.join(P.REPO, "paper", "data", "task_timing.csv")))}
+    per_cell = r["train_s"] + r["decode_s"] + 40
+    print("  MEASURED train %.0fs decode %.0fs -> %.0fs per cell, 65 cells = %.1f hours"
+          % (r["train_s"], r["decode_s"], per_cell, 65 * per_cell / 3600.0), flush=True)
+    rows = {x["task"]: x for x in csv.DictReader(open(P.timing_csv()))}
     kag = float(rows[task]["train_loss"]) if task in rows else None
     check("s3.loss_plausible_vs_kaggle", kag is None or s["train_loss_final"] < 10 * kag,
           "probe %.5f vs kaggle %.5f" % (s["train_loss_final"], kag or float("nan")))
-    per_cell = r["train_s"] + r["decode_s"] + 40
-    print("  projection: %.0fs per cell, 65 cells = %.1f hours"
-          % (per_cell, 65 * per_cell / 3600.0), flush=True)
     check("s3.projection_under_48h", 65 * per_cell / 3600.0 < 48,
           "%.1f h" % (65 * per_cell / 3600.0))
     finish("s3")

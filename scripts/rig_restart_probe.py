@@ -119,6 +119,18 @@ from arc_loader import ArcDataset, QwenFormatter                       # noqa: E
 from arc_decoder import score_kgmon                                    # noqa: E402
 
 
+def timing_csv():
+    """Locate the Kaggle measurement outcomes. The rig has no repo checkout, so resolve rather than
+    assume a laptop path, and resolve it in ONE place: a second hardcoded read in the smoke stage
+    survived the first fix and crashed s3 after it had done all of its expensive work."""
+    p = next((c for c in (os.path.join(BASE, "data", "task_timing.csv"),
+                          os.path.join(EXP, "task_timing.csv"),
+                          os.path.join(REPO, "paper", "data", "task_timing.csv"))
+              if os.path.isfile(c)), None)
+    assert p, "task_timing.csv not found; copy it to %s" % os.path.join(BASE, "data")
+    return p
+
+
 def encoder_for(tokenizer):
     """Return an exact encoder for this prompt format, because the shipped tokenizer is not one.
 
@@ -599,13 +611,7 @@ def select_tasks(n_tasks):
     weighted mean estimates the population rate over the 40-task slice.
     """
     import csv
-    # the rig has no repo checkout, so resolve rather than assume a laptop path
-    path = next((p for p in (os.path.join(BASE, "data", "task_timing.csv"),
-                             os.path.join(EXP, "task_timing.csv"),
-                             os.path.join(REPO, "paper", "data", "task_timing.csv"))
-                 if os.path.isfile(p)), None)
-    assert path, "task_timing.csv not found; copy it to %s" % os.path.join(BASE, "data")
-    rows = list(csv.DictReader(open(path)))
+    rows = list(csv.DictReader(open(timing_csv())))
     for r in rows:
         r["loss"] = float(r["train_loss"])
     misses = [r for r in rows if r["outcome"] not in ("solved", "in-pool")]
