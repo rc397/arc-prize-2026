@@ -44,6 +44,7 @@ Usage: python rig_restart_probe.py [N_TASKS=20] [K_SEEDS=3]
 Resumable, one JSON line per (task, seed); rerunning skips completed cells.
 """
 import ast
+import builtins
 import gc
 import json
 import os
@@ -94,29 +95,100 @@ from arc_loader import ArcDataset, QwenFormatter                       # noqa: E
 from arc_decoder import score_kgmon                                    # noqa: E402
 
 
+def _restore_cache(cache, pos):
+    """Undo the in-place growth a model call leaves on a Cache, restoring the branch point.
+
+    turbo_dfs recurses with one cache object and calls the model repeatedly inside a while loop,
+    passing the SAME cache each time. That is only correct if a model call leaves its input cache
+    untouched, which was true of the legacy tuple API the deployed pipeline was written against:
+    outputs.past_key_values came back as a new tuple. transformers 5 replaced that with Cache
+    objects that append in place, so the second iteration branches from an already-extended cache,
+    positions run past what was allocated, and CUDA raises an illegal memory access. On entry to
+    turbo_dfs the cache holds exactly `pos` tokens, so cropping back to pos before each call
+    reproduces the old semantics precisely rather than approximating them.
+    """
+    try:
+        if hasattr(cache, "crop") and cache.get_seq_length() > pos:
+            cache.crop(pos)
+    except Exception:
+        pass
+
+
+class _CropBeforeEachBranch(ast.NodeTransformer):
+    def __init__(self):
+        self.hits = 0
+
+    def visit_While(self, node):
+        self.generic_visit(node)
+        node.body.insert(0, ast.parse("_restore_cache(cache, pos)").body[0])
+        self.hits += 1
+        return node
+
+
 def lift_from_solver():
     """Pull the deployed decoder and collator out of arc_solver.py without importing it.
 
     That module imports unsloth on line 1, which does not exist here. Taking the definitions through
     the AST keeps them byte-faithful to what actually ships, which a hand reimplementation would not.
+    The single exception is the cache restore documented on _restore_cache, inserted into turbo_dfs's
+    loop, which is required to run the algorithm at all on this transformers version.
     """
     src = open(os.path.join(V7, "arc_solver.py"), encoding="utf-8").read()
+    body = ast.parse(src).body
     want_def = {"turbo_dfs", "inference_turbo_dfs", "QwenDataCollatorForCompletionOnlyLM"}
-    want_const = {"USER_TOKEN_ID", "ASSISTANT_TOKEN_ID", "EOS_ID"}
-    keep = []
-    for node in ast.parse(src).body:
-        if isinstance(node, (ast.FunctionDef, ast.ClassDef)) and node.name in want_def:
-            keep.append(node)
-        elif isinstance(node, ast.Assign) and any(
-                isinstance(t, ast.Name) and t.id in want_const for t in node.targets):
-            keep.append(node)
-    got = {n.name if hasattr(n, "name") else n.targets[0].id for n in keep}
-    missing = (want_def | want_const) - got
+    keep = [n for n in body if isinstance(n, (ast.FunctionDef, ast.ClassDef)) and n.name in want_def]
+    missing = want_def - {n.name for n in keep}
     assert not missing, "could not lift %s from arc_solver.py" % sorted(missing)
+
+    # Pull in the module-level constants the lifted code reads, transitively, rather than naming
+    # them by hand. Hand-listing missed ARC_TOKENS and PAD_ID, which turbo_dfs reads on every
+    # branch, and the resulting NameError only showed up deep inside a rig run.
+    assigns = {}
+    for n in body:
+        if isinstance(n, ast.Assign):
+            for t in n.targets:
+                if isinstance(t, ast.Name):
+                    assigns.setdefault(t.id, n)
+
+    def free_names(nodes):
+        return {x.id for n in nodes for x in ast.walk(n)
+                if isinstance(x, ast.Name) and isinstance(x.ctx, ast.Load)}
+
+    def bound_names(nodes):
+        out = {getattr(n, "name", None) for n in nodes}
+        for n in nodes:
+            for x in ast.walk(n):
+                if isinstance(x, ast.Name) and isinstance(x.ctx, ast.Store):
+                    out.add(x.id)
+                elif isinstance(x, ast.arg):
+                    out.add(x.arg)
+        return out - {None}
+
+    supplied = {"torch", "np", "time", "defaultdict", "DataCollatorForLanguageModeling",
+                "Any", "Union", "_restore_cache"} | set(dir(builtins))
+    while True:
+        need = free_names(keep) - bound_names(keep) - supplied
+        pull = [assigns[n] for n in sorted(need) if n in assigns and assigns[n] not in keep]
+        if not pull:
+            break
+        keep.extend(pull)
+    keep.sort(key=body.index)
+    unresolved = free_names(keep) - bound_names(keep) - supplied
+    assert not unresolved, "lifted code reads names nothing provides: %s" % sorted(unresolved)
+
+    patcher = _CropBeforeEachBranch()
+    for node in keep:
+        if getattr(node, "name", None) == "turbo_dfs":
+            patcher.visit(node)
+            ast.fix_missing_locations(node)
+    # a patch that silently fails to apply is worse than no patch, and this one is the difference
+    # between a correct search and a CUDA fault twenty minutes in
+    assert patcher.hits == 1, "expected exactly one DFS loop to patch, found %d" % patcher.hits
+
     # the collator's method signature is annotated, so these must be the real typing objects
     ns = {"torch": torch, "np": np, "time": time, "defaultdict": defaultdict,
           "DataCollatorForLanguageModeling": DataCollatorForLanguageModeling,
-          "Any": typing.Any, "Union": typing.Union}
+          "Any": typing.Any, "Union": typing.Union, "_restore_cache": _restore_cache}
     exec(compile(ast.Module(body=keep, type_ignores=[]), "<lifted>", "exec"), ns)
     return ns
 
@@ -334,13 +406,27 @@ def main():
                     rec["ok"] = False
                     rec["error"] = "%s %s" % (type(e).__name__, str(e).replace("\n", " ")[:200])
                 finally:
-                    del peft_model
-                    gc.collect()
-                    torch.cuda.empty_cache()
+                    # An exception raised in finally escapes every except above it, which is how a
+                    # single poisoned cell killed the whole run instead of being recorded. Cleanup
+                    # is never allowed to propagate.
+                    try:
+                        del peft_model
+                        gc.collect()
+                        torch.cuda.empty_cache()
+                    except Exception as ce:
+                        rec.setdefault("error", "cleanup %s %s"
+                                       % (type(ce).__name__, str(ce).replace("\n", " ")[:120]))
+                        rec["cuda_poisoned"] = "illegal memory access" in str(ce).lower()
                 break
 
             with open(RESULTS, "a") as f:
                 f.write(json.dumps(rec, default=str) + "\n")
+            # a CUDA illegal access poisons the context for the life of the process, so every
+            # later cell would fail too. Stop and let a relaunch resume from the record above.
+            if rec.get("cuda_poisoned"):
+                print("CUDA context poisoned, stopping so a relaunch can resume", flush=True)
+                heartbeat("poisoned", "%s seed%d" % (key, seed))
+                return
             n_in = sum(1 for v in rec.get("outputs", {}).values() if v["in_pool"])
             n_out = len(rec.get("outputs", {}))
             print("%-10s seed%d  %-5s loss %-9s in-pool %d/%d  %5.0fs %s" % (
