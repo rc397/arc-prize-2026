@@ -808,13 +808,29 @@ def summarize(path=None):
         print("no completed cells")
         return None
 
-    bad = [r for r in rows if r.get("truncated") or r.get("train_truncated")
-           or r.get("pool_overflow")]
-    if bad:
-        print("EXCLUDING %d truncated/overflow cell(s): %s" % (
-            len(bad), sorted({"%s s%d r%d" % (r["task"], r["seed"], r.get("replicate", 0))
-                              for r in bad})))
-        rows = [r for r in rows if r not in bad]
+    # Truncation is only a confound when it is ASYMMETRIC. Every cell gets the same decode budget,
+    # so a task whose seeds were all cut at the deadline is still a fair seed-against-seed
+    # comparison on a uniformly smaller pool; a task where one seed finished and another was cut is
+    # not, because the difference could be time rather than capability. Excluding all truncated
+    # cells would have dropped 10 of the first 16, including both tasks that showed any seed
+    # variation at all, which is discarding the measurement to keep the bookkeeping tidy.
+    trunc_by_task = defaultdict(set)
+    for r in rows:
+        trunc_by_task[r["task"]].add(bool(r.get("truncated")))
+    mixed = {t for t, v in trunc_by_task.items() if len(v) > 1}
+    hard = [r for r in rows if r.get("train_truncated") or r.get("pool_overflow")
+            or r["task"] in mixed]
+    n_trunc = sum(1 for r in rows if r.get("truncated"))
+    print("decode truncated in %d of %d cells, uniform within task except %s"
+          % (n_trunc, len(rows), sorted(mixed) or "none"))
+    if hard:
+        print("EXCLUDING %d cell(s) for mixed truncation, train truncation or pool overflow: %s"
+              % (len(hard), sorted({"%s s%d" % (r["task"], r["seed"]) for r in hard})))
+        rows = [r for r in rows if r not in hard]
+    if n_trunc:
+        print("NOTE: pools are smaller than the deployed condition wherever decode was cut. That")
+        print("      lowers every seed's rate together, so the union-against-single contrast stays")
+        print("      valid, but the absolute rates are floors and not estimates of deployment.")
 
     main_rows = [r for r in rows if r.get("replicate", 0) == 0]
     rep_rows = [r for r in rows if r.get("replicate", 0) == 1]
@@ -943,7 +959,8 @@ def summarize(path=None):
     out = {"n_outputs": n, "n_tasks": len(full), "seeds": seeds,
            "single_weighted": single, "union_weighted": union, "intersection_weighted": inter,
            "gain_weighted": gain, "net_disagreement": net, "dropped_tasks": dropped,
-           "excluded_cells": len(bad)}
+           "excluded_cells": len(hard), "decode_truncated_cells": n_trunc,
+           "mixed_truncation_tasks": sorted(mixed)}
     json.dump(out, open(SUMMARY, "w"), indent=1, default=str)
     print("\nSUMMARY", SUMMARY, flush=True)
     return out
