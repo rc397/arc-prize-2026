@@ -81,8 +81,22 @@ contest's own four-L4 node, and repairing two defects the community port had int
 \textbf{30.97\%}, a score roughly sixty other entries carry exactly because it is the public notebook's
 own number. That result is a reproduction of named public work and is not a single-card result, and
 we report it as the measured price of the constraint, roughly twelve points against the best configuration
-we could serve inside the single-card budget. We give an honest
-accounting of
+we could serve inside the single-card budget.
+
+Past that point the work becomes an account of what it takes to trust a number at all in this setting,
+and four results carry more than the accuracies do. A public notebook \emph{displaying} 33.89 scored
+\textbf{28.06} when we forked it unmodified and submitted it ourselves, which is below our own build;
+we had spent a week producing three quantified explanations of a gap that did not exist, and we report
+them in the order we believed them. The selection ceiling turns out to be closeable by proof rather
+than by sweep: on a dumped candidate pool, the correct grid is dominated in every recorded statistic
+for most of the outputs that leak, so no monotone rule over those statistics can recover them and the
+family of sixteen reweightings we were about to test was refuted before it ran. A scheduling
+hypothesis that the reclaimed time budget could fund restarts measured a 4.4-point gain and was
+\textbf{nothing}: rerunning the same seed disagrees with itself as often as different seeds disagree
+with each other, so the apparent effect was the decoder's own arithmetic, and only a same-seed
+replicate arm separated the two. And the residual is capability rather than budget, since 62\% of tasks
+never place the correct grid in the candidate pool under any of sixteen views while consuming 69\% of
+the compute. We give an honest accounting of
 what the recipe costs and where the effort should go for anyone working with one consumer GPU rather
 than the winner's hardware. The contest itself provides four L4 GPUs, 96~GB together, where the
 offline frontier now leads near 66\% on the strength of large-scale synthetic-data pretraining, so we read the 16~GB
@@ -1393,9 +1407,24 @@ measurement from above. A faithful reproduction of a public pipeline that one 16
 serve in budget, run on the contest's own four-L4 node and repaired of two defects its community port had
 introduced, scores 30.97\%
 on the same hidden set. That result is not ours and not single-card, and its value here is that it
-prices the constraint at roughly twelve points instead of leaving it an open question. The sharpest general lesson
-is that public-eval gains must be re-validated in the deployed condition, since every public-validated
-candidate lever we submitted regressed on the hidden set. Those bounds belong to one small card, not to
+prices the constraint at roughly twelve points instead of leaving it an open question.
+
+The lessons that generalize are about measurement rather than about ARC. Public-eval gains must be
+re-validated in the deployed condition, since every public-validated candidate lever we submitted
+regressed on the hidden set, and the one class that did transfer was repair rather than tuning. A score
+displayed beside a public notebook is not a measurement of the code published there, and treating it as
+one cost us a week and three quantified explanations of a gap that a single control retired in one
+submission. A family of rules is a multiplicity, so a sweep of sixteen selectors is nearly certain to
+produce a winner by chance, and in our case the pool's dominance structure refuted the whole family
+before any of it ran. And an effect measured against a hard threshold over low-precision arithmetic
+needs a same-seed replicate before it means anything, since ours produced an apparent 4.4-point gain
+that was entirely the decoder disagreeing with itself. Each of those cost real compute to learn and
+none of them is specific to this benchmark.
+
+What we could not move is the part that was never about scheduling or ranking. Across the levers we
+closed, the residual is that most tasks never produce the correct grid at all, which is a property of a
+4B model rather than of the twelve-hour budget, and the honest next step is a stronger base rather than
+another pass over the same candidates. Those bounds belong to one small card, not to
 the task. The contest gives four L4 GPUs and 96~GB, where the offline frontier now leads near 66\%, and
 the verifier, the TTT bridge, and the selection rule we built are the pieces we would carry onto that
 hardware, with the scaling case stated as a falsifiable hypothesis rather than a promise
