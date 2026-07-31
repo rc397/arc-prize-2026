@@ -786,10 +786,14 @@ def main():
         if rec.get("cuda_poisoned"):
             print("CUDA context unreliable, stopping so a relaunch resumes", flush=True)
             heartbeat("poisoned", cid)
-            return
+            # Returning normally exits 0, which the supervisor reads as "completed" and stops.
+            # Stopping early and reporting success are opposite things and must not share an exit
+            # code: one poisoned cell ended a 65-cell run at 37 because of exactly that.
+            return False
 
     summarize()
     heartbeat("done")
+    return True
 
 
 def summarize(path=None):
@@ -970,4 +974,4 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "summary":
         summarize()
     else:
-        main()
+        sys.exit(0 if main() else 3)
