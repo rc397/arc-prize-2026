@@ -775,10 +775,26 @@ exactly where it is needed, since on a task the base misses it reproduces none o
 pairs, so there is nothing to select between or correct toward. Our 16-token model also cannot read a
 natural-language critique, so the canonical re-prompt-with-the-discrepancy step is not even expressible. We also probed whether a one-time continued LoRA fine-tune of the base on official ARC-AGI-2 training
 data and RE-ARC~\cite{rearc} generations yields a better static model. It did not. The fine-tuned base
-scores 11.63\% no-TTT against the stock base's 12.79\%, so we ship the stock base. The NVARC base is
-already well-adapted to this grid format, and continued fine-tuning on this public data did not
-transfer. That is a useful negative result for the compute-poor practitioner. More public data is not a free
-lever once the base is task-tuned.
+scores 11.63\% no-TTT against the stock base's 12.79\%, so we ship the stock base. We recorded that at
+the time as evidence that more public data is not a free lever once a base is task-tuned, which was the
+right conclusion for the wrong reason, and the correct reason is worth more.
+
+Reading the base model's own published training configuration settles it. Our base is the product of a
+full supervised fine-tune of a reasoning-tuned Qwen3-4B over a corpus whose named components include
+both the official ARC-AGI-2 training split and RE-ARC generations, alongside a synthetic set of order
+$10^6$ puzzles built by an LLM pipeline that summarizes puzzle concepts, mixes them into hybrids,
+generates transformation code and executes it. We had therefore fine-tuned the model on two datasets it
+had already consumed. The 1.16-point regression is duplicate-corpus overfitting rather than a statement
+about data scale, and the general lesson is narrower and more useful than the one we drew: before
+adding data to a task-tuned base, read what the base was trained on, because the failure mode of
+training on a subset of your own pretraining corpus looks exactly like the failure mode of the data
+being useless.
+
+The same document bounds what a single card can do about this from above. That fine-tune ran as a full
+update under tensor-parallel training across eight GPUs, not as an adapter, so reproducing or extending
+the base is not a matter of patience on one 16~GB card. The only base-side lever that remains open to us
+is data the published corpus does not already contain, which means running that concept-mixing pipeline
+ourselves, and we state it as an option we have scoped rather than one we have tested.
 
 Building on that null result, we tested an expert-iteration self-training loop. We solve the official
 training tasks with the current model, distil the base on a curriculum of its own verified-correct
