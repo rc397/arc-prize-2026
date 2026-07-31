@@ -1310,8 +1310,36 @@ selector itself. Without subtracting a same-seed replicate, ``union exceeds sing
 positive whether or not seeds decorrelate, so the reported quantity is cross-seed disagreement minus
 replicate disagreement.
 
-Building it also produced a result about our own instrument that we report because it nearly cost us
-the experiment. On the reproduction stack the model's tokenizer cannot represent the prompt format the
+The answer is no, and the negative control is what makes that statement worth anything. Over 65 cells
+covering 19 tasks and 30 test outputs, the three seeds place the truth in the pool for 11, 17 and 15
+outputs, and their union is 17. The union equals the best single seed exactly: seed two alone finds
+everything all three find together, and this held at every sample size we inspected as the run
+proceeded. Reweighted to the slice that is a 4.4-point apparent gain over the mean single seed, and
+reporting that number would have been the error the control exists to prevent. Rerunning the
+\emph{same} seed disagrees with itself on 12.5\% of outputs; different seeds disagree on 13.3\%. The
+net is $+0.008$, which is indistinguishable from zero, so what the naive contrast measures is the
+decoder's own numerical nondeterminism and not any property of the training draw.
+
+Two things make the null more credible than a null usually is. The bias in this design runs toward the
+hypothesis rather than away: 48 of 65 decodes were cut at their budget, so the probe is uniformly
+weaker than deployment, and decorrelation generically rises as success probability falls toward the
+noise floor. We failed to find an effect under conditions that would exaggerate one. And the sample was
+stratified precisely so the cells would land where seeds could differ, yet every hit lies in the
+reachable stratum, 17 of 21 outputs, with nothing at all from the nine outputs drawn from tasks the
+deployed run missed. The tasks a restart would need to rescue are not close to being rescued.
+
+What this licenses is narrower than it sounds and we hold to the narrower claim. The augmentation
+always applies all eight dihedral views, so the seed re-rolls the colour permutation and the example
+order, and the finding is that re-rolling those does not change which tasks the adapter can reach. It
+does not establish that no restart of any kind helps. What it does establish is that the cheap version,
+the one the reclaimed cap could actually have paid for, does not, so the scheduling lever of this
+section is closed and the 62 percent of tasks that never produce the truth remain a property of the
+model rather than of the budget. Fidelity supports reading it that way: across the 19 shared tasks the
+probe's mean training loss tracks the deployed run's at a median ratio of 0.93, and the two agree on
+outcome for 15 of 19.
+
+Building the probe also produced a result about our own instrument that we report because it nearly cost
+us the experiment. On the reproduction stack the model's tokenizer cannot represent the prompt format the
 model was trained on. It is a word-level vocabulary of sixteen tokens with no merges, and the entries
 for the two turn markers are unreachable: encoding the word for either returns nothing, and the user
 and assistant preambles encode identically. The completion-only loss mask keys on exactly those two
