@@ -1,7 +1,6 @@
 # Scoping: a contamination audit of the public ARC checkpoint zoo
 
-Status: scoping. Nothing here is a result yet. Gates in section 4 must pass before any claim leaves
-this file.
+Status: COMPLETE, 2026-08-01. All five gates passed. Result in section 8.
 
 ## 1. What we actually observed
 
@@ -131,3 +130,53 @@ State these now so they are not negotiated later.
 
 If it survives all five, we name the checkpoint and state the measurement and the method, and we do
 not speculate about intent, exactly as the paper already handles the 33.89.
+
+## 8. Result
+
+All five gates passed. Data in `paper/data/contamination_g{2,3,5}.json`.
+
+**G1**, 172 outputs, both tokenizers, 75,052 scored ids, zero round-trip mismatches. The likelihoods
+are computed on the truth.
+
+**G2**, truth-likelihood over 167 outputs of the public evaluation set:
+
+| model | median NLL/token | fraction under 0.01 nats |
+|---|---|---|
+| 4B sft139 | 0.04039 | 13% |
+| 2B sft141 | **0.00014** | **91%** |
+
+**G4**, 120 fresh RE-ARC instances minted under seed 20260801 at difficulty [0.35, 1.0], each
+verified by RE-ARC's own verifier, 8 candidates rejected.
+
+**G3 and G5**, the 2x2. Greedy decode, no test-time training, no search, 60 outputs per cell:
+
+| model | ARC-AGI-2 public eval | fresh RE-ARC |
+|---|---|---|
+| 4B sft139 | 10.0% (6/60) | 78.3% (47/60) |
+| 2B sft141 | **80.0%** (48/60) | 65.0% (39/60) |
+
+Within-column model gap: **+70.0 points on eval** (z = 7.7), **-13.3 points on fresh** (z = 1.6).
+Interaction **+83.3 points, z = 8.0**.
+
+The fresh column is not at ceiling or floor, so it establishes an ordering, though note honestly
+that the fresh-column gap alone is not significant at n = 60. The claim does not need it to be: a
+2B that beats a 4B from the same author by eight-fold on the suspect set while **not** beating it on
+data minted after both were published cannot be explained by capability, and a null on the fresh
+column would suffice for that.
+
+Conclusion, stated as narrowly as the evidence supports:
+
+> The ARC-AGI-2 public evaluation set is not a valid measurement instrument for
+> `sorokin/qwen3_2b_grids15_sft141`. Any score, filter, validation or candidate selection performed
+> with that checkpoint against public eval is reading recall rather than reasoning.
+
+Nothing here speaks to intent. Training on the public evaluation set is standard practice in this
+field because the private set is what gets scored. The finding is about what the artefact can be
+used to measure, not about the conduct of whoever built it.
+
+Two consequences for our own work. First, it retroactively validates the call to discard the
+cross-scoring experiment that used this checkpoint as a second belief state. Second, and more
+useful: the 2B reaches 65% on fresh data against the 4B's 78.3%, so it is a **genuinely capable
+model** whose contamination is specific to the public evaluation set. Using it as a second scorer on
+the HIDDEN set is therefore legitimate and better motivated than before. That is lever F3 in
+docs/score-levers.txt.
