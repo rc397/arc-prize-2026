@@ -250,12 +250,17 @@ def lift_from_solver(patch_cache=True, src_path=None):
     # Pull in the module-level constants the lifted code reads, transitively, rather than naming them
     # by hand. Hand-listing missed ARC_TOKENS and PAD_ID, which turbo_dfs reads on every branch, and
     # the NameError only surfaced deep inside a rig run.
+    # Both constants and helper definitions, since a lifted function may call a module-level helper
+    # that itself reads more constants. The LB33 variant does exactly that: its turbo_dfs calls
+    # _arc_token_ids, which reads _ARC_TOKEN_ID_CACHE, and pulling only Assign nodes missed both.
     assigns = {}
     for n in body:
         if isinstance(n, ast.Assign):
             for t in n.targets:
                 if isinstance(t, ast.Name):
                     assigns.setdefault(t.id, n)
+        elif isinstance(n, (ast.FunctionDef, ast.ClassDef)):
+            assigns.setdefault(n.name, n)
 
     def free_names(nodes):
         return {x.id for n in nodes for x in ast.walk(n)

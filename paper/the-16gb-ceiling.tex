@@ -560,10 +560,27 @@ which a diff read module by module leaves as the only differences that survive i
 
 Then we forked the public notebook unmodified and submitted it from our own account. It scored
 \textbf{28.06}, the lowest number in Table~\ref{tab:versions} after the ported original, and 2.91 points
-below the restoration it was supposed to be beating. The deficit does not exist. It never existed. Our
-two solver changes were not costing us three points on the hidden set, they were winning us somewhere
-between one and seven task credits, in the same direction as the eleven points they were worth on the
-public slice, and the transfer inversion we had invoked to explain the reversal had nothing to explain.
+below the restoration it was supposed to be beating. We took that as showing the deficit had never
+existed, and reported it that way. That reading was itself wrong, and the way it was wrong is the most
+useful thing in this section.
+
+The notebook we forked was not the notebook the score belonged to. Enumerating the competition's public
+notebooks, which are published precisely to be read, turns up one titled for the score in question and
+carrying it in its own name, along with a byte-identical fork of it. That notebook runs the same base
+model and the same dependency tree as ours, and differs from our best submission in exactly two
+respects, both of which govern how much search fits inside the budget. It computes the decoder's
+per-node score on the GPU over the twelve grid tokens rather than as a full-vocabulary softmax moved to
+the CPU, which is algebraically the same quantity and so cannot change what an unbounded search finds,
+but the search is bounded and the cheaper form covers more of the tree per second. And it caps each task
+at 1200 seconds rather than 1800. Every other difference we had agonized over is absent: it removes the
+symbolic arm and uses the four-view batching, both of which we had arrived at independently.
+
+So the correct account is neither the one we started with nor the one we replaced it with. The number
+was real. A public artifact producing it was available for the whole period. We measured a different
+artifact, concluded the effect was illusory, and wrote that up with more confidence than testing one
+file supports. The 28.06 measurement stands and is worth keeping, since that notebook demonstrably does
+not produce the number attached to it in our reading of the board; what does not stand is the inference
+from one such test to the claim that nothing produces it.
 
 The exact size stays uncertain and we decline to sharpen it beyond what the design supports. The control
 carries the public author's own attachments, so against our 30.97 it moves both the code and the
@@ -574,16 +591,23 @@ we had priced at $+3.33$, since every build we ran on the public author's mounts
 we ran on ours. We state that as a direction, not a number, having just been taught what happens when a
 single uncontrolled comparison is promoted to a price.
 
-What we cannot do is explain the 33.89 itself, and the reason is the point. A score displayed beside a
-public notebook is not a measurement of the code currently published there. A submission binds to the
-notebook version and the attached data at submit time, both of which the author may change afterwards,
-and neither is auditable by a reader. The number may have come from a different version, different
-attachments, or a different notebook entirely. We have no evidence of anything improper and we are not
-alleging any; we are observing that the artefact does not support the inference we drew from it, and that
-we drew it anyway because a precise-looking number beside a runnable notebook feels like data. It is not
-data. It is a claim, and the only version of it that is data is the one you run yourself. Roughly sixty
-leaderboard entries share our 30.97 exactly, which is what forking public notebooks produces; the
-practice that makes those ties also makes their headline numbers unfalsifiable from outside.
+The durable lesson survives both errors and is sharper for them. A score displayed beside a public
+notebook is not a measurement of the code in front of you, and it does not even identify which code it
+came from. A submission binds to a notebook version and its attachments at submit time, both mutable
+afterwards and neither auditable, and a leaderboard entry names a team rather than a file. We treated a
+number as though it pointed at an artifact, first believing it and then disbelieving it, when what it
+actually required was finding the artifact. The remedy is not scepticism, which produced our second
+error, but enumeration: the competition publishes its notebooks, and reading them is both permitted and
+the only way to know what a number refers to. We did that a week late, and it took an afternoon.
+
+The costs are worth stating plainly, since they are the argument for the discipline rather than
+decoration on it. Believing the number bought three quantified explanations of a gap, one of them
+elevated to a claim that the software environment outweighed every method lever we had measured.
+Disbelieving it on one control bought a confident published assertion that the effect was illusory.
+Enumerating the notebooks bought a two-line mechanism, testable offline, that neither belief would ever
+have produced. Roughly sixty leaderboard entries share our 30.97 exactly, which is what forking public
+notebooks produces; the same practice means the artifact behind almost any number is sitting in public,
+and the reason to look is that it is cheaper than any amount of reasoning about the number.
 
 The methodological cost is measurable in this document. Three published explanations, two of them
 quantified to two decimal places, one of them elevated to a central claim about software environments
