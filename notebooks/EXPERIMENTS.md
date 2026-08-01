@@ -21,7 +21,7 @@ There is no v7.3a. The variants are v7.1, v7.2, v7.3, v7.4, then the v7.5 bisect
 | v7.5a | arc_submission_v7_5a.ipynb | `ARC_AIF=prune`, batch 4, cap 1800 | not run | pending |
 | v7.5b | arc_submission_v7_5b.ipynb | `ARC_AIF=off`, batch 2, cap 1800 | not run | pending |
 | v7.5c | arc_submission_v7_5c.ipynb | `ARC_AIF=full`, batch 2, cap 1800 | not run | pending |
-| control | pulled fork, `rc7530/lb33-control-unmodified` | mikelou1's notebook unmodified | 1200 | committed 2026-08-01 |
+| control | `rc7530/lb33-control-unmodified` | mikelou1's notebook unmodified, sorokin's attachments | 1200 | **28.47** |
 
 The "cap actually run" column exists because it disagreed with the knob for the first four builds. The
 builder's replace targeted a `spend_time` form the source does not use, so it never matched, and v7.1,
@@ -44,6 +44,35 @@ reading its source on 2026-08-01 shows a literal 1200-second per-task cap inside
 line 851 of the flattened notebook, inherited from nothing. The claim that it forks a source hardcoding
 1800, and the consequent withdrawal of the cap hypothesis, were both based on the wrong notebook. The
 hypothesis is reinstated. The same correction is applied in the paper and in the v7.4 variant note.
+
+## The control result, 2026-08-01
+
+`mikelou1/arc-agi2-lb33-89-minimal-perfpatch` forked unmodified scores **28.47**, not 33.89. The
+notebook was byte-identical, SHA256 `EE49384A...`, with only the ownership metadata changed, and it
+mounted sorokin's own wheel tree and model upload exactly as its metadata specifies.
+
+That is the second public notebook to display a high score and land near 28 when actually run. The
+first was `koushikrudra/failed-in-aimo` at 28.06. Our own v7.2 scores 30.97. There was never a
+deficit to close. We were ahead of both.
+
+Three things die with this result.
+
+The environment hypothesis is refuted rather than merely unsupported. The claim was that mounting
+sorokin's original attachments instead of the rc7530 fork was worth 3.33 points. This control mounted
+exactly those attachments and scored 28.47, which is below every build we have run on our own mounts.
+
+The cap hypothesis weakens sharply. LB33 runs cap 1200 and scores 28.47. Our v7.2 runs 1800 and
+scores 30.97. That is confounded by everything else that differs between the two builds, so it does
+not settle the one-factor question, but it removes the reason to expect 1200 to help.
+
+The v7.5 bisection loses its motivation. It was built to explain a 30.56-versus-33.89 gap that does
+not exist. v7.5a survives on its own merits as the ceiling theorem's program-execution channel, which
+no configuration on either side has ever run. v7.5b and v7.5c were checks on a phantom.
+
+One caveat kept deliberately. A run that hits the twelve-hour wall and drops the tail of its queue
+also finishes COMPLETE with a low score, and the scoring rerun's log is not visible from outside. So
+28.47 is what that artefact delivers on this account, which is the question the control was built to
+answer, and it is not a proof about the code considered in isolation.
 
 ## Where the cap question actually stands
 
