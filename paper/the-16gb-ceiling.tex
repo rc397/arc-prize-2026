@@ -1889,6 +1889,19 @@ exactly the channels that break the assumption, executing a candidate program ag
 demonstrations, or scoring under a second independently trained model, both of which read the task
 through something other than $q$.
 
+We tested the second escape in the strongest form available offline and it did not pay. Every one of
+the 432 candidates in the dumped pool was rescored under the \emph{un-adapted} base, which shares
+weights with the deployed model but not beliefs, having never seen the sixteen task-specific
+augmentations the adapter trained on. Against the deployed selector's 15 of 60 outputs with the truth
+in the top two, that likelihood scores 12 alone, 15 when added to the deployed score, and 14 when
+combined with multiplicity: no combination we tried recovers a single additional output, and the
+correct-in-pool total it is competing for is 19. The reading is not that a second opinion is worthless
+in general but that these particular dominators are not an artifact of the adapter. A belief state that
+never saw this task's augmentations ranks them above the truth as well, so the domination is a property
+of the candidates rather than of the training, and the cheap reason to expect a second model to help is
+gone. A separately trained model of a different lineage remains untested and would be the honest next
+probe, but its prior is now worse than it was.
+
 Identifiability closes the pool-only question from below. The pool is exchangeable given $q$, so its
 law depends on the draws only through the recorded multiset, the empirical measure is sufficient, and
 the best pool-only rule is a function of it. If two rules $\theta_0 \ne \theta_1$ induce the same $q$
