@@ -39,7 +39,11 @@ VARIANTS = {
         "file": "arc_submission_v7_3.ipynb",
         "env": {"ARC_LOSS_CUT": "0.05", "ARC_GREEDY_FALLBACK": "1", "ARC_N_EVAL": "0",
                 "ARC_TASK_TIMEOUT": "1200"},
-        "note": ("Scheduling build, rebased onto the 33.89 deployment condition. The public notebook "
+        "note": ("Scheduling build, rebased onto what we then believed was the 33.89 deployment condition. "
+                 "CAUTION, that premise was wrong twice over. koushikrudra/failed-in-aimo does not carry "
+                 "33.89, we forked it as a control and it scored 28.06, and v7.1 ran 1800 rather than the "
+                 "1200 asserted below. The environment reasoning may still hold, the score attribution "
+                 "does not. The public notebook "
                  "koushikrudra/failed-in-aimo is byte-equivalent to our v7.1 restoration in every module "
                  "yet scores 33.89 to our 30.56 at the same 1200s cap, and its kernel metadata shows the "
                  "one difference, it mounts sorokin's original pip-install-unsloth-flash-patch wheel tree "
@@ -71,10 +75,13 @@ VARIANTS = {
                  "v7.3's regression than the loss cut. It now takes ARC_GFB_BUDGET seconds of its own, "
                  "default 180, but v7.4 leaves it off so this build is a pure control against the 33.89 "
                  "public notebook, identical pipeline, identical cap, nothing of ours added. SCORED "
-                 "29.44, and it was neither pure nor a matched control. The fill ran anyway through a "
-                 "truthy-string gate, and the cap was wrong in the other direction: the 33.89 notebook "
-                 "forks the aimo source, which hardcodes 1800, so 1200 was a deviation from the control "
-                 "rather than a match to it. Both are fixed, the cap claim is withdrawn."),
+                 "29.44, and it was not pure. The fill ran anyway through a truthy-string gate, so two "
+                 "factors moved and the run is void rather than adverse. A note here previously also "
+                 "withdrew the cap claim, on the grounds that the 33.89 notebook forks the aimo source "
+                 "which hardcodes 1800. That was read off the WRONG notebook, koushikrudra/failed-in-aimo, "
+                 "which we forked as a control and which scored 28.06. The build carrying 33.89 is "
+                 "mikelou1/arc-agi2-lb33-89-minimal-perfpatch, and its own decode loop carries a literal "
+                 "1200 on the effective path. The cap claim is reinstated and remains untested cleanly."),
     },
     # ---- the bisection. v7.1 (30.56) and the 33.89 public notebook differ in exactly two factors,
     # everything else in the diff being byte-identical, neutral at its default, or identical under
