@@ -96,7 +96,16 @@ def main():
     rb = b["cands"] / max(b["secs"], 1e-9)
     print("\nspeed ratio LB33 / aimo: %.2fx candidates per second" % (rb / max(ra, 1e-9)))
     print("\nVERDICT")
-    if rb > ra * 1.15:
+    if a["cands"] == 0 and b["cands"] == 0:
+        # Both arms empty means the budget bought no completed grid either way, so the ratio is 0/0
+        # and carries no information. Say so rather than letting the else-branch below read a
+        # vacuous zero as a null result, which is the same defect that made an earlier script
+        # report a positive verdict at an AUC of 0.15.
+        print("  NO RESULT. Neither arithmetic completed a single grid inside the budget, so this")
+        print("  measured nothing about throughput. Candidates-per-second is gated on finishing a")
+        print("  whole grid, and on these tasks neither arm does. Re-run on tasks that produce")
+        print("  candidates, or instrument node expansions per second instead of completions.")
+    elif rb > ra * 1.15:
         print("  The patch does buy search throughput. That is a mechanism for the score difference,")
         print("  and it is a repair rather than a tuning, which is the class that has transferred")
         print("  for us before. Worth a submission slot paired with the 1200s cap.")
