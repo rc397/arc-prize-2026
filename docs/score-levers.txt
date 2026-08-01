@@ -80,6 +80,11 @@ The v7_debug copy also carries the AIF arm (component-count penalty, lines
   consensus is confidently wrong at exactly the miss cells.
 - [measured today] Attempt-2 diversification: top-2 kgmon picks are already
   diverse (median Hamming 12, only 12/56 within 2 cells). Little to gain.
+- [measured today] A1, the re-weighted monotone selector: DEAD by its own
+  pre-registered bar. Training-set optimum 16 of the 18 bound; leave-one-
+  task-out attains 14 vs kgmon's 15 (gain -1, weights (1,0,4) chosen in
+  37/39 folds). The 3-output gap is real but not learnable from 60 outputs;
+  weight tuning memorises the leaked outputs. scripts/pool_selector_fit.py.
 
 
 ================================================================
@@ -112,13 +117,8 @@ one factor per submission, control before port (score-push-plan).
 ---- A. OFFLINE NOW, ZERO GPU ----
 
 A1. Tuned monotone selector aimed at the 3-output gap.
-    Fit w1*multiplicity - w2*augNLL - w3*beamNLL with leave-one-TASK-out
-    cross-validation on the dump. The bound says 18 is attainable; kgmon
-    reaches 15. Even +2 outputs on the slice scales to roughly +1 point
-    hidden if the slice is representative.
-    Cost: an afternoon, laptop only.
-    Kill: LOO-validated gain < 2 outputs. With only 4 leaked outputs the
-    overfitting risk is the whole risk; the LOO protocol is not optional.
+    KILLED 2026-08-01, see section 2. LOO gain -1 against a +2 bar. The
+    selection headroom is real (bound 18, attained 15) but belongs to A2.
 
 A2. Mined-invariant filtering (the theorem's task-evidence escape).
     Mine candidate invariants from the demonstrations: output-size map,
@@ -236,14 +236,15 @@ F3. 2B rescoring validated on FRESH pools.
 5. WHAT I WOULD ACTUALLY DO, IN ORDER
 ================================================================
 
-1. A1 today (laptop). It is the only lever that can pay before the next
-   submission slot is even available.
-2. C1's logging question on the next rig replay; deploy C1 if skipping
+1. A1: done and dead (LOO -1). Its headroom transfers to A2.
+2. A2 is now the lead offline item; it is also paper content (the
+   theorem's escape made operational).
+3. C1's logging question on the next rig replay; deploy C1 if skipping
    fires often.
-3. B1 as already sequenced; the control decides whether D1/D3 are built
-   at all.
-4. A2 in the background; it is also paper content (the theorem's escape
-   made operational).
+4. B1 as already sequenced, recalendared to the Kaggle quota reset; the
+   control decides whether D1/D3 are built at all. Note the dfsbench
+   result (identical yields on 3/3 discriminating tasks) already prices
+   the perfpatch near zero on our hardware.
 5. F3 once the audit's GPU gates finish, since the fresh pools serve both.
 6. D1 only after B1's control validates the direction, and then as the
    main engineering effort, with D3 folded in.
