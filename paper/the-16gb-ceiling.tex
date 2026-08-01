@@ -2004,8 +2004,17 @@ never binds, larger $C$ is weakly better, which is why a 120-task public run can
 while a 240-task hidden run can, and why the public and hidden reads of a cap change may legitimately
 disagree. The measured inputs are a $\tau$ range of 174 to 1889 seconds on the 40-task slice, a deployed
 cap of 1800 on every submission through the wiring fault of Section~\ref{sec:results}. The strongest
-public build was believed to run 1200, which is what made the cap the leading candidate for the gap;
-it forks a source that hardcodes 1800, so both sides ran the same cap and the candidate is withdrawn.
+public build was believed to run 1200, which is what made the cap the leading candidate for the gap.
+An earlier draft withdrew that candidate, on the grounds that the build forks a source hardcoding
+1800 and that both sides therefore ran the same cap. That withdrawal read the wrong notebook. It
+inspected the build we had forked as a control, which is not the build carrying the score. Pulling
+\texttt{mikelou1/arc-agi2-lb33-89-minimal-perfpatch} through the Kaggle API on 1 August 2026 and
+reading its source shows a literal 1200-second per-task cap written inside its own decode loop,
+on the effective path, inherited from nothing. The candidate is reinstated. The two builds did not
+run the same cap, and the cap is again the leading unexplained difference between that build and
+ours. This is the second time in this work that a conclusion about a public notebook was reached
+without reading the notebook that actually holds the score, and the correction cost nothing only
+because the check is a single API call.
 The model below stands as mathematics and is reported because the cap remains a real lever on a
 240-task queue, not because any measured gap is now attributed to it. Whether the wall binds on the
 hidden set is not observable from outside,

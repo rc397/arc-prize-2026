@@ -233,21 +233,98 @@ F3. 2B rescoring validated on FRESH pools.
 
 
 ================================================================
+4b. THE REAL CONSTRAINT, AND WHAT IT IMPLIES  (corrected 2026-08-01)
+================================================================
+
+The binding constraint is ONE SUBMISSION PER DAY. It is not GPU quota.
+
+Why quota does not bind. Kaggle sets KAGGLE_IS_COMPETITION_RERUN only when it
+re-runs a notebook to score it. On our own commit the variable is unset, so the
+notebook reads the public evaluation set instead of the hidden one, and it can
+queue a handful of tasks rather than all of them. LB33 subsets to four keys
+(0934a4d8, 36a08778, 981571dc, aa4ec2a5) and its commit finished in about 15
+minutes. The full 240-task run happens inside the SCORING rerun, which is
+Kaggle's compute, not our weekly allowance. arc_solver.py:258 already switches
+the data file on rerun_mode; confirm it also subsets the queue on commit.
+
+Budget: about 90 submissions before the 2 November main-track deadline. Latency
+per experiment is roughly one day.
+
+CONSEQUENCE, and it reverses the earlier advice in this file. Do NOT bundle.
+Bundling was a response to imagined scarcity. With ~90 slots there is budget to
+change one factor at a time, and a confounded result costs MORE days afterwards
+disentangling it than a clean one costs to run. The bundling rule in an earlier
+draft (one unbounded change plus bounded ones) is retired.
+
+THE SUBMISSION RULE. Never spend a day on a variant that lacks BOTH of:
+  (a) an offline, rig-side reason to expect it to work, and
+  (b) exactly one changed factor against a named, already-scored baseline.
+A variant failing (a) is a guess and belongs on the rig first. A variant failing
+(b) is unattributable and burns a day of information.
+
+THE STARVATION RULE. One per day means a day with nothing queued is a day lost
+permanently. The rig's job is to keep the queue non-empty. If the queue is empty
+and the rig is idle, that is the actual emergency, not a slow experiment.
+
+================================================================
 5. WHAT I WOULD ACTUALLY DO, IN ORDER
 ================================================================
 
-1. A1: done and dead (LOO -1). Its headroom transfers to A2.
-2. A2 is now the lead offline item; it is also paper content (the
-   theorem's escape made operational).
-3. C1's logging question on the next rig replay; deploy C1 if skipping
-   fires often.
-4. B1 as already sequenced, recalendared to the Kaggle quota reset; the
-   control decides whether D1/D3 are built at all. Note the dfsbench
-   result (identical yields on 3/3 discriminating tasks) already prices
-   the perfpatch near zero on our hardware.
-5. F3 once the audit's GPU gates finish, since the fresh pools serve both.
-6. D1 only after B1's control validates the direction, and then as the
-   main engineering effort, with D3 folded in.
+Two tracks running in parallel. The SUBMISSION QUEUE consumes one slot per day
+and must never be empty. The BUILD TRACK runs on the rig, costs no slots, and
+exists to keep the queue fed.
+
+SUBMISSION QUEUE, one factor each, baseline named for every entry:
+
+  S1  LB33 control, unmodified fork. Committed 2026-08-01, awaiting submit.
+      Baseline: none, this is the reference for whether 33.89 transfers.
+  S2  v7.2 + cap 1200 (ARC_TASK_TIMEOUT 1800 -> 1200), and NOTHING else.
+      Baseline v7.2 = 30.97. Read the history before running this, it is more
+      tangled than it looks. The paper had WITHDRAWN the cap hypothesis on the
+      grounds that the public build forks a source hardcoding 1800; that was
+      established against the wrong notebook. Pulled mikelou1/arc-agi2-lb33-89
+      -minimal-perfpatch on 2026-08-01 and its own decode loop carries a
+      literal 1200 on the effective path (line 851 of the flattened source).
+      The hypothesis is reinstated and the paper is corrected.
+      Against it: v7.4 already moved the cap to 1200 and lost 1.53 points, but
+      that run also fired 24 unbudgeted greedy fills through a gate treating
+      the string "0" as true, so two factors moved and it is void, not adverse.
+      The internal timing model says four tasks past 1200 s consumed 26.3% of
+      the budget and returned nothing, predicting the change is neutral to
+      positive. So this is a genuinely open one-factor question and worth a day.
+  S3  v7.2 + AIF prune (v7.5a). Baseline v7.2 = 30.97. Built, never scored.
+  S4  v7.2 + whichever of S2/S3 won, combined. First deliberate two-factor
+      run, and only because both components will by then have solo numbers.
+  S5+ fed by the build track below, in the order results justify.
+
+If a queue slot would otherwise go empty, re-run the current best config
+unchanged. A replicate measures the run-to-run noise of the hidden score, which
+we have never measured and which every comparison above silently assumes.
+
+BUILD TRACK, rig only, no slots, roughly in expected-value order:
+
+  B1  DONE, and it was real. Our notebook subsets the commit queue only when
+      ARC_N_EVAL > 0 (line 1507), but the config block sets ARC_N_EVAL = "40"
+      at line 30 and then OVERRIDES it to "0" at line 39, and 0 means all 120.
+      So every interactive commit has been running the full public evaluation
+      set. LB33 by contrast queues four hardcoded keys and its commit finished
+      in about 15 minutes. Fix is to set ARC_N_EVAL to a small number in the
+      committed config. Costs nothing and returns hours per iteration.
+  B2  A2 invariant mining. Lead offline item, carries the selection headroom
+      (bound 18 vs attained 15) now that A1 is dead, and is paper content as
+      the ceiling theorem's escape made operational.
+  B3  C1's prerequisite measurement: how often does the task cap silently drop
+      view batches 8-15? If often, C1 is the cheapest real change we have.
+  B4  F3, 2B rescoring on FRESH pools. The audit established the 2B is
+      genuinely capable (65% on fresh) and contaminated only on public eval, so
+      the hidden set is a legitimate arena for it. Validate on fresh, then queue.
+  B5  D4 adaptive floor, a control loop around existing code.
+  B6  D1 best-first frontier search. The flagship engineering item, and the one
+      that most plausibly moves us more than a point. Start it once S1/S2 have
+      told us whether search throughput is where the score actually lives.
+
+Not doing: anything in section 2, any submission failing the section 4b rule,
+agents, or trusting a displayed leaderboard number as a measurement.
 
 Not doing: anything in section 2, anything that burns a submission slot
 without an offline number first, agents (none used here), or trusting any
