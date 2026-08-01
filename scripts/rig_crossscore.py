@@ -7,19 +7,20 @@ and mean beam score at once, so no monotone rule over the recorded statistics ca
 names exactly two escapes, and both are channels that read the task through something other than the
 adapted model: executing a program against the demonstrations, or scoring under a different model.
 
-This tests the second escape in the only form available offline. The ideal probe is the separately
-trained 2B sibling, which is not on this machine and cannot be fetched without working Kaggle
-credentials. The un-adapted base is the weaker substitute and the honest description is that it shares
-weights with the adapted model but not beliefs: it has never seen this task's sixteen augmentations, so
-its errors are not the adapter's errors. A positive result here would justify fetching the 2B; a
-negative one says the dominators dominate under a different belief state too, which is evidence for the
-ceiling rather than against it.
+Two scorers are supported and the distinction matters for what the result licenses. The default is the
+un-adapted base, which shares weights with the deployed model but not beliefs: it has never seen this
+task's sixteen augmentations, so its errors are not the adapter's errors, but it is not an independent
+model. Setting ARC_SCORER_MODEL to the separately trained 2B sibling gives the channel the theorem
+actually names. Run the cheap one first; a null there says the dominators dominate under a different
+belief state too, which is evidence for the ceiling rather than against it, and it lowers the prior on
+the expensive one without settling it.
 
 The cost of being wrong is bounded and known. The pool contains 12.333 task-credits against 9.833
 attained on this slice, so a perfect re-ranker is worth about 2.5 credits and no more. This measures
 how much of that a second model can actually reach.
 
 Usage: python rig_crossscore.py [POOL_JSON]
+Env:   ARC_SCORER_MODEL  path to the scoring model, default the un-adapted base
 """
 import json
 import os
@@ -35,6 +36,11 @@ from transformers import AutoModelForCausalLM, AutoTokenizer           # noqa: E
 from torch.nn.attention import sdpa_kernel, SDPBackend                 # noqa: E402
 
 POOL = sys.argv[1] if len(sys.argv) > 1 else os.path.join(P.BASE, "data", "pool_dump.json")
+# Which model provides the second opinion. The default is the un-adapted base, which shares weights
+# with the deployed model but not beliefs. Pass the 2B sibling's path for the stronger test: it is
+# separately trained, so it is the channel the theorem actually names.
+SCORER = os.environ.get("ARC_SCORER_MODEL", P.MODEL_DIR)
+SCORER_NAME = os.path.basename(os.path.dirname(os.path.dirname(os.path.dirname(SCORER)))) or "base"
 
 
 def kgmon(c):
@@ -68,8 +74,13 @@ def main():
     fmt = QwenFormatter(tokenizer=tok)
     enc = P.encoder_for(tok)
 
-    print("loading the UN-ADAPTED base (a different belief state, not a different model)", flush=True)
-    model = AutoModelForCausalLM.from_pretrained(P.MODEL_DIR, dtype=torch.bfloat16,
+    same = os.path.normpath(SCORER) == os.path.normpath(P.MODEL_DIR)
+    print("scorer: %s (%s)" % (SCORER_NAME,
+          "un-adapted base, shares weights with the deployed model"
+          if same else "SEPARATELY TRAINED model, the channel the theorem names"), flush=True)
+    stok = tok if same else AutoTokenizer.from_pretrained(SCORER)
+    senc = enc if same else P.encoder_for(stok)
+    model = AutoModelForCausalLM.from_pretrained(SCORER, dtype=torch.bfloat16,
                                                  attn_implementation="sdpa").to("cuda").eval()
 
     rows, scored = [], 0
@@ -81,7 +92,7 @@ def main():
         prefix = fmt.fmt_train(t["train"]) + "<|im_start|>user\n" \
             + grid_str(t["test"][int(idx)]["input"]) + "<|im_end|><|im_start|>assistant\n"
         for c in cands:
-            c["base_nll"] = answer_nll(model, enc, prefix, grid_str(c["grid"]) + "<|im_end|>")
+            c["base_nll"] = answer_nll(model, senc, prefix, grid_str(c["grid"]) + "<|im_end|>")
             scored += 1
         rows.append((bk, cands))
         if len(rows) % 10 == 0:
@@ -90,9 +101,9 @@ def main():
     # Three rankers over the same pool. base_nll is negated so that higher is better everywhere.
     rankers = {
         "kgmon (deployed)": kgmon,
-        "base-NLL alone": lambda c: -c["base_nll"],
-        "kgmon + base-NLL": lambda c: kgmon(c) - c["base_nll"],
-        "multiplicity + base-NLL": lambda c: len(c["beam"]) - c["base_nll"],
+        "scorer-NLL alone": lambda c: -c["base_nll"],
+        "kgmon + scorer-NLL": lambda c: kgmon(c) - c["base_nll"],
+        "multiplicity + scorer-NLL": lambda c: len(c["beam"]) - c["base_nll"],
     }
     print("\n%-26s %8s %8s" % ("ranker", "top1", "top2"))
     print("-" * 46)
@@ -124,8 +135,8 @@ def main():
         print("  the adapter, which is evidence for the ceiling and not against it. A separately")
         print("  trained model could still differ, but this removes the cheap reason to expect it to.")
 
-    out = os.path.join(P.EXP, "crossscore.json")
-    json.dump({"results": {k: list(v) for k, v in res.items()}, "n_outputs": len(rows),
+    out = os.path.join(P.EXP, "crossscore_%s.json" % SCORER_NAME)
+    json.dump({"scorer": SCORER_NAME, "results": {k: list(v) for k, v in res.items()}, "n_outputs": len(rows),
                "n_candidates": scored}, open(out, "w"), indent=1)
     print("\nwrote", out)
 
