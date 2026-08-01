@@ -232,7 +232,7 @@ class _CropBeforeEachBranch(ast.NodeTransformer):
         return node
 
 
-def lift_from_solver(patch_cache=True):
+def lift_from_solver(patch_cache=True, src_path=None):
     """Pull the deployed decoder and collator out of arc_solver.py without importing it.
 
     That module imports unsloth on line 1, which does not exist here. Taking the definitions through
@@ -240,7 +240,7 @@ def lift_from_solver(patch_cache=True):
     exception is the cache restore documented on _branch_cache. patch_cache=False yields the
     unpatched decoder, which the smoke stage needs for its clone-arm comparison.
     """
-    src = open(os.path.join(V7, "arc_solver.py"), encoding="utf-8").read()
+    src = open(src_path or os.path.join(V7, "arc_solver.py"), encoding="utf-8").read()
     body = ast.parse(src).body
     want_def = {"turbo_dfs", "inference_turbo_dfs", "QwenDataCollatorForCompletionOnlyLM"}
     keep = [n for n in body if isinstance(n, (ast.FunctionDef, ast.ClassDef)) and n.name in want_def]
