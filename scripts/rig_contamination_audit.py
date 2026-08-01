@@ -67,6 +67,7 @@ FRESH_TRAIN_PAIRS = 4
 
 MAX_NEW = 1000          # 30x30 grid is 900 cells plus 30 newlines
 PROMPT_CAP = 6000       # leave room for MAX_NEW inside the trained context
+BATCH = int(os.environ.get("ARC_AUDIT_BATCH", "4"))
 
 
 def grid_str(g):
@@ -230,13 +231,38 @@ def g2(limit):
 # ----------------------------------------------------------------------------- g3 / g5
 
 @torch.no_grad()
-def greedy(model, tok, enc, dec, prefix_text):
-    ids = torch.tensor([enc(prefix_text)], device="cuda")
+def greedy_batch(model, tok, enc, dec, prompts):
+    """Left-padded batched greedy decode.
+
+    Padding must be on the LEFT so every sequence's last real token sits at the same index and
+    generation continues from it, and the mask has to be passed explicitly because pad and eos share
+    an id here, which is the condition transformers warns it cannot infer.
+
+    No forced attention backend. Decode ran at 193 s per output under sdpa_kernel(CUDNN_ATTENTION),
+    and batching four prompts changed nothing, which ruled out launch overhead and pointed at the
+    kernel. rig_decodebench.py measured cuDNN at 1.9 tok/s against 6.9 for the torch default on the
+    same prompt, so the backend that the training path wants is 3.6x wrong here: cuDNN was picked
+    for queries thousands of tokens wide, and a decode step has a query length of one. Flash and
+    mem-efficient report no available kernel on sm_120.
+    """
     end = tok.get_vocab()["<|im_end|>"]
-    with sdpa_kernel(SDPBackend.CUDNN_ATTENTION):
-        out = model.generate(input_ids=ids, max_new_tokens=MAX_NEW, do_sample=False,
+    outs = []
+    for s in range(0, len(prompts), BATCH):
+        chunk = [enc(p) for p in prompts[s:s + BATCH]]
+        width = max(len(c) for c in chunk)
+        ids = torch.full((len(chunk), width), end, dtype=torch.long)
+        mask = torch.zeros((len(chunk), width), dtype=torch.long)
+        for j, c in enumerate(chunk):
+            ids[j, width - len(c):] = torch.tensor(c, dtype=torch.long)
+            mask[j, width - len(c):] = 1
+        gen = model.generate(input_ids=ids.to("cuda"), attention_mask=mask.to("cuda"),
+                             max_new_tokens=MAX_NEW, do_sample=False,
                              eos_token_id=end, pad_token_id=end)
-    return dec(out[0, ids.shape[1]:].tolist()).replace("<|im_end|>", "")
+        for j in range(len(chunk)):
+            outs.append(dec(gen[j, width:].tolist()).replace("<|im_end|>", ""))
+        del gen
+        torch.cuda.empty_cache()
+    return outs
 
 
 def sweep(rows, label):
@@ -248,20 +274,27 @@ def sweep(rows, label):
         fmt = QwenFormatter(tokenizer=tok)
         model = AutoModelForCausalLM.from_pretrained(path, dtype=torch.bfloat16,
                                                      attn_implementation="sdpa").to("cuda").eval()
-        hit = seen = skipped = 0
-        t0 = time.time()
+        prompts, truths, skipped = [], [], 0
         for tid, i, t, truth in rows:
             pre = prompt_for(fmt, t, i)
             if len(enc(pre)) > PROMPT_CAP:
                 skipped += 1
                 continue
-            got = parse_grid(greedy(model, tok, enc, dec, pre))
-            seen += 1
-            hit += int(got == [list(r) for r in truth])
-        res[name] = {"hit": hit, "n": seen, "skipped": skipped, "secs": time.time() - t0}
-        print("%-10s %-14s %3d/%3d = %5.1f%%   (%d skipped for prompt length, %.0fs)"
-              % (name, label, hit, seen, 100.0 * hit / max(seen, 1), skipped,
-                 time.time() - t0), flush=True)
+            prompts.append(pre)
+            truths.append([list(r) for r in truth])
+        # Group similar lengths so padding does not dominate: a short prompt batched with a long one
+        # pays the long one's cost at every step.
+        order = sorted(range(len(prompts)), key=lambda k: len(prompts[k]))
+        t0 = time.time()
+        outs = greedy_batch(model, tok, enc, dec, [prompts[k] for k in order])
+        got = [None] * len(prompts)
+        for k, o in zip(order, outs):
+            got[k] = parse_grid(o)
+        hit = sum(int(g == tr) for g, tr in zip(got, truths))
+        res[name] = {"hit": hit, "n": len(prompts), "skipped": skipped, "secs": time.time() - t0}
+        print("%-10s %-14s %3d/%3d = %5.1f%%   (%d skipped for prompt length, %.0fs, batch %d)"
+              % (name, label, hit, len(prompts), 100.0 * hit / max(len(prompts), 1), skipped,
+                 time.time() - t0, BATCH), flush=True)
         del model
         torch.cuda.empty_cache()
     return res

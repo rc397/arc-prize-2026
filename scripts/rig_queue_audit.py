@@ -18,12 +18,15 @@ LOG = os.path.join(BASE, "experiments", "audit_queue.log")
 AUDIT = os.path.join(HERE, "rig_contamination_audit.py")
 WAIT_PID = int(sys.argv[1]) if len(sys.argv) > 1 else 0
 
-# (stage, n_tasks, label). The smoke rows come first and are cheap; a failure there costs minutes.
-PHASES = [("g2", 6, "smoke: truth-likelihood on six outputs"),
-          ("g3", 6, "smoke: greedy decode on six outputs, proves the generate loop runs"),
-          ("g2", 0, "full: truth-likelihood over the public evaluation set"),
-          ("g3", 0, "full: greedy decode over the public evaluation set"),
-          ("g5", 0, "full: greedy decode over the fresh column, then the 2x2")]
+# (stage, n_tasks, label). g2 already ran to completion over all 167 outputs on 2026-08-01, so it is
+# not repeated. The decode phases are capped at 60 outputs per column: unbatched decode measured at
+# 193 s per output, and even batched, 167 outputs per model per column is many hours for an effect
+# size (50% against 17% on the smoke) that 60 resolves at several sigma.
+# The smoke phase re-runs the same six outputs the UNBATCHED code scored at 4B 1/6 and 2B 3/6. Left
+# padding is the kind of change that silently corrupts a decode, so that pair of numbers is the gate.
+PHASES = [("g3", 6, "smoke: after the backend fix, must still give 4B 1/6 and 2B 3/6"),
+          ("g3", 60, "full: greedy decode over 60 public evaluation outputs"),
+          ("g5", 60, "full: greedy decode over 60 fresh instances, then the 2x2")]
 
 
 def say(msg):
