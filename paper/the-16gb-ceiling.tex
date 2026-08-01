@@ -1899,8 +1899,28 @@ correct-in-pool total it is competing for is 19. The reading is not that a secon
 in general but that these particular dominators are not an artifact of the adapter. A belief state that
 never saw this task's augmentations ranks them above the truth as well, so the domination is a property
 of the candidates rather than of the training, and the cheap reason to expect a second model to help is
-gone. A separately trained model of a different lineage remains untested and would be the honest next
-probe, but its prior is now worse than it was.
+gone.
+
+We then ran the version the theorem actually names, rescoring the same pool under the separately
+trained 2B sibling of our base, and it appeared to work spectacularly. Its likelihood alone places the
+truth in the top two for \textbf{19} of 60 outputs against the deployed selector's 15, and 19 is exactly
+the number of outputs whose pool contains a correct grid at all. A perfect score against the reachable
+ceiling is not a result, it is a symptom, and the check took five minutes. That model assigns the
+correct grid a median per-token loss of \textbf{0.0002}, and it prefers the true grid over every decoded
+alternative on 54 of 60 outputs including \textbf{40 of the 41 where the correct grid never entered the
+pool at all}. It is not ranking candidates. It has memorized the public evaluation set, and a model that
+has memorized an answer scores it highly whether or not it could ever produce it.
+
+Two things follow, and the second is a caution for anyone building on these artifacts. The escape route
+is closed rather than opened: both available second opinions fail, one by agreeing with the dominators
+and one by knowing the answers, so we have no evidence that a second model recovers what the dominance
+argument forbids. And the contamination is specific. Our own base, the 4B from the earlier training run,
+shows no such effect on the same test, which is why its rescoring gained nothing; the 2B is from a later
+run whose corpus evidently grew to include the evaluation split. Any measurement that uses that
+checkpoint to score, filter or validate against public ARC-AGI-2 evaluation tasks will be inflated, and
+the inflation is invisible unless the absolute likelihoods are inspected. We report it because the
+published model card does not, and because a 19-of-19 result is exactly the kind of number this paper
+has already been fooled by once.
 
 Identifiability closes the pool-only question from below. The pool is exchangeable given $q$, so its
 law depends on the draws only through the recorded multiset, the empirical measure is sufficient, and
