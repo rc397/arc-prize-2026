@@ -473,6 +473,31 @@ as the experiment this measurement wants next. Running it on our own hardware in
 answer with the card, the driver and the attention kernel all at once, which is the fault the sweep in
 Section~\ref{sec:results} corrected in itself.
 
+The more useful statement is about \emph{where} the constraint acts, and by the end of this work we can
+make it precisely rather than as a point count. It does not act at inference. The offline track fixes
+that for everyone at four L4 GPUs and twelve hours, our submissions run inside that budget, and the cap
+is in fact why the field runs a 4B model at all. It acts at pretraining, which is unconstrained, and the
+resource is nameable from the winning entry's own published configuration: a full-parameter supervised
+fine-tune under tensor-parallel training across eight GPUs, over a corpus whose synthetic component is
+of order $10^6$ puzzles produced by an LLM pipeline that summarizes and recombines task concepts, writes
+transformation programs and executes them. We estimate that generation alone at six to eight months of
+continuous single-card inference, before any training step. So the ceiling in our title is a training
+ceiling wearing an inference costume, and the twelve points measure the distance between a base one card
+can fine-tune and a base one card cannot build.
+
+Three consequences follow, and each is a measurement rather than an inference. The published artifacts do
+not close the gap: our base \emph{is} that model, and our own earlier continued fine-tune regressed
+because two of the datasets we added were already inside its training corpus
+(Section~\ref{sec:limits}). Nor can the gap be closed by generating replacement data, because the tasks
+this model misses are not separable from the ones it reaches on any structural axis we can measure,
+which is the only kind of property a generator can be instructed to produce
+(Section~\ref{sec:restart}). And it cannot be closed from the inference side, since selection is bounded
+by a dominance argument on the candidate pool (Section~\ref{sec:selection}) and the scheduling lever
+turned out to be numerical noise once a same-seed control was run. Four independent levers, four
+independent closures, all pointing at the same unpurchasable resource. That is a sharper claim than
+twelve points, and unlike twelve points it is falsifiable: a stronger base model reached on comparable
+hardware would refute it.
+
 A third submission of the reproduction, identical to the second except that it leaves the per-task search
 cap at the upstream default of 1800 seconds rather than the 1200 we had chosen for margin, scored
 \textbf{30.97\%} and placed 264th. Two facts about that number matter more than its size.
