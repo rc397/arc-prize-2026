@@ -56,10 +56,23 @@ neutral to positive on a 240-task queue. A clean one-factor run is worth a submi
 ## Commit cost
 
 Kaggle sets `KAGGLE_IS_COMPETITION_RERUN` only when it re-runs a notebook for scoring, so our own commits
-read the public evaluation set and can queue a subset. Ours subsets only when `ARC_N_EVAL > 0`, and the
-config cell sets it to 40 and then overrides it to 0, which means all 120. Every commit has been running
-the full public evaluation set for no reason. LB33 queues four hardcoded keys and its commit finished in
-about 15 minutes. Set `ARC_N_EVAL` to a small number in the committed config.
+read the public evaluation set and can queue a subset. Ours subsets only when `ARC_N_EVAL > 0`, and until
+2026-08-01 the config cell set it to 40 and then overrode it to 0, which means all 120. Every commit had
+been running the full public evaluation set for no reason, at five to six hours of the weekly GPU
+allowance each time.
+
+Fixed. Every variant now commits at `ARC_N_EVAL=4`, and the builder prints the commit cost when it emits
+a notebook. Four rather than one because `NPROCS=4`, so a single task leaves ranks 1 to 3 never doing any
+work and a broken worker would pass unnoticed. This is almost certainly why LB33 pins exactly four keys.
+
+The scoring rerun is unaffected in every case. Line `if not rerun_mode and N_EVAL > 0` gates the subset on
+commit only, so the submitted run always does all 240 hidden tasks. The builder asserts that gate still
+exists, because losing it would silently restore the five-hour commit.
+
+The last cell of every emitted notebook now verifies `submission.json` covers every task in the relevant
+challenge file and fails loudly if any key is missing. Undecoded tasks carrying default answers are
+expected on a small commit and treated as fatal on the rerun. Without this, a malformed submission is
+only discovered at submit time, hours later.
 
 ## Reading the results honestly
 

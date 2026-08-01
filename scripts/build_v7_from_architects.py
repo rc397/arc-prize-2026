@@ -37,7 +37,7 @@ VARIANTS = {
     },
     "v7.3": {
         "file": "arc_submission_v7_3.ipynb",
-        "env": {"ARC_LOSS_CUT": "0.05", "ARC_GREEDY_FALLBACK": "1", "ARC_N_EVAL": "0",
+        "env": {"ARC_LOSS_CUT": "0.05", "ARC_GREEDY_FALLBACK": "1", "ARC_N_EVAL": "4",
                 "ARC_TASK_TIMEOUT": "1200"},
         "note": ("Scheduling build, rebased onto what we then believed was the 33.89 deployment condition. "
                  "CAUTION, that premise was wrong twice over. koushikrudra/failed-in-aimo does not carry "
@@ -59,7 +59,7 @@ VARIANTS = {
     "v7.4": {
         "file": "arc_submission_v7_4.ipynb",
         "env": {"ARC_TASK_TIMEOUT": "1200", "ARC_LOSS_CUT": "0", "ARC_GREEDY_FALLBACK": "0",
-                "ARC_N_EVAL": "0"},
+                "ARC_N_EVAL": "4"},
         "note": ("The cap, wired for the first time. ARC_TASK_TIMEOUT was echoed by the config cell from "
                  "v7.1 onward but the builder's replace targeted a spend_time form the source does not "
                  "use, so it never matched and v7.1, v7.2 and v7.3 all ran the hardcoded 1800 while "
@@ -90,7 +90,7 @@ VARIANTS = {
     # tests our builder rather than our edits.
     "v7.5a": {
         "file": "arc_submission_v7_5a.ipynb",
-        "env": {"ARC_AIF": "prune", "ARC_DFS_BATCH": "4", "ARC_TASK_TIMEOUT": "1800", "ARC_N_EVAL": "0"},
+        "env": {"ARC_AIF": "prune", "ARC_DFS_BATCH": "4", "ARC_TASK_TIMEOUT": "1800", "ARC_N_EVAL": "4"},
         "note": ("The theory build, and the one worth a submission slot. Keeps our 4-view batching and "
                  "restores only the AIF object-count prune, leaving the fast-path preemption off. The "
                  "2026-07-20 A/B deleted the arm on the strength of the preemption alone, 12 of 39 tasks "
@@ -103,7 +103,7 @@ VARIANTS = {
     },
     "v7.5b": {
         "file": "arc_submission_v7_5b.ipynb",
-        "env": {"ARC_AIF": "off", "ARC_DFS_BATCH": "2", "ARC_TASK_TIMEOUT": "1800", "ARC_N_EVAL": "0"},
+        "env": {"ARC_AIF": "off", "ARC_DFS_BATCH": "2", "ARC_TASK_TIMEOUT": "1800", "ARC_N_EVAL": "4"},
         "note": ("Isolates the batching. v7.1 with sorokin's 4-view grouping reverted to the aimo pair "
                  "form, AIF still off. The restoration was credited with an eleven-point eval gain, but "
                  "the recorded mechanism was pool coverage, 155 correct answers present in the beams "
@@ -114,7 +114,7 @@ VARIANTS = {
     },
     "v7.5c": {
         "file": "arc_submission_v7_5c.ipynb",
-        "env": {"ARC_AIF": "full", "ARC_DFS_BATCH": "2", "ARC_TASK_TIMEOUT": "1800", "ARC_N_EVAL": "0"},
+        "env": {"ARC_AIF": "full", "ARC_DFS_BATCH": "2", "ARC_TASK_TIMEOUT": "1800", "ARC_N_EVAL": "4"},
         "note": ("Our builder reproducing the public notebook's behaviour exactly, both factors upstream "
                  "at the cap both sides ran. This is a check on us, not on the method. If it lands near "
                  "33.89 the pipeline is faithful and the deficit is entirely our two edits, so v7.5a and "
@@ -446,8 +446,12 @@ config = code_cell(
     '    cand = glob.glob("/kaggle/input/**/arc-agi_evaluation_challenges.json", recursive=True)\n'
     '    if cand:\n'
     '        os.environ["ARC_DATA_DIR"] = os.path.dirname(cand[0])\n'
-    "# Interactive eval tasks to score (non-rerun). 0 = all 120. Use 6 for a smoke run.\n"
-    + ('' if "ARC_N_EVAL" in SPEC["env"] else 'os.environ["ARC_N_EVAL"]     = "40"\n') +
+    "# Eval tasks scored on OUR OWN COMMIT. Ignored on the scoring rerun, which always does all 240\n"
+    "# hidden tasks, so this trades commit wall-clock for a public read and nothing else. 0 = all 120,\n"
+    "# which costs five to six hours of the weekly GPU allowance every time we press Save & Run All.\n"
+    "# 4 is the working default: one task per worker, so every rank of the mp.spawn is exercised, and\n"
+    "# a valid submission.json still lands. Raise it only when a public-eval number is the actual goal.\n"
+    + ('' if "ARC_N_EVAL" in SPEC["env"] else 'os.environ["ARC_N_EVAL"]     = "4"\n') +
     "# Experiment knobs. Defaults reproduce the 30.56 submission, change one at a time.\n"
     "#   ARC_DFS_FLOOR    search width, lower keeps more branches and costs time (default 0.2)\n"
     "#   ARC_TASK_TIMEOUT per-task seconds (default 1800, the 30.56 submission used 1200)\n"
@@ -566,9 +570,43 @@ print("batching self-test passed: %d pair-batches, %d quad-batches, same 32 view
       % (len(_emitted(_fix, 2)), len(_emitted(_fix, 4))))
 os.environ.pop("ARC_DFS_BATCH", None)
 
+# ---- last cell: prove the commit produced something Kaggle will accept ----
+# A commit exists to prove the notebook runs end to end and to leave a submission file behind. With
+# ARC_N_EVAL small most tasks are never decoded, which is fine, but it makes the difference between
+# "wrote a valid file with defaults for the undecoded tasks" and "wrote a file missing keys" invisible
+# unless it is checked. Kaggle rejects the second only at submit time, hours later.
+verify = code_cell(
+    'import json, os\n'
+    'rerun_mode = os.getenv("KAGGLE_IS_COMPETITION_RERUN")\n'
+    '_name = "arc-agi_test_challenges.json" if rerun_mode else "arc-agi_evaluation_challenges.json"\n'
+    '_expected = json.load(open(os.path.join(os.environ["ARC_DATA_DIR"], _name)))\n'
+    'assert os.path.isfile("submission.json"), "no submission.json, this commit cannot be submitted"\n'
+    '_sub = json.load(open("submission.json"))\n'
+    '_missing = sorted(set(_expected) - set(_sub))\n'
+    '_empty = sorted(k for k, v in _sub.items() if not v)\n'
+    'print("submission.json: %d of %d tasks, %d missing, %d empty"\n'
+    '      % (len(_sub), len(_expected), len(_missing), len(_empty)))\n'
+    'assert not _missing, "submission.json is missing %d tasks, e.g. %s" % (len(_missing), _missing[:5])\n'
+    '# Undecoded tasks carrying default answers are EXPECTED on a small commit and fatal on the rerun.\n'
+    'if rerun_mode:\n'
+    '    assert not _empty, "scored run left %d tasks empty" % len(_empty)\n'
+    'else:\n'
+    '    print("commit ran ARC_N_EVAL=%s tasks; the rest carry defaults, which is expected here"\n'
+    '          % os.environ.get("ARC_N_EVAL", "4"))\n'
+    'print("SUBMISSION OK")\n')
+nb["cells"].append(verify)
+
+# The subset gate is what makes a cheap commit possible at all. If a future edit drops it, every
+# commit silently returns to five hours of the weekly allowance.
+assert "if not rerun_mode and N_EVAL > 0:" in "\n".join(
+    "".join(c["source"]) for c in nb["cells"] if c["cell_type"] == "code"), \
+    "commit-subset gate missing, every commit would run the full evaluation set"
+
 json.dump(nb, open(DST, "w", encoding="utf-8"), indent=1)
 print("wrote", DST)
 print("cells:", len(nb["cells"]))
+print("commit will score ARC_N_EVAL=%s tasks; the scoring rerun always does all 240"
+      % SPEC["env"].get("ARC_N_EVAL", "4"))
 
 # ---- also emit a self-contained debug folder: the standalone modules + an in-process run.py ----
 DEBUG_DIR = r"D:\ARC_AGI-2,3\notebooks\v7_debug"
