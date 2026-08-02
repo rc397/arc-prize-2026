@@ -292,7 +292,27 @@ SUBMISSION QUEUE, one factor each, baseline named for every entry:
       The internal timing model says four tasks past 1200 s consumed 26.3% of
       the budget and returned nothing, predicting the change is neutral to
       positive. So this is a genuinely open one-factor question and worth a day.
-  S3  v7.2 + AIF prune (v7.5a). Baseline v7.2 = 30.97. Built, never scored.
+  S3  DONE 2026-08-02, v7.5a scored 27.92 against v7.2's 30.97. The AIF prune
+      costs about seven task credits. Whether that is selection harm (a wrong
+      expected_count demoting correct beams) or time harm (the executor pushing
+      the queue tail past the twelve-hour wall) is decided by the decoded-task
+      count the last cell now prints. Read it in the Kaggle UI.
+      CONSEQUENCE FOR THE THEORY: the ceiling theorem names program execution
+      against the demonstrations as an escape from the selection bound. This is
+      the first time we have run that channel, and it made things worse. The
+      escape requires an oracle MORE accurate than the model's own beliefs; a
+      noisy one is worse than none. That is a real result for the paper and it
+      does not refute the theorem, it prices its precondition.
+
+  S3b THE REPLICATE, and it is now the highest-information slot we have, not a
+      filler. Re-run v7.2 completely unchanged. Five consecutive builds have
+      landed below it and the scores are bimodal, two near 30.8 and five near
+      28.6 with nothing between. We have NEVER measured run-to-run variance of
+      one unchanged configuration, and every comparison in this project assumes
+      it is small. The twelve-hour wall is a mechanism for several points of it,
+      since whether the queue tail finishes depends on session speed. If v7.2
+      returns near 31 the record stands. If it returns near 28 then 30.97 was a
+      favourable draw and a fortnight of explanations were fitted to noise.
   S4  v7.2 + whichever of S2/S3 won, combined. First deliberate two-factor
       run, and only because both components will by then have solo numbers.
   S5+ fed by the build track below, in the order results justify.

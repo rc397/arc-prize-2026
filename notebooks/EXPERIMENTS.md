@@ -18,7 +18,7 @@ There is no v7.3a. The variants are v7.1, v7.2, v7.3, v7.4, then the v7.5 bisect
 | v7.2 | arc_submission_v7_2.ipynb | `ARC_DUMP_POOL=1` | 1800 | **30.97** |
 | v7.3 | arc_submission_v7_3.ipynb | `ARC_LOSS_CUT=0.05`, `ARC_GREEDY_FALLBACK=1`, cap 1200 | 1800 | 28.61 |
 | v7.4 | arc_submission_v7_4.ipynb | cap 1200, cuts off | 1200 | 29.44, void |
-| v7.5a | arc_submission_v7_5a.ipynb | `ARC_AIF=prune`, batch 4, cap 1800 | not run | pending |
+| v7.5a | arc_submission_v7_5a.ipynb | `ARC_AIF=prune`, batch 4, cap 1800 | 1800 | **27.92** |
 | v7.5b | arc_submission_v7_5b.ipynb | `ARC_AIF=off`, batch 2, cap 1800 | not run | pending |
 | v7.5c | arc_submission_v7_5c.ipynb | `ARC_AIF=full`, batch 2, cap 1800 | not run | pending |
 | control | `rc7530/lb33-control-unmodified` | mikelou1's notebook unmodified, sorokin's attachments | 1200 | **28.47** |
@@ -73,6 +73,43 @@ One caveat kept deliberately. A run that hits the twelve-hour wall and drops the
 also finishes COMPLETE with a low score, and the scoring rerun's log is not visible from outside. So
 28.47 is what that artefact delivers on this account, which is the question the control was built to
 answer, and it is not a proof about the code considered in isolation.
+
+## v7.5a, and the variance question it forces
+
+v7.5a scored **27.92** against v7.2's 30.97, a loss of 3.05 points or about seven task credits. It ran
+on v7.2's environment, the rc7530 unsloth fork recorded in `scripts/kaggle_pushall.py`, so the
+environment is not the difference.
+
+Two explanations fit, and they have opposite consequences.
+
+SELECTION HARM. The prune adds `abs(gen_count - expected_count) * 0.5` to every beam score whose
+connected-component count disagrees with AIF's prediction. When that prediction is wrong the penalty
+demotes correct candidates. AIF returns `expected_count` on every branch including its no-rule
+fallback, so a wrong count is not rare. This would say the ceiling theorem's program-execution escape
+is real but needs an oracle more accurate than the model's own beliefs, and a noisy oracle is worse
+than none.
+
+TIME HARM. The prune launches a `ThreadPoolExecutor` per task before training. On a 240-task rerun
+against a twelve-hour wall, work that buys nothing can push the queue tail past the wall, and dropped
+tasks score zero. This would say nothing about selection at all.
+
+These are distinguishable, and the last cell added on 2026-08-01 already prints the number that
+separates them, the count of tasks the solver actually decoded. If that count is near 240 the loss is
+selection. If it is well short, the loss is wall clock. The commit log came back empty from the API,
+so this needs reading in the Kaggle UI.
+
+THE PATTERN THAT MATTERS MORE. Every build after v7.2 has scored below it, now five in a row, and the
+scores are bimodal: v7.1 and v7.2 at 30.56 and 30.97, then v7.4, v7.3, the LB33 control and v7.5a at
+29.44, 28.61, 28.47 and 27.92. Nothing lands between. We have never measured the run-to-run variance
+of a single unchanged configuration, and every comparison in this file assumes it is small. The
+twelve-hour wall is a plausible mechanism for several points of variance, because whether the queue
+tail completes depends on session speed rather than on method.
+
+So the next slot should re-run v7.2 unchanged. If it returns near 31 our changes really are harmful
+and the record stands. If it returns near 28 then 30.97 was a favourable draw, five "regressions" were
+noise, and much of the last fortnight's reasoning rests on a single lucky run. That question now
+gates the value of every other experiment, which makes the replicate the highest-information slot
+available rather than a filler.
 
 ## Where the cap question actually stands
 
