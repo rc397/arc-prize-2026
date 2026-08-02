@@ -111,6 +111,27 @@ noise, and much of the last fortnight's reasoning rests on a single lucky run. T
 gates the value of every other experiment, which makes the replicate the highest-information slot
 available rather than a filler.
 
+## The rebuilt v7.2 is not v7.2
+
+Found on 2026-08-02 while preparing the replicate, and it invalidates the assumption that rebuilding
+a variant reproduces it.
+
+The v7.2 that scored 30.97 (`c7b591e`) launched a `ThreadPoolExecutor` and ran `run_aif_analysis` on
+every task unconditionally, collected the result, and then overwrote it with a neutered dict. The arm
+was disabled by discarding its output, not by skipping its work. Every later build gates the launch on
+`ARC_AIF != "off"`, so rebuilding v7.2 today produces a notebook that never pays that cost.
+
+The rebuilt v7.2 is therefore strictly faster than the scored v7.2, on a run whose scores we suspect
+are wall-clock sensitive. So a rebuild is not a replicate, and this file's table describes what each
+build DID, which is not always what rebuilding its name gives you today.
+
+The replicate pushed as `rc7530/v7-2-replicate` is the `c7b591e` notebook with exactly one line
+changed, `ARC_N_EVAL` from 40 to 4, which line `if not rerun_mode and N_EVAL > 0` gates out of the
+scored run. Two differing lines in the whole notebook, verified by diff.
+
+This also creates a lever worth its own slot later. Deleting the discarded AIF work from v7.2 frees
+per-task wall clock for nothing given up, since the result was already being thrown away.
+
 ## Where the cap question actually stands
 
 Never cleanly tested. v7.4 is the only build that really ran 1200 and it scored 29.44, but the same run
