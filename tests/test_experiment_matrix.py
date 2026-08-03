@@ -53,10 +53,12 @@ def main():
         check(n in doc, "%s documented" % n)
 
     print("\nno variant is claimed that the builder cannot build")
-    # Table rows only. Prose legitimately names things that do not exist, such as the line recording
-    # that there is no v7.3a, and the family prefix v7.5 when discussing the bisection as a group.
-    rows = [r for r in doc.splitlines() if r.startswith("| v7.")]
-    check(bool(rows), "the matrix still has a variant table")
+    # The family-tree section only. Prose legitimately names things that do not exist, such as the
+    # line recording that there is no v7.3a, and later sections carry tables of RUNS rather than
+    # variants, where "v7.2 replicate" is a correct row and not a buildable name.
+    section = doc.split("## The family tree", 1)[-1].split("\n## ", 1)[0]
+    rows = [r for r in section.splitlines() if r.startswith("| v7.")]
+    check(bool(rows), "the family-tree section still has a variant table")
     for n in sorted({r.split("|")[1].strip() for r in rows}):
         check(n in names, "table row %s exists in the builder" % n)
 
