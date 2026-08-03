@@ -22,6 +22,7 @@ There is no v7.3a. The variants are v7.1, v7.2, v7.3, v7.4, then the v7.5 bisect
 | v7.5b | arc_submission_v7_5b.ipynb | `ARC_AIF=off`, batch 2, cap 1800 | not run | pending |
 | v7.5c | arc_submission_v7_5c.ipynb | `ARC_AIF=full`, batch 2, cap 1800 | not run | pending |
 | control | `rc7530/lb33-control-unmodified` | mikelou1's notebook unmodified, sorokin's attachments | 1200 | **28.47** |
+| replicate | `rc7530/v7-2-replicate` | v7.2 from c7b591e, only commit size changed | 1800 | **30.56** |
 
 The "cap actually run" column exists because it disagreed with the knob for the first four builds. The
 builder's replace targeted a `spend_time` form the source does not use, so it never matched, and v7.1,
@@ -73,6 +74,45 @@ One caveat kept deliberately. A run that hits the twelve-hour wall and drops the
 also finishes COMPLETE with a low score, and the scoring rerun's log is not visible from outside. So
 28.47 is what that artefact delivers on this account, which is the question the control was built to
 answer, and it is not a proof about the code considered in isolation.
+
+## The replicate settles it, 2026-08-03
+
+`rc7530/v7-2-replicate`, the `c7b591e` notebook with only the commit size changed, scored **30.56**
+against the original's 30.97. A difference of 0.41, which is exactly one task credit, exactly the
+noise floor.
+
+That gives three runs of what is effectively the same method, since v7.1 is v7.2 without the pool
+dump and both ran the hardcoded 1800 cap.
+
+| run | date | score |
+|---|---|---|
+| v7.1 | 2026-07-20 | 30.56 |
+| v7.2 | 2026-07-25 | 30.97 |
+| v7.2 replicate | 2026-08-03 | 30.56 |
+
+Mean 30.70, range 0.41, standard deviation 0.24. Run-to-run variance on this pipeline is about one
+task credit, not several points.
+
+So the bimodality is real and the regressions are real. Measured against the LOWEST baseline run
+rather than the best, to be conservative:
+
+| build | score | below 30.56 | in credits | in sd |
+|---|---|---|---|---|
+| v7.4 | 29.44 | -1.12 | 2.7 | 4.7 |
+| v7.3 | 28.61 | -1.95 | 4.7 | 8.2 |
+| LB33 control | 28.47 | -2.09 | 5.0 | 8.8 |
+| v7.5a | 27.92 | -2.64 | 6.3 | 11.2 |
+
+Every one is far outside the noise. The wall-clock explanation for the bimodality is not supported
+either, since a binding twelve-hour wall with variable session speed would show up as spread in these
+three baseline runs and it does not.
+
+Read honestly, three runs is a small sample and the standard deviation above is an estimate from it,
+not a population value. What it does establish is that the "our changes were fine and the scores are
+noise" hypothesis is dead. The changes were harmful. The record stands as written.
+
+This also retires the last defence of the two things we spent the most time on. The 33.89 does not
+reproduce, and every modification we made to chase it cost real points.
 
 ## v7.5a, and the variance question it forces
 

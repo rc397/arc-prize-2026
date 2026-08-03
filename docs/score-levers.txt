@@ -304,15 +304,32 @@ SUBMISSION QUEUE, one factor each, baseline named for every entry:
       noisy one is worse than none. That is a real result for the paper and it
       does not refute the theorem, it prices its precondition.
 
-  S3b THE REPLICATE, and it is now the highest-information slot we have, not a
-      filler. Re-run v7.2 completely unchanged. Five consecutive builds have
-      landed below it and the scores are bimodal, two near 30.8 and five near
-      28.6 with nothing between. We have NEVER measured run-to-run variance of
-      one unchanged configuration, and every comparison in this project assumes
-      it is small. The twelve-hour wall is a mechanism for several points of it,
-      since whether the queue tail finishes depends on session speed. If v7.2
-      returns near 31 the record stands. If it returns near 28 then 30.97 was a
-      favourable draw and a fortnight of explanations were fitted to noise.
+  S3b DONE 2026-08-03. The replicate scored 30.56 against the original 30.97,
+      a difference of exactly one task credit. Three runs of the same method
+      (v7.1 30.56, v7.2 30.97, replicate 30.56) give mean 30.70, range 0.41,
+      sd 0.24. RUN-TO-RUN VARIANCE IS ABOUT ONE CREDIT, NOT SEVERAL POINTS.
+      Consequences, and they are large:
+        - Every post-v7.2 regression is real, between 4.7 and 11.2 sd below the
+          lowest baseline run. Our changes were harmful. The record stands.
+        - The wall-clock explanation for the bimodality is unsupported, since a
+          binding wall with variable session speed would spread these three
+          baseline runs and it does not.
+        - The measurement instrument is trustworthy at the one-credit level, so
+          a lever must move the score by more than about 0.4 to be visible, and
+          differences of that size can now be believed rather than argued about.
+      Caveat kept: three runs is a small sample and 0.24 is an estimate from it.
+
+  S4  v7.2 MINUS THE DISCARDED AIF WORK. The strongest remaining candidate and
+      the only one that is nearly free. The v7.2 that scores 30.5 to 31.0
+      launches a ThreadPoolExecutor and runs run_aif_analysis on EVERY task,
+      then overwrites the result with a neutered dict. The arm was disabled by
+      throwing away its output, not by skipping its work. Today's builder gates
+      the launch on ARC_AIF != "off", so a rebuilt v7.2 simply never pays it.
+      That rebuild has never been scored. It gives back per-task wall clock for
+      something already being discarded, so unlike every lever above it removes
+      work rather than adding it, which is the direction that has actually
+      helped us before (the AIF strip, the batching restore).
+      Baseline: the replicate at 30.56, same-week and same environment.
   S4  v7.2 + whichever of S2/S3 won, combined. First deliberate two-factor
       run, and only because both components will by then have solo numbers.
   S5+ fed by the build track below, in the order results justify.
