@@ -1403,6 +1403,16 @@ most usable, solves land early. The eleven solved tasks finished at 316, 316, 34
 547, 581, 742 and 1118 seconds. The slowest solve of the entire run arrived at 1118 seconds, while the
 four tasks that ran past 1200 seconds consumed 26.3\% of the budget and returned nothing at all.
 
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.94\linewidth]{fig_budget}
+\caption{Where the measurement run's 24822 task-seconds went, one bar per task, longest first. Red
+bars are tasks whose pool never contained the correct grid; they take 26 of the 40 tasks and 71\% of
+all task-seconds. The four tasks beyond the 1200-second line are all misses and consume 26.3\% of the
+budget between them, which is the empirical basis for the cap analysis of this appendix.}
+\label{fig:budget}
+\end{figure}
+
 A cap at 1200 seconds therefore costs zero measured solves and frees about 7800 seconds per worker
 against a 42480-second wall, roughly eighteen percent. Decide-early, heavy-tailed, and with no usable
 progress signal is precisely the regime in which restart theory says a hard cutoff plus a fresh attempt
@@ -1453,6 +1463,16 @@ reporting that number would have been the error the control exists to prevent. R
 \emph{same} seed disagrees with itself on 12.5\% of outputs; different seeds disagree on 13.3\%. The
 net is $+0.008$, which is indistinguishable from zero, so what the naive contrast measures is the
 decoder's own numerical nondeterminism and not any property of the training draw.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.82\linewidth]{fig_restart}
+\caption{The restart probe's answer. Per-seed weighted truth-in-pool rates over 65 cells, 19 tasks and
+30 test outputs, with the union of all three seeds equal to the best single seed exactly. The apparent
+4.4-point union-over-mean gain is fully accounted for by the decoder's own run-to-run nondeterminism,
+measured by the same-seed replicate control at 12.5\% disagreement against 13.3\% cross-seed.}
+\label{fig:restart}
+\end{figure}
 
 Two things make the null more credible than a null usually is. The bias in this design runs toward the
 hypothesis rather than away: 48 of 65 decodes were cut at their budget, so the probe is uniformly
@@ -1908,6 +1928,33 @@ concentration defeats aggregation at cell level. Treating candidates as draws fr
 $q$ at a given cell places most of its mass on a wrong colour, a per-cell majority vote converges to that
 wrong colour, amplifying the marginal rather than correcting it. The body measured exactly this, thirteen
 same-shape candidates fusing to a grid wrong in the same two cells the selected answer gets wrong.
+
+The census of Figure~\ref{fig:pool-census} completes the pool's accounting and adds two measurements
+made after the theorem was proved. Counting Pareto dominators over the recorded summary statistics
+alone, only one leaked output is blocked for every monotone rule and the bound reads 18 of 60; the
+exact-addend analysis above is stricter, excluding a second output and giving 17. Either way two to
+three outputs of headroom exist inside the theorem, and the first measurement is that they are not
+learnable: refitting the selector weights over multiplicity, augmentation and beam terms with
+leave-one-task-out validation attains 14 against the deployed 15, one output \emph{worse}, against a
+pre-registered bar of plus two. With four leaked outputs in sixty, weight tuning memorises them, so
+the headroom is real but unreachable from data of this size, and the practical ceiling is the deployed
+selector's. The second measurement is the shape of what the pool misses. Of the 41 truth-absent
+outputs, one sits a single cell from a pool candidate and six more within three cells, but the pool's
+errors are correlated through the model's beliefs, weighted cell-wise voting reconstructs none of the
+41 under any of three weightings, so the near-misses are not recoverable by aggregation, and the six
+outputs where no candidate even has the right shape are beyond every selection-side idea entirely.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{fig_pool_census}
+\caption{The pool census. Left, the selection funnel on the 60 deployed-condition outputs: the truth is
+present for 19, a monotone selector over the recorded summary statistics can reach at most 18 (17 under
+the stricter exact-addend counting above), the deployed selector reaches 15, and a leave-one-task-out
+refit of the selector weights reaches 14, demonstrating the gap is not learnable at this sample size.
+Right, the distance from each of the 41 missing truths to the nearest same-shape pool candidate.
+Cell-wise voting reconstructs none of them.}
+\label{fig:pool-census}
+\end{figure}
 
 An escape therefore needs information not derived from $q$. The round-trip score of
 Section~\ref{sec:selection} has the right form, injecting a candidate as a synthetic demonstration and

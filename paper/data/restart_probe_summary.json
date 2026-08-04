@@ -1,0 +1,24 @@
+{
+ "n_outputs": 30,
+ "n_tasks": 19,
+ "seeds": [
+  1,
+  2,
+  3
+ ],
+ "single_weighted": {
+  "1": 0.18333333333333332,
+  "2": 0.2833333333333333,
+  "3": 0.25
+ },
+ "union_weighted": 0.2833333333333333,
+ "intersection_weighted": 0.18333333333333332,
+ "gain_weighted": 0.044444444444444425,
+ "net_disagreement": 0.008333333333333331,
+ "dropped_tasks": [],
+ "excluded_cells": 3,
+ "decode_truncated_cells": 48,
+ "mixed_truncation_tasks": [
+  "2d0172a1"
+ ]
+}
