@@ -492,7 +492,20 @@ it carried. The wall-clock explanation for the cluster structure fails the same 
 twelve-hour wall with variable session speed would spread the three baseline runs and does not. Three
 runs is a small sample and 0.24 is an estimate, not a population value, but the headline number now
 carries a measured error bar rather than an assumed one, and a lever must move more than roughly 0.4
-points before it is distinguishable from a re-run. The winners' own writeup remarks in passing that
+points before it is distinguishable from a re-run.
+
+A fourth run then priced that estimate's optimism, and we report it although it widens our own error
+bar. Deleting the solver's dead symbolic-arm computation, work whose output the scoring v7.2
+provably discards on the next line, is a change with no path to the computed answers except timing,
+and it scored \textbf{30.00}. Timing is not a null channel here: the decode is deadline-bounded in
+three places, so anything that shifts speed shifts where the search truncates and therefore which
+candidates ever exist. Read conservatively, the same-method family \{30.00, 30.56, 30.56, 30.97\}
+spans about one point, which is exactly the one-to-two-point variability the winners reported in
+passing and nobody measured. Under that wider spread the three unconfounded regressions of
+Table~\ref{tab:versions} remain real at 3.5 to 5.2 standard deviations below the family's lowest
+run, while v7.4's 29.44, already void for its own confound, stops being distinguishable from a
+re-run at all. We use the wider bound from here on because the narrower one flattered us.
+The winners' own writeup remarks in passing that
 they ``saw 1-2 points variability in the scores across different re-runs of the same
 notebook''~\cite{nvarc}, and their batched decoder is nondeterministic by construction, logits
 changing with batch composition. The variability was known inside the strongest team and, as far as
@@ -1417,6 +1430,21 @@ all task-seconds. The four tasks beyond the 1200-second line are all misses and 
 budget between them, which is the empirical basis for the cap analysis of this appendix.}
 \label{fig:budget}
 \end{figure}
+
+The visiting-order question received the same treatment before any engineering was spent on it.
+Best-first enumeration, the anytime alternative to threshold-DFS that the general decoding
+literature offers and that no published ARC system uses, makes a testable claim: under truncation,
+expanding nodes in cumulative-likelihood order should reach the first correct grid in far fewer
+expansions than the depth-first order actually taken. We instrumented the deployed decoder to log
+every node expansion and emission over sixteen stratified tasks, 49{,}937 expansions across the
+fourteen logged so far, and replayed each recorded tree under both orders at equal information.
+The median saving to the first truth is \textbf{three percent}, no task loses, and the largest
+single saving (60\% on one task) is an outlier rather than the pattern. The mechanism is visible in
+the logs: nearly all negative log-likelihood accrues at a handful of branch points, the forced runs
+between them are order-invariant, and threshold-DFS with locally sorted children therefore already
+visits in nearly likelihood order. The anytime enumerator dies for the price of one logging run,
+and the prediction it rested on, made in an earlier draft of this section, is recorded here as
+refuted rather than silently revised.
 
 A cap at 1200 seconds therefore costs zero measured solves and frees about 7800 seconds per worker
 against a 42480-second wall, roughly eighteen percent. Decide-early, heavy-tailed, and with no usable

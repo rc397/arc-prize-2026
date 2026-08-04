@@ -23,6 +23,7 @@ There is no v7.3a. The variants are v7.1, v7.2, v7.3, v7.4, then the v7.5 bisect
 | v7.5c | arc_submission_v7_5c.ipynb | `ARC_AIF=full`, batch 2, cap 1800 | not run | pending |
 | control | `rc7530/lb33-control-unmodified` | mikelou1's notebook unmodified, sorokin's attachments | 1200 | **28.47** |
 | replicate | `rc7530/v7-2-replicate` | v7.2 from c7b591e, only commit size changed | 1800 | **30.56** |
+| no-dead-AIF | `rc7530/v7-2-without-the-discarded-aif-work` v2 | the replicate minus the discarded AIF work | 1800 | **30.00** |
 
 The "cap actually run" column exists because it disagreed with the knob for the first four builds. The
 builder's replace targeted a `spend_time` form the source does not use, so it never matched, and v7.1,
@@ -150,6 +151,19 @@ and the record stands. If it returns near 28 then 30.97 was a favourable draw, f
 noise, and much of the last fortnight's reasoning rests on a single lucky run. That question now
 gates the value of every other experiment, which makes the replicate the highest-information slot
 available rather than a filler.
+
+## The no-dead-AIF run, 2026-08-05, and what it does to the error bar
+
+Deleting the discarded AIF work scored **30.00** against the replicate's 30.56. The change has no
+path to the computed answers except timing, and timing is not a null channel because the decode is
+deadline-bounded in three places, so speed moves where the search truncates and therefore which
+candidates exist. Two readings, not distinguishable from one run: removing CPU load shifted decode
+timing enough to lose about one credit's worth of candidates, or same-method noise is wider than the
+three pure replicates suggested. Conservatively the family {30.00, 30.56, 30.56, 30.97} spans about
+one point, matching the 1-2 point variability NVARC reported in passing and never measured. Under
+the wider bound the three unconfounded regressions (v7.3, the LB33 control, v7.5a) remain real at
+3.5 to 5.2 sd below the family's lowest run, and v7.4's 29.44, already void, is no longer
+distinguishable from a re-run. The paper now uses the wider bound throughout.
 
 ## The rebuilt v7.2 is not v7.2
 
