@@ -25,6 +25,34 @@ INK, MUTE, RAIL, SURF, GREY = "#141414", "#6b6b66", "#e9e9e6", "#ffffff", "#b9b9
 SANS = ["Helvetica Neue", "Arial", "DejaVu Sans"]
 LO, HI = 30.56, 30.97
 
+# the ARC cell palette, for the drawn task motif that carries the benchmark's visual identity
+ARCPAL = ["#101014", "#1E6FD0", "#E23B36", "#37B24D", "#F0C419",
+          "#9AA0A6", "#D6489B", "#E8820C", "#5FC6E8", "#8A1B2E"]
+MOTIF_IN = [[0, 0, 2, 0, 0], [0, 0, 2, 0, 0], [2, 2, 2, 2, 2],
+            [0, 0, 2, 0, 0], [0, 0, 2, 0, 0]]
+MOTIF_OUT = [[4, 0, 3, 0, 4], [0, 0, 3, 0, 0], [3, 3, 3, 3, 3],
+             [0, 0, 3, 0, 0], [4, 0, 3, 0, 4]]
+
+
+def arc_motif(fig, x, y, cell=0.0125):
+    """A small drawn ARC task, input to output, in figure coordinates. Our own grids, not a logo."""
+    import matplotlib.patches as mp
+    aspect = H / W
+    cw, ch = cell, cell / aspect
+    for gx, grid in ((x, MOTIF_IN), (x + 6.6 * cw, MOTIF_OUT)):
+        n = len(grid)
+        for r in range(n):
+            for c in range(n):
+                fig.patches.append(mp.Rectangle(
+                    (gx + c * cw, y + (n - 1 - r) * ch), cw * 0.92, ch * 0.92,
+                    transform=fig.transFigure, facecolor=ARCPAL[grid[r][c]],
+                    edgecolor="white", linewidth=0.4, zorder=5))
+    ax_, ay_ = x + 5.55 * cw, y + 2.5 * ch
+    fig.patches.append(mp.FancyArrow(ax_ - 0.35 * cw, ay_, 0.62 * cw, 0,
+                                     transform=fig.transFigure, width=0.16 * ch,
+                                     head_width=0.55 * ch, head_length=0.30 * cw,
+                                     color="#8e8e89", zorder=5))
+
 
 def styled(ax, ylab):
     ax.set_ylabel(ylab, fontsize=9.5, color=MUTE)
@@ -47,21 +75,23 @@ def hero_triptych():
     fig.text(0.055, 0.895, "The 16GB Ceiling", fontsize=31, color=INK, fontweight="bold")
     fig.text(0.055, 0.828, "one card priced, one leaderboard audited, one checkpoint caught",
              fontsize=13, color=MUTE)
+    arc_motif(fig, 0.795, 0.825)
 
-    # panel 1: the constraint, with the replicate band as the tolerance on the right bar
+    # panel 1: the constraint, gap drawn as a dimension line clear of both bars
     a1 = fig.add_axes([0.055, 0.235, 0.245, 0.45], facecolor=SURF)
     a1.axhspan(LO, HI, color=BLUE, alpha=0.15, zorder=1)
     a1.bar([0, 1], [18.19, 30.97], 0.55, color=[GREY, BLUE], zorder=2)
     a1.text(0, 19.1, "18.19", ha="center", fontsize=14, color="#8e8e89", fontweight="bold")
     a1.text(1, 31.9, "30.97", ha="center", fontsize=14, color=BLUE, fontweight="bold")
-    a1.annotate("", xy=(0.42, 30.3), xytext=(0.42, 18.8),
+    a1.plot([0.28, 1.55], [18.19, 18.19], color="#cfcfca", lw=1.0, ls=":", zorder=1)
+    a1.annotate("", xy=(1.52, 30.75), xytext=(1.52, 18.4),
                 arrowprops=dict(arrowstyle="<->", color=AMBER, lw=2.0))
-    a1.text(0.52, 24.4, "12.78", fontsize=13.5, color=AMBER, fontweight="bold",
-            va="center")
+    a1.text(1.73, 24.6, "12.78", fontsize=13, color=AMBER, fontweight="bold",
+            va="center", ha="center", rotation=90)
     a1.set_xticks([0, 1])
     a1.set_xticklabels(["16 GB", "96 GB"], fontsize=10.5)
     a1.set_ylim(0, 37)
-    a1.set_xlim(-0.55, 1.55)
+    a1.set_xlim(-0.55, 1.95)
     styled(a1, "hidden score (%)")
 
     # panel 2: shown against run, one pair per notebook
@@ -130,6 +160,7 @@ def hero_field():
     fig.text(0.055, 0.895, "The 16GB Ceiling", fontsize=31, color=INK, fontweight="bold")
     fig.text(0.055, 0.828, "where one consumer card puts you, and what the gaps are made of",
              fontsize=13, color=MUTE)
+    arc_motif(fig, 0.795, 0.825)
 
     ax = fig.add_axes([0.055, 0.19, 0.60, 0.56], facecolor=SURF)
     xs = np.arange(len(field))
