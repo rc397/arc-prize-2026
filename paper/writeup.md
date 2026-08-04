@@ -12,7 +12,7 @@ The same pipeline prices the constraint in our title. Our best single-card confi
 
 ### The error bar nobody measures
 
-Every comparison on this leaderboard silently assumes that re-running a fixed configuration returns the same score. We measured it, apparently the first such measurement anyone has published for this competition. Three runs of the unchanged pipeline scored 30.56, 30.97 and 30.56. The spread is 0.41, exactly one task credit, with a standard deviation of 0.24. That number converts our season from anecdotes into statistics. Five successive builds that scored below v7.2 sit between 4.7 and 11.2 standard deviations under the lowest baseline run, so each regression is a real effect of the change it carried, and any future lever must move more than 0.4 points before it is distinguishable from a re-run.
+Every comparison on this leaderboard silently assumes that re-running a fixed configuration returns the same score. The 2025 winners mention one to two points of run-to-run variability in passing in their own writeup. Nobody, including them, had measured it. We did. Three runs of the unchanged pipeline scored 30.56, 30.97 and 30.56. The spread is 0.41, exactly one task credit, with a standard deviation of 0.24. That number converts our season from anecdotes into statistics. Five successive builds that scored below v7.2 sit between 4.7 and 11.2 standard deviations under the lowest baseline run, so each regression is a real effect of the change it carried, and any future lever must move more than 0.4 points before it is distinguishable from a re-run.
 
 ### Why it works, and exactly where it stops
 

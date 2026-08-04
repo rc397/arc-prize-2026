@@ -492,7 +492,12 @@ it carried. The wall-clock explanation for the cluster structure fails the same 
 twelve-hour wall with variable session speed would spread the three baseline runs and does not. Three
 runs is a small sample and 0.24 is an estimate, not a population value, but the headline number now
 carries a measured error bar rather than an assumed one, and a lever must move more than roughly 0.4
-points before it is distinguishable from a re-run.
+points before it is distinguishable from a re-run. The winners' own writeup remarks in passing that
+they ``saw 1-2 points variability in the scores across different re-runs of the same
+notebook''~\cite{nvarc}, and their batched decoder is nondeterministic by construction, logits
+changing with batch composition. The variability was known inside the strongest team and, as far as
+we can find, never measured or accounted for by anyone. Every ablation on this leaderboard,
+including theirs, is read against noise nobody had quantified.
 
 What the pair does not do is attribute that gap. The two runs differ in their hardware and in their method
 at the same time, so twelve points is the size of the distance rather than an account of where it comes
@@ -2092,7 +2097,14 @@ fresh data is minted. We report it because the published model card does not, an
 result is exactly the kind of number this paper has already been fooled by once. The instrument
 generalises beyond this case, establish a capability ordering on data generated after publication,
 measure the same models on the suspect set, and read contamination off the interaction; it needs no
-access to training data, no private split, and no cooperation from the model's author.
+access to training data, no private split, and no cooperation from the model's author. It has a
+place in a literature. Performance-based contamination testing exists in general
+form~\cite{constat}, and regenerating a benchmark from scratch to measure the drop was done for
+grade-school arithmetic~\cite{gsm1k}; the field's own 2025 technical report names the ARC version of
+the problem, ``knowledge overfitting'', and states explicitly that it does not quantify
+it~\cite{arc2025}. The ordering inversion on generator-fresh instances is, to our knowledge, the
+first instrument that quantifies it for ARC checkpoints, and the generator that makes the fresh
+column possible ships with the benchmark's own ecosystem~\cite{rearc}.
 
 Identifiability closes the pool-only question from below. The pool is exchangeable given $q$, so its
 law depends on the draws only through the recorded multiset, the empirical measure is sufficient, and
@@ -2272,6 +2284,10 @@ test-time training). arXiv:2603.06590, 2026.
 \bibitem{huang2025ttscaling} B.~Huang, S.~Li, T.~Wu, Y.~Yang, A.~Talwalkar, K.~Ramchandran,
 M.~I.~Jordan, and J.~Jiao. Sample complexity and representation ability of test-time scaling paradigms.
 arXiv:2506.05295, 2025.
+\bibitem{constat} J.~Dekoninck, M.~Müller, and M.~Vechev. ConStat: Performance-Based Contamination
+Detection in Large Language Models. arXiv:2405.16281, 2024.
+\bibitem{gsm1k} H.~Zhang et al. A Careful Examination of Large Language Model Performance on Grade
+School Arithmetic. arXiv:2405.00332, 2024.
 \bibitem{huang2025bon} A.~Huang, A.~Block, Q.~Liu, N.~Jiang, A.~Krishnamurthy, and D.~J.~Foster. Is
 best-of-$N$ the best of them? Coverage, scaling, and optimality in inference-time alignment.
 arXiv:2503.21878, 2025.
