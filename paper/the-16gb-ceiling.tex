@@ -429,9 +429,12 @@ v7.1 & same pipeline with both port defects repaired   & 30.56 \\
 v7.2 & identical build, an accidental repeat run & \textbf{30.97} \\
 v7.3 & + loss-gated skip and greedy fill of empty slots & 28.61 \\
 v7.4 & cap wired to 1200, intended as a control, confounded by 24 unbudgeted fills & 29.44 \\
+v7.5a & + symbolic object-count prune, the theorem's program-execution channel (Appendix~\ref{app:math}) & 27.92 \\
 \midrule
-\multicolumn{3}{l}{\itshape control: the public notebook we spent a week chasing, forked unmodified} \\
-ctrl & displayed 33.89 beside its published source; scored from our account & 28.06 \\
+\multicolumn{3}{l}{\itshape controls and replicates} \\
+ctrl & the notebook we first blamed for 33.89, forked unmodified & 28.06 \\
+ctrl2 & the notebook actually titled for 33.89, forked unmodified with its author's own attachments & 28.47 \\
+v7.2r & v7.2 re-run unchanged, the same-configuration replicate & 30.56 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -464,6 +467,32 @@ set and the same twelve-hour budget yield \textbf{18.19\%} under 16~GB and \text
 contest's 96~GB, so roughly twelve points separate what one consumer card reaches from what the
 provided hardware reaches on a method built for it. That gap is the honest size of the ceiling in the
 title, measured rather than argued, and it is the paper's central quantitative claim.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{fig_version_score}
+\caption{Hidden score by submission version, with the measured same-configuration band. Three runs of
+the unchanged pipeline (v7.1, v7.2 and the v7.2r replicate) span 30.56 to 30.97, so run-to-run spread
+is about one task credit and every post-v7.2 point below the band is a real regression rather than
+noise. The two public-notebook controls are plotted separately in Figure~\ref{fig:phantom}.}
+\label{fig:version-score}
+\end{figure}
+
+\paragraph{The replicate, and the error bar every comparison had been assuming.}
+Every comparison above silently assumed the hidden score of a fixed configuration is stable, and
+nothing in the project had ever measured it. After the fifth consecutive build scored below v7.2, with
+the scores split into two clusters and nothing between them, the cheapest explanation left was that
+30.97 had been a favourable draw and the regressions were noise, so we spent a submission on the only
+experiment that answers it, v7.2 resubmitted byte-identical except for the size of its own commit run.
+It scored \textbf{30.56}. Three runs of the unchanged method, 30.56, 30.97 and 30.56, give a range of
+0.41, which is exactly one task credit, and a standard deviation of 0.24. Against the lowest of the
+three rather than the flattering best, the post-v7.2 builds sit 1.12 to 2.64 points below baseline,
+between 4.7 and 11.2 of those standard deviations, so every one of them is a real effect of the change
+it carried. The wall-clock explanation for the cluster structure fails the same test, since a binding
+twelve-hour wall with variable session speed would spread the three baseline runs and does not. Three
+runs is a small sample and 0.24 is an estimate, not a population value, but the headline number now
+carries a measured error bar rather than an assumed one, and a lever must move more than roughly 0.4
+points before it is distinguishable from a re-run.
 
 What the pair does not do is attribute that gap. The two runs differ in their hardware and in their method
 at the same time, so twelve points is the size of the distance rather than an account of where it comes
@@ -559,7 +588,7 @@ in the solver, deleting the port's symbolic arm and regrouping its two-view sear
 which a diff read module by module leaves as the only differences that survive into deployment.
 
 Then we forked the public notebook unmodified and submitted it from our own account. It scored
-\textbf{28.06}, the lowest number in Table~\ref{tab:versions} after the ported original, and 2.91 points
+\textbf{28.06}, 2.91 points
 below the restoration it was supposed to be beating. We took that as showing the deficit had never
 existed, and reported it that way. That reading was itself wrong, and the way it was wrong is the most
 useful thing in this section.
@@ -590,6 +619,32 @@ neither isolates it. One reading does invert cleanly: our own environment now lo
 we had priced at $+3.33$, since every build we ran on the public author's mounts scored below every build
 we ran on ours. We state that as a direction, not a number, having just been taught what happens when a
 single uncontrolled comparison is promoted to a price.
+
+The identified artifact was then run as its own control, forked byte-identical with only the ownership
+metadata changed and mounting its author's original wheel tree and model upload exactly as its metadata
+specifies. It scored \textbf{28.47}. That is the second public notebook displaying a 33.89-class number
+to land near 28 when actually executed from a clean account, against 30.56 to 30.97 for three runs of
+our own unchanged pipeline (Figure~\ref{fig:phantom}), and it converts the episode from an anecdote
+about one notebook into a pattern about the board. It also closes two of the three explanations this
+section opened with. The environment hypothesis is refuted outright rather than merely unsupported,
+since this control ran the exact attachments we had priced at $+3.33$ and scored below every build we
+have run on our own mounts. And the per-task cap loses its empirical motivation, since the build that
+runs 1200 seconds scored 28.47 while ours at 1800 scored 30.97; the one-factor question remains
+formally open, confounded by everything else the two builds do not share, but nothing any longer
+suggests the answer is positive. A rig benchmark of the remaining mechanism, the GPU per-node
+arithmetic, measured 1.33$\times$ the candidates of the CPU form at a fixed budget with an identical
+truth-in-pool count of 1 of 7, so the stated search-throughput mechanism is at best weakly present on
+our hardware and bought nothing that scores.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.9\linewidth]{fig_phantom}
+\caption{Displayed against measured. Two public notebooks carrying 33.89-class numbers score 28.06 and
+28.47 when forked unmodified and submitted from our account, below the 30.56 to 30.97 band of our own
+unchanged pipeline across three runs. A displayed score binds to a submission, not to the published
+file, and the two are mutable independently.}
+\label{fig:phantom}
+\end{figure}
 
 The durable lesson survives both errors and is sharper for them. A score displayed beside a public
 notebook is not a measurement of the code in front of you, and it does not even identify which code it
@@ -1935,16 +1990,62 @@ alternative on 54 of 60 outputs including \textbf{40 of the 41 where the correct
 pool at all}. It is not ranking candidates. It has memorized the public evaluation set, and a model that
 has memorized an answer scores it highly whether or not it could ever produce it.
 
-Two things follow, and the second is a caution for anyone building on these artifacts. The escape route
-is closed rather than opened: both available second opinions fail, one by agreeing with the dominators
-and one by knowing the answers, so we have no evidence that a second model recovers what the dominance
-argument forbids. And the contamination is specific. Our own base, the 4B from the earlier training run,
-shows no such effect on the same test, which is why its rescoring gained nothing; the 2B is from a later
-run whose corpus evidently grew to include the evaluation split. Any measurement that uses that
-checkpoint to score, filter or validate against public ARC-AGI-2 evaluation tasks will be inflated, and
-the inflation is invisible unless the absolute likelihoods are inspected. We report it because the
-published model card does not, and because a 19-of-19 result is exactly the kind of number this paper
-has already been fooled by once.
+A likelihood alone cannot separate memorisation from capability, since a genuinely strong model also
+assigns low loss, so we built the audit the claim actually requires and pre-registered the gates that
+could kill it. First the encoding was proved exact, the scored token ids decode back to the true grids
+on all 172 outputs under both tokenizers with zero mismatches, so the likelihoods are computed on the
+truth rather than on an artifact of a sixteen-token tokenizer that had already produced one silent
+zero-supervision bug. Then the likelihood was made to predict something falsifiable. A model at 0.0002
+nats per token must be able to produce these answers outright, so both models greedy-decoded the public
+evaluation set with no test-time training and no search, and the prediction held, the 2B reproduces
+\textbf{80\%} of the answers exactly (48 of 60) where the 4B manages 10\%. The decisive arm is fresh
+data. RE-ARC ships the generators and verifiers for the ARC-1 concepts, so we minted 120 instances
+under our own seed on 1 August 2026, each instance checked by RE-ARC's own verifier, giving a column
+that provably postdates every published checkpoint. On that column the ordering reverts to what
+capability predicts, the 4B at \textbf{78.3\%} against the 2B's \textbf{65.0\%}. The interaction is
+$+83.3$ points with $z = 8.0$ (Figure~\ref{fig:contamination}). A 2B does not beat a 4B from the same
+author eight-fold on the harder published set while losing to it on easier fresh data. The narrow claim,
+and the only one the evidence licenses, is that the public evaluation set is not a valid measurement
+instrument for this checkpoint. Nothing here speaks to intent, training on the public split is standard
+practice in a competition scored on a private one; the finding is about what the artifact can measure,
+not about the conduct of its author.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{fig_contamination}
+\caption{The contamination audit. Left, the distribution of per-token negative log-likelihood assigned
+to the true public evaluation answers, with 91\% of the 2B's answers below 0.01 nats against 13\% for
+the 4B. Right, greedy exact-match with no test-time training on the public evaluation set against
+freshly generated RE-ARC instances minted after both checkpoints were published. Capability ordering
+holds on fresh data and inverts on the published set, interaction $+83.3$ points, $z=8.0$.}
+\label{fig:contamination}
+\end{figure}
+
+The audit reshapes the escape-route ledger rather than closing it. The un-adapted base fails as a
+second opinion by agreeing with the dominators, and the 2B's apparent 19-of-19 was recall, so no
+\emph{validated} second-model gain exists. But the fresh column also shows the 2B is a genuinely
+capable model, 65\% on data it cannot have seen, whose defect is specific to the published split. On
+the hidden set, which neither model can have memorised, rescoring under it remains a legitimate and
+untested instance of the channel the theorem names; what died was our means of validating it offline
+on public data, not the mechanism. The other named escape, executing task-side structure against the
+demonstrations, has now been run on the hidden set for the first time in any configuration of this
+pipeline. v7.5a restored the symbolic arm's object-count signal as a pure re-ranking prune, adding
+$0.5$ to a beam's score per unit of disagreement with the predicted component count, and scored
+\textbf{27.92} against the 30.56 to 30.97 same-configuration band, a loss of about seven task credits
+at eleven standard deviations of the measured run noise. The theorem is not touched, but its escape
+clause acquires a measured precondition: a task-side oracle only lifts the bound if it is more accurate
+than the model's own beliefs about the same property, and this one, which returns a count on every
+branch including its no-rule fallback, is not. A noisy oracle is strictly worse than none, because the
+bound it escapes is lower than the penalty it inflicts.
+
+The contamination finding carries one further caution for anyone building on these artifacts. Any
+measurement that uses that checkpoint to score, filter or validate against public ARC-AGI-2 evaluation
+tasks will be inflated, and the inflation is invisible unless absolute likelihoods are inspected or
+fresh data is minted. We report it because the published model card does not, and because a 19-of-19
+result is exactly the kind of number this paper has already been fooled by once. The instrument
+generalises beyond this case, establish a capability ordering on data generated after publication,
+measure the same models on the suspect set, and read contamination off the interaction; it needs no
+access to training data, no private split, and no cooperation from the model's author.
 
 Identifiability closes the pool-only question from below. The pool is exchangeable given $q$, so its
 law depends on the draws only through the recorded multiset, the empirical measure is sufficient, and
@@ -2010,11 +2111,15 @@ An earlier draft withdrew that candidate, on the grounds that the build forks a 
 inspected the build we had forked as a control, which is not the build carrying the score. Pulling
 \texttt{mikelou1/arc-agi2-lb33-89-minimal-perfpatch} through the Kaggle API on 1 August 2026 and
 reading its source shows a literal 1200-second per-task cap written inside its own decode loop,
-on the effective path, inherited from nothing. The candidate is reinstated. The two builds did not
-run the same cap, and the cap is again the leading unexplained difference between that build and
-ours. This is the second time in this work that a conclusion about a public notebook was reached
-without reading the notebook that actually holds the score, and the correction cost nothing only
-because the check is a single API call.
+on the effective path, inherited from nothing. The candidate was reinstated. The two builds did not
+run the same cap, and for two days the cap was again the leading unexplained difference between that
+build and ours. This is the second time in this work that a conclusion about a public notebook was
+reached without reading the notebook that actually holds the score, and the correction cost nothing
+only because the check is a single API call. The control then priced the reinstatement. The
+identified build, forked unmodified at its own 1200-second cap, scored 28.47 against our 30.97 at
+1800 (Section~\ref{sec:phantom}), so the number the cap was reinstated to explain does not itself
+reproduce, and the hypothesis survives only as an untested one-factor question with its empirical
+motivation removed.
 The model below stands as mathematics and is reported because the cap remains a real lever on a
 240-task queue, not because any measured gap is now attributed to it. Whether the wall binds on the
 hidden set is not observable from outside,

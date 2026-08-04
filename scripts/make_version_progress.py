@@ -27,7 +27,8 @@ plt.rcParams.update({
 
 # One row per leaderboard submission. Append as the entry climbs (v3, v4, ...).
 #   score    : hidden 240-task main-track score (%), or None if not yet scored
-#   hours    : leaderboard-run wall-clock (h)
+#   hours    : leaderboard-run wall-clock (h), or None where the scored rerun was not instrumented
+#              (the rerun log is not visible from outside, so v6 onward has no honest number)
 #   time_est : True if hours is an estimate (the run was not instrumented)
 #   accel    : the scored-run accelerator
 #   ttt      : number of tasks given per-task test-time training
@@ -35,16 +36,39 @@ VERSIONS = [
     dict(tag="v1",   score=6.53,  hours=3.2,  time_est=True,  accel="P100 x1",
          ttt=0,   note="no-TTT AIRV"),
     dict(tag="v2",   score=11.94, hours=2.45, time_est=False, accel="L4 x4",
-         ttt=160, note="TTT + colour-perm"),
+         ttt=160, note="TTT +\ncolour-perm"),
     dict(tag="v2.1", score=13.61, hours=3.90, time_est=False, accel="L4 x4",
-         ttt=232, note="TTT, maxpair 1500"),
+         ttt=232, note="TTT, maxpair\n1500"),
     dict(tag="v3.1", score=12.78, hours=5.50, time_est=False, accel="L4 x4",
          ttt=232, note="+ multi-scale,\ncolour-perm"),
     dict(tag="v4",   score=13.19, hours=6.5,  time_est=True,  accel="L4 x4",
-         ttt=232, note="more-candidates\nsampling"),
+         ttt=232, note="more-cands\nsampling"),
     dict(tag="v5",   score=12.78, hours=3.9,  time_est=True,  accel="L4 x4",
          ttt=232, note="+ white-box\nfilter"),
+    dict(tag="v6",   score=12.36, hours=None, time_est=True,  accel="L4 x4",
+         ttt=159, note="deep TTT,\ndisk bug"),
+    dict(tag="v6.1", score=18.19, hours=None, time_est=True,  accel="L4 x4",
+         ttt=232, note="deep TTT\nrepaired"),
+    dict(tag="v7",   score=16.81, hours=None, time_est=True,  accel="L4 x4",
+         ttt=240, note="sorokin repro\nas ported"),
+    dict(tag="v7.1", score=30.56, hours=None, time_est=True,  accel="L4 x4",
+         ttt=240, note="port defects\nrepaired"),
+    dict(tag="v7.2", score=30.97, hours=None, time_est=True,  accel="L4 x4",
+         ttt=240, note="same build,\npool dump"),
+    dict(tag="v7.3", score=28.61, hours=None, time_est=True,  accel="L4 x4",
+         ttt=240, note="loss gate +\ngreedy fill"),
+    dict(tag="v7.4", score=29.44, hours=None, time_est=True,  accel="L4 x4",
+         ttt=240, note="cap 1200,\nvoid"),
+    dict(tag="v7.5a", score=27.92, hours=None, time_est=True, accel="L4 x4",
+         ttt=240, note="AIF count\nprune"),
+    dict(tag="v7.2r", score=30.56, hours=None, time_est=True, accel="L4 x4",
+         ttt=240, note="v7.2 replicate,\nunchanged"),
 ]
+
+# Three runs of the unchanged pipeline (v7.1, v7.2, its replicate) landed at 30.56, 30.97, 30.56,
+# so same-config spread is about one task credit. Drawn as a band so every later regression is read
+# against measured noise rather than against a single lucky number.
+NOISE_LO, NOISE_HI = 30.56, 30.97
 
 BUDGET_H = 12.0
 SOTA_2025 = 24.03  # top 2025 Kaggle ARC-AGI-2 score (NVARC), the climb target
@@ -73,39 +97,41 @@ def save(fig, name, dpi=200):
 
 
 def fig_version_score():
-    fig, ax = plt.subplots(figsize=(8.4, 5.0))
+    fig, ax = plt.subplots(figsize=(12.6, 5.4))
     xs = list(range(len(VERSIONS)))
 
-    # 2025 Kaggle SOTA reference (the climb target)
+    # measured same-config noise band, three runs of the unchanged pipeline
+    ax.axhspan(NOISE_LO, NOISE_HI, color=BLUE, alpha=0.10, zorder=1)
+    ax.text(0.1, NOISE_HI + 0.5,
+            "same-config spread across three runs (v7.1, v7.2, v7.2r): one task credit",
+            fontsize=8.8, color=BLUE)
+
+    # 2025 Kaggle SOTA reference (the 2025 climb target, same base-model lineage)
     ax.axhline(SOTA_2025, ls="--", color=GREY, lw=1.3)
-    ax.text(len(VERSIONS) - 1, SOTA_2025 + 0.5, "2025 Kaggle SOTA 24.03%",
+    ax.text(len(VERSIONS) - 1, SOTA_2025 - 1.4, "2025 Kaggle SOTA 24.03%",
             ha="right", fontsize=8.8, color=GREY)
 
     # solid spine through scored points only
     sx = [i for i, v in enumerate(VERSIONS) if v["score"] is not None]
     sy = [VERSIONS[i]["score"] for i in sx]
-    ax.plot(sx, sy, "-", color=BLUE, lw=2.2, zorder=2)
-    ax.plot(sx, sy, "o", color=BLUE, ms=9, zorder=3)
+    ax.plot(sx, sy, "-", color=BLUE, lw=2.0, zorder=2)
+    ax.plot(sx, sy, "o", color=BLUE, ms=8, zorder=3)
 
     for i, v in enumerate(VERSIONS):
         if v["score"] is None:
             ax.text(i, 2.4, "score\npending", ha="center", va="center",
                     fontsize=9.5, color=GREY, style="italic")
         else:
+            up = v["score"] >= (VERSIONS[i - 1]["score"] if i and VERSIONS[i - 1]["score"]
+                                else 0)
             ax.annotate(f"{v['score']:.2f}", (i, v["score"]),
-                        textcoords="offset points", xytext=(0, 11), ha="center",
-                        fontsize=11.5, color=BLUE, fontweight="bold")
-
-    # relative lifts between successive versions
-    ax.text(0.5, 10.6, "+83%", ha="center", fontsize=9.5, color=GREEN, style="italic")
-    ax.text(1.5, 14.4, "+14%", ha="center", fontsize=9.5, color=GREEN, style="italic")
-    ax.text(2.5, 14.3, "-6%", ha="center", fontsize=9.5, color=FAIL, style="italic")
-    ax.text(4.5, 14.1, "-3%", ha="center", fontsize=9.5, color=FAIL, style="italic")
+                        textcoords="offset points", xytext=(0, 10 if up else -18),
+                        ha="center", fontsize=10, color=BLUE, fontweight="bold")
 
     ax.set_xticks(xs)
-    ax.set_xticklabels([f"{v['tag']}\n{v['note']}" for v in VERSIONS], fontsize=9.5)
+    ax.set_xticklabels([f"{v['tag']}\n{v['note']}" for v in VERSIONS], fontsize=8.2)
     ax.set_ylabel("hidden 240-task main-track score (%)", fontsize=10.5)
-    ax.set_ylim(0, 26)
+    ax.set_ylim(0, 34)
     ax.set_xlim(-0.45, len(VERSIONS) - 0.55)
     ax.set_title("ARC-AGI-2 hidden score by submission version",
                  fontsize=13, fontweight="bold", color=INK, pad=10)
@@ -116,21 +142,24 @@ def fig_version_score():
 
 
 def fig_version_time():
+    # only the instrumented era carries an honest wall-clock; the scored rerun's log is not
+    # visible from outside, so v6 onward is excluded rather than estimated
+    TIMED = [v for v in VERSIONS if v["hours"] is not None]
     fig, ax = plt.subplots(figsize=(8.4, 5.0))
-    xs = list(range(len(VERSIONS)))
+    xs = list(range(len(TIMED)))
 
     # the 12 h offline budget (the headroom story)
     ax.axhline(BUDGET_H, ls="--", color=FAIL, lw=1.6)
-    ax.text(len(VERSIONS) - 1, BUDGET_H - 0.6, "12 h offline budget",
+    ax.text(len(TIMED) - 1, BUDGET_H - 0.6, "12 h offline budget",
             ha="right", fontsize=9.2, color=FAIL, fontweight="bold")
 
     # connect successive versions; dash any segment touching an estimated time
-    for i in range(len(VERSIONS) - 1):
-        a, b = VERSIONS[i], VERSIONS[i + 1]
+    for i in range(len(TIMED) - 1):
+        a, b = TIMED[i], TIMED[i + 1]
         ls = "--" if (a["time_est"] or b["time_est"]) else "-"
         ax.plot([i, i + 1], [a["hours"], b["hours"]], ls, color=BLUE, lw=2.0, zorder=2)
 
-    for i, v in enumerate(VERSIONS):
+    for i, v in enumerate(TIMED):
         if v["time_est"]:
             ax.plot([i], [v["hours"]], "o", ms=10, mfc="white", mec=BLUE, mew=2.0, zorder=3)
             tag = f"~{v['hours']:.1f} h est.\n{v['accel']}"
@@ -141,10 +170,10 @@ def fig_version_time():
                     xytext=(0, 12), ha="center", fontsize=9.4, color=INK)
 
     ax.set_xticks(xs)
-    ax.set_xticklabels([f"{v['tag']}\n{v['ttt']} TTT tasks" for v in VERSIONS], fontsize=9.5)
+    ax.set_xticklabels([f"{v['tag']}\n{v['ttt']} TTT tasks" for v in TIMED], fontsize=9.5)
     ax.set_ylabel("leaderboard run wall-clock (hours)", fontsize=10.5)
     ax.set_ylim(0, 13)
-    ax.set_xlim(-0.45, len(VERSIONS) - 0.55)
+    ax.set_xlim(-0.45, len(TIMED) - 0.55)
     ax.set_title("Run time by submission version, against the 12 h budget",
                  fontsize=13, fontweight="bold", color=INK, pad=10)
     despine(ax)
