@@ -85,6 +85,19 @@ The v7_debug copy also carries the AIF arm (component-count penalty, lines
   task-out attains 14 vs kgmon's 15 (gain -1, weights (1,0,4) chosen in
   37/39 folds). The 3-output gap is real but not learnable from 60 outputs;
   weight tuning memorises the leaked outputs. scripts/pool_selector_fit.py.
+- [measured 2026-08-04] A2, invariant-mining filter: DEAD by its own bar
+  (+2 recovered / 0 false kills required; got 0 recovered, and the full
+  15-type library false-kills 11 of 19 TRUTHS). The mechanism is structural,
+  not bad luck: with 2-3 demos, coincidental regularities are common and
+  ARC-2 test pairs are built to break exactly those (38007db0 trains 19x7,
+  tests 29x8). The safe invariant types are demo-evident properties TTT has
+  already conditioned the model on, so wrong candidates never violate them:
+  selectivity and safety are the same axis. LOO over the type-pruning choice
+  attains 11 vs baseline 15. scripts/pool_invariants.py,
+  docs/invariant-filter-result.md. SECOND independent pricing of the
+  theorem's escape precondition after v7.5a: demo-derived oracles are
+  noisier than the model's own beliefs, offline this time, so the pattern
+  is not a fluke of the hidden run.
 
 
 ================================================================
@@ -120,7 +133,8 @@ A1. Tuned monotone selector aimed at the 3-output gap.
     KILLED 2026-08-01, see section 2. LOO gain -1 against a +2 bar. The
     selection headroom is real (bound 18, attained 15) but belongs to A2.
 
-A2. Mined-invariant filtering (the theorem's task-evidence escape).
+A2. KILLED 2026-08-04, see section 2. Kept below for the design record.
+    Mined-invariant filtering (the theorem's task-evidence escape).
     Mine candidate invariants from the demonstrations: output-size map,
     palette map, per-colour cell-count relations, component-count
     relations, symmetry class, background colour. Keep only invariants
