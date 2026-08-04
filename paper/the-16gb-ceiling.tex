@@ -1398,8 +1398,8 @@ empty   & 1  & 1.5\%  & 367 & 0.0172 \\
 \end{tabular}
 \end{table}
 
-First, the search is not time-starved, it is capability-starved. Sixty-two percent of tasks never
-produce the correct grid under any of the sixteen views, and they consume sixty-nine percent of the
+First, the search is not time-starved, it is capability-starved. Sixty-five percent of tasks never
+produce the correct grid under any of the sixteen views, and they consume seventy-one percent of the
 budget doing it. Second, final training loss does not separate the outcomes. Solved tasks span 0.00063
 to 0.02531 and unsolved tasks span 0.00269 to 0.09104, overlapping across almost their whole range, so
 the natural progress signal is not informative enough to gate on, which is also the retrospective
@@ -1492,7 +1492,7 @@ always applies all eight dihedral views, so the seed re-rolls the colour permuta
 order, and the finding is that re-rolling those does not change which tasks the adapter can reach. It
 does not establish that no restart of any kind helps. What it does establish is that the cheap version,
 the one the reclaimed cap could actually have paid for, does not, so the scheduling lever of this
-section is closed and the 62 percent of tasks that never produce the truth remain a property of the
+section is closed and the 65 percent of tasks that never produce the truth remain a property of the
 model rather than of the budget. Fidelity supports reading it that way: across the 19 shared tasks the
 probe's mean training loss tracks the deployed run's at a median ratio of 0.93, and the two agree on
 outcome for 15 of 19.
@@ -2083,8 +2083,8 @@ on public data, not the mechanism. The other named escape, executing task-side s
 demonstrations, has now been run on the hidden set for the first time in any configuration of this
 pipeline. v7.5a restored the symbolic arm's object-count signal as a pure re-ranking prune, adding
 $0.5$ to a beam's score per unit of disagreement with the predicted component count, and scored
-\textbf{27.92} against the 30.56 to 30.97 same-configuration band, a loss of about seven task credits
-at eleven standard deviations of the measured run noise. The theorem is not touched, but its escape
+\textbf{27.92} against the 30.56 to 30.97 same-configuration band, a loss of 6.3 task credits
+against the lowest baseline run, eleven standard deviations of the measured run noise. The theorem is not touched, but its escape
 clause acquires a measured precondition: a task-side oracle only lifts the bound if it is more accurate
 than the model's own beliefs about the same property, and this one, which returns a count on every
 branch including its no-rule fallback, is not. A noisy oracle is strictly worse than none, because the
