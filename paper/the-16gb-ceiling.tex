@@ -1436,15 +1436,25 @@ Best-first enumeration, the anytime alternative to threshold-DFS that the genera
 literature offers and that no published ARC system uses, makes a testable claim: under truncation,
 expanding nodes in cumulative-likelihood order should reach the first correct grid in far fewer
 expansions than the depth-first order actually taken. We instrumented the deployed decoder to log
-every node expansion and emission over sixteen stratified tasks, 49{,}937 expansions across the
-fourteen logged so far, and replayed each recorded tree under both orders at equal information.
-The median saving to the first truth is \textbf{three percent}, no task loses, and the largest
-single saving (60\% on one task) is an outlier rather than the pattern. The mechanism is visible in
-the logs: nearly all negative log-likelihood accrues at a handful of branch points, the forced runs
-between them are order-invariant, and threshold-DFS with locally sorted children therefore already
-visits in nearly likelihood order. The anytime enumerator dies for the price of one logging run,
-and the prediction it rested on, made in an earlier draft of this section, is recorded here as
-refuted rather than silently revised.
+every node expansion and every emission over sixteen stratified tasks, 30{,}480 batched forward
+passes and 217 completed candidates, twelve of the sixteen decodes budget-truncated, and replayed
+each recorded tree under both orders at equal information. Ten tasks put a correct grid in the tree
+and are the ones that can discriminate. Across them the median saving to the first truth is
+\textbf{2.9 percent} and no task is worse under best-first, but the distribution is the finding
+rather than the median: three tasks save nothing at all, four save between one and three percent,
+and the entire effect sits in three tasks saving 13, 26 and 60 percent.
+
+The mechanism is visible in the logs and explains the shape. Nearly all negative log-likelihood
+accrues at a handful of branch points, the forced runs between them are order-invariant, and
+threshold-DFS sorts each node's children before descending, so it already traverses in nearly
+likelihood order. Best-first can only recover the cases where the tree's first subtree is both deep
+and wrong, which is a minority of tasks. A lever that pays on three tasks in sixteen, all of them
+already truncating, does not justify replacing the decoder.
+
+We record this as a refutation of our own prediction rather than as a revision. An earlier draft of
+this section argued that anytime enumeration was the strongest unexplored lever available and that
+the published absence of best-first search for ARC was an opportunity. The measurement cost one
+logging run and says otherwise.
 
 A cap at 1200 seconds therefore costs zero measured solves and frees about 7800 seconds per worker
 against a 42480-second wall, roughly eighteen percent. Decide-early, heavy-tailed, and with no usable
