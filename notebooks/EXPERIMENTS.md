@@ -22,8 +22,9 @@ There is no v7.3a. The variants are v7.1, v7.2, v7.3, v7.4, then the v7.5 bisect
 | v7.5b | arc_submission_v7_5b.ipynb | `ARC_AIF=off`, batch 2, cap 1800 | not run | pending |
 | v7.5c | arc_submission_v7_5c.ipynb | `ARC_AIF=full`, batch 2, cap 1800 | not run | pending |
 | control | `rc7530/lb33-control-unmodified` | mikelou1's notebook unmodified, sorokin's attachments | 1200 | **28.47** |
-| replicate | `rc7530/v7-2-replicate` | v7.2 from c7b591e, only commit size changed | 1800 | **30.56** |
+| replicate | `rc7530/v7-2-replicate` v1 | v7.2 from c7b591e, only commit size changed | 1800 | **30.56** |
 | no-dead-AIF | `rc7530/v7-2-without-the-discarded-aif-work` v2 | the replicate minus the discarded AIF work | 1800 | **30.00** |
+| replicate again | `rc7530/v7-2-replicate` v1, resubmitted | nothing, same immutable kernel version | 1800 | **32.64** |
 
 The "cap actually run" column exists because it disagreed with the knob for the first four builds. The
 builder's replace targeted a `spend_time` form the source does not use, so it never matched, and v7.1,
@@ -76,41 +77,58 @@ also finishes COMPLETE with a low score, and the scoring rerun's log is not visi
 28.47 is what that artefact delivers on this account, which is the question the control was built to
 answer, and it is not a proof about the code considered in isolation.
 
-## The replicate settles it, 2026-08-03
+## The replicate settles it, 2026-08-03, CORRECTED 2026-08-06
 
 `rc7530/v7-2-replicate`, the `c7b591e` notebook with only the commit size changed, scored **30.56**
-against the original's 30.97. A difference of 0.41, which is exactly one task credit, exactly the
-noise floor.
+against the original's 30.97. A difference of 0.41, which is exactly one task credit.
 
-That gives three runs of what is effectively the same method, since v7.1 is v7.2 without the pool
-dump and both ran the hardcoded 1800 cap.
+On three runs that read as the noise floor, and this file asserted "run-to-run variance on this
+pipeline is about one task credit, not several points". **That is false and the correction is the
+most important entry in this file.**
+
+Resubmitting `rc7530/v7-2-replicate` **Version 1**, the same immutable kernel version that scored
+30.56, scored **32.64** on 2026-08-05. Not a rebuild and not a re-export. Kaggle re-runs the
+committed artifact, so the only thing that differed between the two executions was the machine and
+the day.
 
 | run | date | score |
 |---|---|---|
 | v7.1 | 2026-07-20 | 30.56 |
 | v7.2 | 2026-07-25 | 30.97 |
-| v7.2 replicate | 2026-08-03 | 30.56 |
+| v7.2 replicate v1 | 2026-08-03 | 30.56 |
+| no-dead-AIF | 2026-08-04 | 30.00 |
+| v7.2 replicate v1, resubmitted | 2026-08-05 | **32.64** |
 
-Mean 30.70, range 0.41, standard deviation 0.24. Run-to-run variance on this pipeline is about one
-task credit, not several points.
+Mean 30.95, range **2.64**, standard deviation **1.01**. The one-immutable-version pair alone spans
+2.08 points, five task credits, with no confound of any kind available.
 
-So the bimodality is real and the regressions are real. Measured against the LOWEST baseline run
-rather than the best, to be conservative:
+Two consequences. The noise floor is about five task credits, not one, so no comparison in this file
+below two points means anything. And the wall-clock account of the cluster structure, dismissed in
+the next section because three runs failed to spread, is **reinstated**: the spread appeared as soon
+as the sample grew, and it appeared in the one comparison where nothing but session speed could
+differ.
 
-| build | score | below 30.56 | in credits | in sd |
-|---|---|---|---|---|
-| v7.4 | 29.44 | -1.12 | 2.7 | 4.7 |
-| v7.3 | 28.61 | -1.95 | 4.7 | 8.2 |
-| LB33 control | 28.47 | -2.09 | 5.0 | 8.8 |
-| v7.5a | 27.92 | -2.64 | 6.3 | 11.2 |
+So the bimodality is real, and the regressions are real for the large ones only. Measured against the
+five-run family mean of 30.95 with sd 1.01, which is the corrected bar:
 
-Every one is far outside the noise. The wall-clock explanation for the bimodality is not supported
-either, since a binding twelve-hour wall with variable session speed would show up as spread in these
-three baseline runs and it does not.
+| build | score | vs mean 30.95 | in credits | in sd | verdict |
+|---|---|---|---|---|---|
+| no-dead-AIF | 30.00 | -0.95 | 2.3 | 0.9 | **inside noise, not a regression** |
+| v7.4 | 29.44 | -1.51 | 3.6 | 1.5 | not distinguishable, and separately void |
+| v7.3 | 28.61 | -2.34 | 5.6 | 2.3 | probable, confounded by two knobs |
+| LB33 control | 28.47 | -2.48 | 6.0 | 2.4 | real |
+| v7.5a | 27.92 | -3.03 | 7.3 | 3.0 | real |
 
-Read honestly, three runs is a small sample and the standard deviation above is an estimate from it,
-not a population value. What it does establish is that the "our changes were fine and the scores are
-noise" hypothesis is dead. The changes were harmful. The record stands as written.
+The earlier version of this table used sd 0.24 from three runs and reported these at 4.7 to 11.2
+standard deviations, calling every one of them "far outside the noise". At the corrected sd only
+v7.5a and the LB33 control clear two-and-a-half sigma. **The no-dead-AIF result is 0.9 sd from the
+mean and must not be described as a regression anywhere.**
+
+What survives is the direction, not the significance of each step: every method change we shipped
+scored at or below the family mean, and none scored above it. What dies is the per-build arithmetic
+that made each one look individually decisive. Five runs is still a small sample and 1.01 is still an
+estimate, but it is an estimate from the only design that can produce one, the same artifact run
+twice.
 
 This also retires the last defence of the two things we spent the most time on. The 33.89 does not
 reproduce, and every modification we made to chase it cost real points.

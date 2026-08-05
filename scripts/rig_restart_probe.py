@@ -467,7 +467,11 @@ def train_one(peft_model, tokenizer, collator, formatter, train_ds, deadline=Non
     base.enable_input_require_grads()
     peft_model.train()
 
-    rows = train_ds.as_list(formatter)
+    # An ArcDataset renders itself to rows; a plain list of {"text": ...} is already rows. Probes
+    # that build their own training text (pre-fitting's denoising samples) have nothing to render,
+    # and passing them a HuggingFace Dataset instead cost one overnight slot to an AttributeError
+    # raised after the model was loaded.
+    rows = train_ds if isinstance(train_ds, list) else train_ds.as_list(formatter)
     # cut_to_len drops demonstration pairs from the front until the text fits, and if MAXSEQ is
     # small enough it drops them all, after which fmt_train indexes an empty list and the failure
     # surfaces as an IndexError deep in the loader. Fail here with a legible reason instead.

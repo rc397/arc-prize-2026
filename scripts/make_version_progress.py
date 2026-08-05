@@ -63,12 +63,22 @@ VERSIONS = [
          ttt=240, note="AIF count\nprune"),
     dict(tag="v7.2r", score=30.56, hours=None, time_est=True, accel="L4 x4",
          ttt=240, note="v7.2 replicate,\nunchanged"),
+    dict(tag="noAIF", score=30.00, hours=None, time_est=True, accel="L4 x4",
+         ttt=240, note="dead arm\ndeleted"),
+    dict(tag="v7.2r'", score=32.64, hours=None, time_est=True, accel="L4 x4",
+         ttt=240, note="SAME kernel\nversion, re-run"),
 ]
 
-# Three runs of the unchanged pipeline (v7.1, v7.2, its replicate) landed at 30.56, 30.97, 30.56,
-# so same-config spread is about one task credit. Drawn as a band so every later regression is read
-# against measured noise rather than against a single lucky number.
-NOISE_LO, NOISE_HI = 30.56, 30.97
+# Five runs of the unchanged pipeline landed at 30.00, 30.56, 30.56, 30.97 and 32.64. The last is the
+# same immutable kernel version as the 30.56, resubmitted, so 2.08 points of that spread carry no
+# confound at all. The band is the family mean plus and minus one standard deviation, so regressions
+# are read against measured noise and not against a single flattering number. An earlier version of
+# this figure drew it at 30.56 to 30.97 from three runs, which made four regressions look decisive
+# that are not.
+FAMILY = [30.00, 30.56, 30.56, 30.97, 32.64]
+_MEAN = sum(FAMILY) / len(FAMILY)
+_SD = (sum((x - _MEAN) ** 2 for x in FAMILY) / (len(FAMILY) - 1)) ** 0.5
+NOISE_LO, NOISE_HI = _MEAN - _SD, _MEAN + _SD
 
 BUDGET_H = 12.0
 SOTA_2025 = 24.03  # top 2025 Kaggle ARC-AGI-2 score (NVARC), the climb target
