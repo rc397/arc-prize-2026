@@ -24,10 +24,22 @@ grid grammar, its palette, its object sizes, its background, its symmetries.
 Corruption is by cell dropout at a fixed rate to a sentinel colour drawn from the task's own palette
 complement where one exists, so the model is never asked to invent a colour the task does not use.
 
-ARM 0 is the deployed configuration untouched. ARM 1 pre-fits on the test input, then trains the
-identical demonstration objective for the identical number of steps, so the comparison isolates what
-the adapter knew when the transformation objective began rather than confounding it with extra
-optimisation. Both arms decode with the same budget and the same deployed decoder.
+Three arms, and the third is not optional.
+
+  base        the deployed configuration, untouched.
+  prefit      denoise THIS task's test input for k steps, then the identical demonstration objective.
+  prefit_ctrl denoise ANOTHER task's test input for the same k steps, same objective, same data
+              volume, then the identical demonstration objective.
+
+Without the third arm the experiment cannot distinguish instance-specific grid fluency from the mere
+fact that the prefit arm took k more gradient steps than the control did. That confound would make a
+positive result unattributable, and an unattributable positive is how three of this project's
+retracted explanations began. The reading is: prefit above base with prefit_ctrl at base means the
+effect is fluency in the grid we are actually being asked about. prefit and prefit_ctrl both above
+base means it is optimisation, not perception, and the honest lever is simply more steps. Neither
+above base means the route is closed.
+
+All arms decode with the same budget and the same deployed decoder.
 
 Honest note on what this cannot show: a single-card probe with a truncated decode measures pool
 coverage, not the hidden score. A positive here is a reason to spend a submission, not a result.
@@ -112,15 +124,21 @@ def main(n_tasks, prefit_steps):
         m = P.build_model()
         prefit_s = 0.0
 
-        if arm == "prefit":
-            texts = prefit_texts(challenges[task]["test"][0]["input"], N_VIEWS, DROP_RATE,
+        if arm in ("prefit", "prefit_ctrl"):
+            if arm == "prefit":
+                grid = challenges[task]["test"][0]["input"]
+            else:
+                # a different task's test input: same objective, same volume, wrong instance
+                other = donor_for(task)
+                grid = challenges[other]["test"][0]["input"]
+            texts = prefit_texts(grid, N_VIEWS, DROP_RATE,
                                  seed=abs(hash(task)) % 10 ** 6)
             t0 = time.time()
             P.train_one(m, tok, collator, fmt, Dataset.from_list([{"text": t} for t in texts]),
                         deadline=t0 + 600, max_batches=prefit_steps)
             prefit_s = time.time() - t0
-            print("  %s pre-fit %d steps on the test input in %.0fs"
-                  % (task, prefit_steps, prefit_s), flush=True)
+            print("  %s %s: %d steps on a %dx%d grid in %.0fs"
+                  % (task, arm, prefit_steps, len(grid), len(grid[0]), prefit_s), flush=True)
 
         ds = pz.augment(n=16, shfl_keys=True, seed=1).cut_to_len(
             formatter=fmt, name="text", max_len=P.MAXSEQ)
@@ -148,9 +166,15 @@ def main(n_tasks, prefit_steps):
         gc.collect()
         torch.cuda.empty_cache()
 
+    def donor_for(t):
+        """A different task's test input, chosen deterministically and never the task itself."""
+        pool = [x for x in sorted(challenges) if x != t]
+        return pool[abs(hash("donor" + t)) % len(pool)]
+
     for task in keys:
         run(task, "base")
         run(task, "prefit")
+        run(task, "prefit_ctrl")
     print("ALL ARMS DONE", flush=True)
     summarize()
     return True
@@ -161,48 +185,60 @@ def summarize():
     by = {}
     for r in rows:
         by.setdefault(r["task"], {})[r["arm"]] = r
-    base_hit = pre_hit = both = either = n = 0
+    hits = {"base": 0, "prefit": 0, "prefit_ctrl": 0}
+    n = 0
     gained, lost = [], []
     for task, arms in sorted(by.items()):
-        if "base" not in arms or "prefit" not in arms:
+        if not {"base", "prefit"} <= set(arms):
             continue
         for bk in arms["base"]["graded"]:
             b = arms["base"]["graded"][bk]["in_pool"]
             p = arms["prefit"]["graded"].get(bk, {}).get("in_pool", False)
             n += 1
-            base_hit += b
-            pre_hit += p
-            both += (b and p)
-            either += (b or p)
+            hits["base"] += b
+            hits["prefit"] += p
+            if "prefit_ctrl" in arms:
+                hits["prefit_ctrl"] += arms["prefit_ctrl"]["graded"].get(bk, {}).get("in_pool", False)
             if p and not b:
                 gained.append(bk)
             if b and not p:
                 lost.append(bk)
+    have_ctrl = any("prefit_ctrl" in a for a in by.values())
     print("\noutputs compared: %d" % n)
-    print("truth in pool, deployed        : %d" % base_hit)
-    print("truth in pool, with pre-fitting: %d" % pre_hit)
-    print("union of both arms             : %d" % either)
+    print("truth in pool, base (deployed)          : %d" % hits["base"])
+    print("truth in pool, prefit (this task's grid): %d" % hits["prefit"])
+    if have_ctrl:
+        print("truth in pool, prefit_ctrl (other grid) : %d" % hits["prefit_ctrl"])
     print("gained by pre-fitting: %d %s" % (len(gained), gained))
     print("lost   by pre-fitting: %d %s" % (len(lost), lost))
+
+    net = hits["prefit"] - hits["base"]
+    ctrl_net = hits["prefit_ctrl"] - hits["base"] if have_ctrl else None
     print("\nVERDICT")
-    net = pre_hit - base_hit
-    if net >= 2:
-        print("  Pre-fitting on the test input adds %d output(s) to pool coverage. The adapter" % net)
-        print("  arriving fluent in this instance's grid grammar reaches truths the deployed")
-        print("  configuration never produces. Worth a submission slot.")
-    elif len(gained) and len(lost):
-        print("  Pre-fitting trades outputs rather than adding them (%d gained, %d lost), which is"
-              % (len(gained), len(lost)))
-        print("  the signature of a perturbation rather than an improvement. The union is worth")
-        print("  noting but a single-adapter deployment gains nothing.")
+    if not have_ctrl:
+        print("  No control arm present, so any difference is unattributable between grid fluency")
+        print("  and the extra gradient steps. Run prefit_ctrl before reading anything into this.")
+    elif net >= 2 and ctrl_net <= 0:
+        print("  Pre-fitting adds %d output(s) while the control arm adds %d. The gain follows the"
+              % (net, ctrl_net))
+        print("  GRID, not the step count: an adapter fluent in the instance it is about to be asked")
+        print("  about reaches truths the deployed configuration never produces. Worth a slot.")
+    elif net >= 2 and ctrl_net >= 2:
+        print("  Both pre-fit arms gain (%d and %d), so the effect is extra optimisation rather than"
+              % (net, ctrl_net))
+        print("  perception. That is still a lever, and a cheaper one, but the interesting claim is")
+        print("  dead and the honest write-up is 'more steps help', not 'grid fluency helps'.")
     elif net <= 0:
         print("  No coverage gain. Per-task grid fluency does not transfer into the transformation")
         print("  objective for this base model, so CompressARC's per-task signal is either already")
         print("  present from pretraining or not reachable by this route.")
+    elif len(gained) and len(lost):
+        print("  Pre-fitting trades outputs rather than adding them (%d gained, %d lost), the"
+              % (len(gained), len(lost)))
+        print("  signature of a perturbation rather than an improvement.")
     else:
         print("  One output gained, which is the noise floor. Widen the task count before believing it.")
-    json.dump({"n": n, "base": base_hit, "prefit": pre_hit, "union": either,
-               "gained": gained, "lost": lost},
+    json.dump({"n": n, "hits": hits, "gained": gained, "lost": lost},
               open(os.path.join(BASE, "experiments", "prefit_summary.json"), "w"), indent=1)
 
 
