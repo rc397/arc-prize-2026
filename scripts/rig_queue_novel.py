@@ -26,9 +26,13 @@ def say(msg):
 def phase(label, args):
     say("START %s" % label)
     t0 = time.time()
+    # encoding and errors are not optional here. The default text mode decodes the child's stream
+    # with the console codepage, and one byte of unsloth's progress output killed the reader thread
+    # and with it a run that was otherwise healthy.
     r = subprocess.run([sys.executable] + args, cwd=BASE,
                        env=dict(os.environ, PYTHONIOENCODING="utf-8"),
-                       capture_output=True, text=True)
+                       capture_output=True, text=True,
+                       encoding="utf-8", errors="replace")
     with open(LOG, "a", encoding="utf-8") as f:
         f.write(r.stdout or "")
         f.write(r.stderr or "")
@@ -37,12 +41,13 @@ def phase(label, args):
 
 
 def main():
-    t1 = sys.argv[1] if len(sys.argv) > 1 else "16"
-    t2 = sys.argv[2] if len(sys.argv) > 2 else "24"
-    ok1 = phase("dfslog run %s" % t1, [os.path.join(HERE, "rig_dfslog.py"), "run", t1])
+    t2 = sys.argv[1] if len(sys.argv) > 1 else "24"
+    t3 = sys.argv[2] if len(sys.argv) > 2 else "12"
+    # dualexpert resumes from its own jsonl, so the one completed task is not repeated
     ok2 = phase("dualexpert %s" % t2, [os.path.join(HERE, "rig_dualexpert.py"), t2])
-    say("QUEUE DONE dfslog=%s dualexpert=%s" % (ok1, ok2))
-    return ok1 and ok2
+    ok3 = phase("subsetttt %s" % t3, [os.path.join(HERE, "rig_subsetttt.py"), t3])
+    say("QUEUE DONE dualexpert=%s subsetttt=%s" % (ok2, ok3))
+    return ok2 and ok3
 
 
 if __name__ == "__main__":
