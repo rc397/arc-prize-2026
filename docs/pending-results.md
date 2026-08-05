@@ -15,16 +15,17 @@ matrix drift apart otherwise. Delete a row only when its result is folded in eve
 | contamination audit 2x2 | z = 8.0 | tex section, HTML, fig_contamination, writeup, memory |
 | invariant filter (A2) | 0 recovered, 11/19 truths killed | score-levers section 2, writeup escape-route passage, memory |
 | best-first replay (T1) | median 2.9%, 16 tasks | tex appendix passage, HTML, score-levers, memory |
+| pre-fitting prior art | adjacent-negative, not unexplored | docs/testinput-ttt-priorart.md, tex Related Work (TTT name collision, the ARChitects' explicit exclusion of input grids), tex sec:prefit positioning, 6 new bib entries |
+| ragged DFS batches | 0/120 eval, 4/24 RE-ARC | tex engineering log, decode_pool split-by-length fix, scripts/rig_batchlen.py |
 
 ## Outstanding
 
 | result | expected | where it must land |
 |---|---|---|
-| replicate 2 (sub 55261090) | tonight | tex variance passage as the 5th family member, recompute the spread and the sd; EXPERIMENTS.md family table; writeup error-bar paragraph; fig_version_score band |
-| dual-expert on fresh pools | overnight | tex escape-route ledger (route 2 on the hidden set); score-levers F3; writeup theorem paragraph if it changes the verdict |
-| subset-disagreement TTT | overnight | new tex passage on demonstration underdetermination, this is the headline if the number is interesting; writeup only if it displaces something |
-| perceptual pre-fitting, 3 arms | overnight | tex only if the control arm separates grid fluency from step count; otherwise score-levers section 2 as a kill |
-| pre-fitting prior-art check | running | docs/testinput-ttt-priorart.md, then the positioning of any pre-fitting claim |
+| replicate 2 (sub 55261090) | scored | tex variance passage as the 5th family member, recompute the spread and the sd; EXPERIMENTS.md family table; writeup error-bar paragraph; fig_version_score band |
+| perceptual pre-fitting, 3 arms | ~02:00, 8 tasks | tex sec:prefit, replacing the in-flight paragraph with the outcome and scoring the pre-registered null; score-levers section 2 if it is a kill; writeup only if positive |
+| dual-expert on fresh pools | after prefit | tex escape-route ledger (route 2 on the hidden set); score-levers F3; writeup theorem paragraph if it changes the verdict |
+| subset-disagreement TTT | last in queue | new tex passage on demonstration underdetermination, this is the headline if the number is interesting; writeup only if it displaces something |
 
 ## Rules for folding in
 
@@ -40,3 +41,17 @@ added.
 
 Regenerate figures from their scripts rather than editing images. fig_version_score, fig_phantom and
 the two heroes all read their numbers from source and must be re-run.
+
+Section~\ref{sec:prefit} carries a pre-registered prediction of a null. Score it explicitly when the
+numbers land, whichever way it goes, rather than quietly deleting it.
+
+## Rig operating notes
+
+The rig's python processes are named `python3.13`, not `python`. `Get-Process python` returns
+nothing while a run is perfectly healthy, and reading that as "the queue died" once came within one
+command of killing a live job. Use `Get-CimInstance Win32_Process -Filter "Name like 'python%'"`,
+which also gives the command line and the parent, so the queue and its child are distinguishable.
+
+The queue streams each phase's output to `experiments/novel_queue.log` line by line. It used to
+buffer with `capture_output`, which hid progress for hours and lost the entire log when the queue
+was killed mid-phase.

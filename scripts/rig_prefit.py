@@ -44,7 +44,14 @@ All arms decode with the same budget and the same deployed decoder.
 Honest note on what this cannot show: a single-card probe with a truncated decode measures pool
 coverage, not the hidden score. A positive here is a reason to spend a submission, not a result.
 
-Usage: python rig_prefit.py [N_TASKS=10] [PREFIT_STEPS=40]
+On budget, and this is a measurement decision rather than a resource one. The decode budget has to
+be long enough that the deployed arm actually produces candidates, otherwise every arm scores zero
+and the experiment returns a null it did not earn. The restart probe used 1500s and filled pools;
+a 420s trial run returned zero candidates on a stratum-A task. So decode gets 900s and the task
+count comes down to fit, because eight tasks with populated pools discriminate and twenty with
+empty ones do not.
+
+Usage: python rig_prefit.py [N_TASKS=8] [PREFIT_STEPS=40]
 Writes experiments/prefit.jsonl, one record per (task, arm).
 """
 import gc
@@ -56,7 +63,7 @@ import time
 
 BASE = os.environ.get("ARC_PROBE_BASE", r"D:\arc")
 OUT = os.path.join(BASE, "experiments", "prefit.jsonl")
-DECODE_BUDGET = int(os.environ.get("ARC_PREFIT_DECODE_BUDGET", "420"))
+DECODE_BUDGET = int(os.environ.get("ARC_PREFIT_DECODE_BUDGET", "900"))
 DROP_RATE = float(os.environ.get("ARC_PREFIT_DROP", "0.25"))
 N_VIEWS = int(os.environ.get("ARC_PREFIT_VIEWS", "16"))
 
@@ -246,5 +253,5 @@ if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "summarize":
         summarize()
         sys.exit(0)
-    sys.exit(0 if main(int(sys.argv[1]) if len(sys.argv) > 1 else 10,
+    sys.exit(0 if main(int(sys.argv[1]) if len(sys.argv) > 1 else 8,
                        int(sys.argv[2]) if len(sys.argv) > 2 else 40) else 1)

@@ -561,19 +561,32 @@ def decode_pool(peft_model, tokenizer, formatter, lifted, puzzle_ds, deadline):
                 truncated = True
                 break
             tokens = [enc(eval_ds.get(sk, formatter)["input"]) for sk in subkeys]
-            with sdpa_kernel(SDPBackend.CUDNN_ATTENTION):
-                dfs_result = run_deep(lifted["inference_turbo_dfs"],
-                                      peft_model, tokens, max_new_tokens, max_score, deadline)
-            for subkey_id, scored_beams in dfs_result:
-                subkey = subkeys[subkey_id]
-                bk = subkey.split(".")[0]
-                for beam_score, token_seq in scored_beams:
-                    arr = formatter.convert_tokens_to_array(token_seq)
-                    if arr is None:
-                        continue
-                    sol = multi.invert_mod(arr, subkey, inv_perm=True)
-                    pool.setdefault(bk, []).append(
-                        {"beam_score": float(beam_score), "solution": sol})
+            # inference_turbo_dfs builds one tensor from the batch, so every view in it must
+            # tokenize to the same length. The deployed offsets assume that. It holds on all 120
+            # real eval tasks (measured, rig_batchlen.py) but fails on 4 of 24 RE-ARC tasks, whose
+            # longer demonstrations trip cut_to_len into dropping a different example per view.
+            # Splitting by length keeps every view and changes no score, it only narrows a batch.
+            groups = defaultdict(list)
+            for i, t in enumerate(tokens):
+                groups[len(t)].append(i)
+            for idxs in groups.values():
+                if time.time() > deadline:
+                    truncated = True
+                    break
+                with sdpa_kernel(SDPBackend.CUDNN_ATTENTION):
+                    dfs_result = run_deep(lifted["inference_turbo_dfs"], peft_model,
+                                          [tokens[i] for i in idxs], max_new_tokens,
+                                          max_score, deadline)
+                for sub_id, scored_beams in dfs_result:
+                    subkey = subkeys[idxs[sub_id]]
+                    bk = subkey.split(".")[0]
+                    for beam_score, token_seq in scored_beams:
+                        arr = formatter.convert_tokens_to_array(token_seq)
+                        if arr is None:
+                            continue
+                        sol = multi.invert_mod(arr, subkey, inv_perm=True)
+                        pool.setdefault(bk, []).append(
+                            {"beam_score": float(beam_score), "solution": sol})
             if sum(len(v) for v in pool.values()) > POOL_CAP:
                 overflow = True
                 break
