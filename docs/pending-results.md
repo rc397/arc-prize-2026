@@ -18,14 +18,23 @@ matrix drift apart otherwise. Delete a row only when its result is folded in eve
 | pre-fitting prior art | adjacent-negative, not unexplored | docs/testinput-ttt-priorart.md, tex Related Work (TTT name collision, the ARChitects' explicit exclusion of input grids), tex sec:prefit positioning, 6 new bib entries |
 | ragged DFS batches | 0/120 eval, 4/24 RE-ARC | tex engineering log, decode_pool split-by-length fix, scripts/rig_batchlen.py |
 
+| replicate 2, sub 55261090 | **32.64**, rank 43 | tex variance passage rewritten around the immutable-kernel pair, abstract, intro, versions table, EXPERIMENTS.md, writeup, fig_version_score band, memory |
+| dual-expert on fresh pools | **oracle gap 0 of 18** | tex escape-route ledger, score-levers F3 |
+
 ## Outstanding
 
 | result | expected | where it must land |
 |---|---|---|
-| replicate 2 (sub 55261090) | scored | tex variance passage as the 5th family member, recompute the spread and the sd; EXPERIMENTS.md family table; writeup error-bar paragraph; fig_version_score band |
-| perceptual pre-fitting, 3 arms | ~02:00, 8 tasks | tex sec:prefit, replacing the in-flight paragraph with the outcome and scoring the pre-registered null; score-levers section 2 if it is a kill; writeup only if positive |
-| dual-expert on fresh pools | after prefit | tex escape-route ledger (route 2 on the hidden set); score-levers F3; writeup theorem paragraph if it changes the verdict |
-| subset-disagreement TTT | last in queue | new tex passage on demonstration underdetermination, this is the headline if the number is interesting; writeup only if it displaces something |
+| cap 1200, kernel `rc7530/v7-2-cap1200` v1 | submit when the UTC day rolls, score ~9h later | tex appendix cap passage, which currently says the cap is untested; EXPERIMENTS.md "Where the cap question actually stands"; memory. Report against the corrected band, not against a single number |
+| perceptual pre-fitting, 3 arms | re-run after subsetttt | tex sec:prefit, replacing the in-flight paragraph with the outcome and scoring the pre-registered null; score-levers section 2 if it is a kill; writeup only if positive |
+| subset-disagreement TTT | ~10:00 local, 34/48 cells done | new tex passage on demonstration underdetermination, this is the headline if the number is interesting; writeup only if it displaces something |
+
+## Reading any new hidden score
+
+The family is $\{30.00, 30.56, 30.56, 30.97, 32.64\}$, mean 30.95, sd 1.01. A single submission
+resolves nothing below about two points. Before calling any new score a result, state where it sits
+in that band, and prefer "not distinguishable" to a directional story. The 30.00 was called a
+regression on the old sd of 0.24 and was not one.
 
 ## Rules for folding in
 
