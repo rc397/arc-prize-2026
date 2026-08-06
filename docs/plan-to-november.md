@@ -56,7 +56,21 @@ produce the truth under any view and consume 71% of the budget. That is the only
 
 ### W1. Execution-verified program synthesis (the centrepiece)
 
-The single highest-value thing left, because it hits four of the six rubric criteria at once.
+**What this is not.** It is not "the same score for less compute". That is the paper we already have,
+and it is finished: the same method on one card instead of four, priced at twelve points. It caps out
+mid-field because efficiency gains have nowhere to go. We measured that directly. 65% of tasks never
+generate the truth under any view, restarts add no coverage, the selector already ranks every
+reachable truth top-two. **A method that is capability-starved cannot convert saved time into score.**
+
+**What it is.** A capability we do not currently have, whose published demonstration costs 12 to 40
+times the offline budget, made to fit inside it. Efficiency is the constraint, not the goal. If it
+lands the score rises because we solve tasks the current generator never reaches; if it does not, we
+report a measured negative about budget against someone else's positive.
+
+The one-line framing: *we exhausted efficiency on a method that cannot use it, and the remaining
+question is whether the method that can use it fits the budget.*
+
+It is the single highest-value thing left, because it hits four of the six rubric criteria at once.
 
 Appendix F derives that selection over the adapted model's own likelihoods is bounded, and names
 execution against the demonstrations as the escape. Imbue then measured it: candidate Python
