@@ -1457,6 +1457,22 @@ most usable, solves land early. The eleven solved tasks finished at 316, 316, 34
 547, 581, 742 and 1118 seconds. The slowest solve of the entire run arrived at 1118 seconds, while the
 four tasks that ran past 1200 seconds consumed 26.3\% of the budget and returned nothing at all.
 
+A later experiment supplies the signal the second reading says is missing, and it arrived from an
+experiment aimed at something else. Asking whether a task's demonstrations underdetermine its rule,
+we trained leave-one-demonstration-out adapters per task and compared their candidate pools. As a
+repair the answer is a flat null: over 20 outputs the union of every subset adapter equals the full
+adapter exactly, so removing a demonstration does not move the adapter to a different reachable
+hypothesis and the 65\% stays a property of the base model. But the \emph{disagreement} between
+those subset pools separates the outcomes that training loss cannot. Mean pairwise pool Jaccard is
+\textbf{0.373} on outputs where the full adapter found the truth and \textbf{0.015} where it did
+not, against a same-configuration replicate baseline of 0.543. Small samples, seven and four
+outputs, so we report it as a lead rather than a policy. The direction is what matters: when a task's
+rule is determined, adapters trained on different subsets of its demonstrations agree about what to
+propose, and when it is not, they share almost nothing. That is a per-task confidence measure
+computed before the answer is known, which is precisely what a budget allocator needs and what the
+loss-cut rule lacked. Building the policy on it is future work, and its cost, one extra adapter per
+task, is the same reclaimed budget the cap frees.
+
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.94\linewidth]{fig_budget}
@@ -2207,19 +2223,40 @@ holds on fresh data and inverts on the published set, interaction $+83.3$ points
 The audit reshapes the escape-route ledger rather than closing it. The un-adapted base fails as a
 second opinion by agreeing with the dominators, and the 2B's apparent 19-of-19 was recall, so no
 \emph{validated} second-model gain exists. But the fresh column also shows the 2B is a genuinely
-capable model, 65\% on data it cannot have seen, whose defect is specific to the published split. On
-the hidden set, which neither model can have memorised, rescoring under it remains a legitimate and
-untested instance of the channel the theorem names; what died was our means of validating it offline
-on public data, not the mechanism. The other named escape, executing task-side structure against the
-demonstrations, has now been run on the hidden set for the first time in any configuration of this
-pipeline. v7.5a restored the symbolic arm's object-count signal as a pure re-ranking prune, adding
-$0.5$ to a beam's score per unit of disagreement with the predicted component count, and scored
-\textbf{27.92} against the 30.56 to 30.97 same-configuration band, a loss of 6.3 task credits
-against the lowest baseline run, eleven standard deviations of the measured run noise. The theorem is not touched, but its escape
-clause acquires a measured precondition: a task-side oracle only lifts the bound if it is more accurate
-than the model's own beliefs about the same property, and this one, which returns a count on every
-branch including its no-rule fallback, is not. A noisy oracle is strictly worse than none, because the
-bound it escapes is lower than the penalty it inflicts.
+capable model, 65\% on data it cannot have seen, whose defect is specific to the published split.
+
+We then ran the second route on data neither model could have memorised. Both experts were trained
+per task on 24 freshly generated RE-ARC instances, the 4B decoded the pool, and every unique
+candidate was rescored under both models over eight fixed augmentations. Of 23 outputs with a
+non-empty pool, 18 contained the truth, and the deployed single-expert selector already placed all
+18 in its top two. \textbf{The oracle gap available to any fusion of the two experts is 0 of 18.}
+There is no headroom on fresh data for a second belief state to recover, because the first one is
+not making selection errors there; it is failing to generate. The apparent 19-of-19 on public data
+was recall, and the fresh replication shows the route has nothing left to give even when
+contamination is removed. We record this as a closure rather than an untested possibility.
+
+The other named escape, executing task-side structure against the demonstrations, was run on the
+hidden set as v7.5a: the symbolic arm's object-count signal restored as a pure re-ranking prune,
+adding $0.5$ to a beam's score per unit of disagreement with the predicted component count. It
+scored \textbf{27.92}, three standard deviations below the same-configuration family mean of 30.95.
+The theorem is not touched, but its escape clause acquires a measured precondition: a task-side
+oracle only lifts the bound if it is more accurate than the model's own beliefs about the same
+property, and this one, which returns a count on every branch including its no-rule fallback, is
+not. A noisy oracle is strictly worse than none, because the bound it escapes is lower than the
+penalty it inflicts.
+
+That precondition now has a positive control we did not have to run. Concurrent work evolves Python
+transformation programs for ARC-AGI-2 under a fitness that is 90\% \emph{execution} of the candidate
+against the task's own demonstration pairs, and reports an open-weights model rising from 12.1\% to
+34.0\%, with a stronger model reaching 61.4\%~\cite{imbue2026}. That is the same channel our theorem
+names, with the one property ours lacked. Execution either reproduces the demonstrations or it does
+not, so the oracle is exact by construction, whereas ours predicted a property from the same
+machinery whose beliefs it was meant to correct. Read together, the two results bracket the escape
+clause from both sides: exact verification nearly triples an open model's score, and approximate
+verification of the same kind of structure costs us three sigma. The route is real, and oracle
+accuracy is the whole of it. The open engineering question, which we do not answer, is whether
+execution-verified synthesis fits the offline track's roughly \$0.20 per task when the published
+demonstration of it runs at \$2.42 to \$8.71.
 
 The contamination finding carries one further caution for anyone building on these artifacts. Any
 measurement that uses that checkpoint to score, filter or validate against public ARC-AGI-2 evaluation
@@ -2432,6 +2469,8 @@ with Self-Supervision for Generalization under Distribution Shifts. ICML 2020.
 \bibitem{ttmae} Y.~Gandelsman, Y.~Sun, X.~Chen, and A.~A.~Efros. Test-Time Training with Masked
 Autoencoders. NeurIPS 2022. arXiv:2209.07522.
 \bibitem{compressarc} I.~Liao and A.~Gu. ARC-AGI Without Pretraining. arXiv:2512.06104, 2025.
+\bibitem{imbue2026} Imbue. Beating ARC-AGI-2 with Code Evolution. 2026.
+\url{https://imbue.com/research/2026-02-27-arc-agi-2-evolution/}.
 \end{thebibliography}
 
 \end{document}
