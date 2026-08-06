@@ -20,6 +20,7 @@ matrix drift apart otherwise. Delete a row only when its result is folded in eve
 
 | replicate 2, sub 55261090 | **32.64**, rank 43 | tex variance passage rewritten around the immutable-kernel pair, abstract, intro, versions table, EXPERIMENTS.md, writeup, fig_version_score band, memory |
 | dual-expert on fresh pools | **oracle gap 0 of 18** | tex escape-route ledger, score-levers F3 |
+| subset-disagreement TTT | **+0 coverage, but a routing signal** | 20 outputs compared, union of subsets equals the full adapter exactly. The usable half: mean pairwise pool Jaccard is 0.373 where the full adapter found the truth and 0.015 where it did not, a 0.358 separation on n=7 vs n=4. Same-config replicate Jaccard 0.543. Belongs in a new tex passage on underdetermination AND in the budget-policy section, since it is a candidate for the progress signal training loss fails to provide |
 
 ## Outstanding
 

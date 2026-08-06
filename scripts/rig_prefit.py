@@ -99,7 +99,6 @@ def prefit_texts(test_input, n, rate, seed):
 def main(n_tasks, prefit_steps):
     import numpy as np
     import torch
-    from datasets import Dataset
 
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     import rig_restart_probe as P
@@ -141,7 +140,10 @@ def main(n_tasks, prefit_steps):
             texts = prefit_texts(grid, N_VIEWS, DROP_RATE,
                                  seed=abs(hash(task)) % 10 ** 6)
             t0 = time.time()
-            P.train_one(m, tok, collator, fmt, Dataset.from_list([{"text": t} for t in texts]),
+            # plain rows, not a HuggingFace Dataset. train_one renders an ArcDataset via
+            # .as_list(formatter) and takes a list of {"text": ...} as already-rendered rows; handing
+            # it a Dataset raises AttributeError after the model is loaded, which cost a night.
+            P.train_one(m, tok, collator, fmt, [{"text": t} for t in texts],
                         deadline=t0 + 600, max_batches=prefit_steps)
             prefit_s = time.time() - t0
             print("  %s %s: %d steps on a %dx%d grid in %.0fs"
@@ -249,9 +251,57 @@ def summarize():
               open(os.path.join(BASE, "experiments", "prefit_summary.json"), "w"), indent=1)
 
 
+def check():
+    """Exercise every non-GPU step the treated arm takes, in seconds rather than in a night.
+
+    Two arms of this experiment died after the model was already resident: once on a ragged decode
+    batch, once on handing train_one the wrong container type. Both were reachable without a GPU.
+    """
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import rig_restart_probe as P
+    from arc_loader import QwenFormatter
+    from transformers import AutoTokenizer
+
+    tok = AutoTokenizer.from_pretrained(P.MODEL_DIR)
+    fmt = QwenFormatter(tokenizer=tok)
+    collator = P.lift_from_solver()["QwenDataCollatorForCompletionOnlyLM"](tokenizer=tok, mlm=False)
+    enc = P.encoder_for(tok)
+    dd = P.data_dir()
+    challenges = json.load(open(os.path.join(dd, "arc-agi_evaluation_challenges.json")))
+    keys, _, _ = P.select_tasks(4)
+
+    task = keys[0]
+    grid = challenges[task]["test"][0]["input"]
+    texts = prefit_texts(grid, N_VIEWS, DROP_RATE, seed=1)
+    rows = [{"text": t} for t in texts]
+    assert len(rows) == N_VIEWS, "expected %d samples, got %d" % (N_VIEWS, len(rows))
+
+    # the exact container handling that raised AttributeError last night
+    assert isinstance(rows, list) and "text" in rows[0], "rows are not already-rendered"
+    batches = [{"input_ids": enc(r["text"])[:P.MAXSEQ]} for r in rows]
+    probe = collator([batches[0]])
+    n_sup = int((probe["labels"] != -100).sum())
+    assert n_sup > 0, "collator supervises nothing; the denoising sample trains on no targets"
+
+    # the donor must never be the task itself, or the control arm is not a control
+    donor = sorted(challenges)[0]
+    pool = [x for x in sorted(challenges) if x != task]
+    donor = pool[abs(hash("donor" + task)) % len(pool)]
+    assert donor != task, "control arm donor collides with the task under test"
+
+    print("task %s  grid %dx%d" % (task, len(grid), len(grid[0])))
+    print("prefit samples: %d, tokens/sample %d" % (len(rows), len(batches[0]["input_ids"])))
+    print("supervised label positions in sample 0: %d" % n_sup)
+    print("control donor: %s (distinct from task)" % donor)
+    print("CHECK PASS")
+    return True
+
+
 if __name__ == "__main__":
     if len(sys.argv) > 1 and sys.argv[1] == "summarize":
         summarize()
         sys.exit(0)
+    if len(sys.argv) > 1 and sys.argv[1] == "check":
+        sys.exit(0 if check() else 1)
     sys.exit(0 if main(int(sys.argv[1]) if len(sys.argv) > 1 else 8,
                        int(sys.argv[2]) if len(sys.argv) > 2 else 40) else 1)
