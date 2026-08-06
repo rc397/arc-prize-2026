@@ -25,6 +25,7 @@ There is no v7.3a. The variants are v7.1, v7.2, v7.3, v7.4, then the v7.5 bisect
 | replicate | `rc7530/v7-2-replicate` v1 | v7.2 from c7b591e, only commit size changed | 1800 | **30.56** |
 | no-dead-AIF | `rc7530/v7-2-without-the-discarded-aif-work` v2 | the replicate minus the discarded AIF work | 1800 | **30.00** |
 | replicate again | `rc7530/v7-2-replicate` v1, resubmitted | nothing, same immutable kernel version | 1800 | **32.64** |
+| cap1200 | `rc7530/v7-2-cap1200` v1 | the replicate with one live literal, 1800 to 1200 | 1200 | **29.31** |
 
 The "cap actually run" column exists because it disagreed with the knob for the first four builds. The
 builder's replace targeted a `spend_time` form the source does not use, so it never matched, and v7.1,
@@ -204,7 +205,27 @@ scored run. Two differing lines in the whole notebook, verified by diff.
 This also creates a lever worth its own slot later. Deleting the discarded AIF work from v7.2 frees
 per-task wall clock for nothing given up, since the result was already being thrown away.
 
-## Where the cap question actually stands
+## Where the cap question actually stands, ANSWERED 2026-08-06
+
+Tested cleanly at last, and it did not support the prediction. `rc7530/v7-2-cap1200` v1 is the
+replicate notebook with one live literal changed, 1800 to 1200, plus the config banner default so it
+cannot print a cap the code does not run. The builder asserts both replacements land and diffs the
+result cell by cell against the source. Its code cells hash identical to the artifact that scored
+30.56 and 32.64 apart from those two lines.
+
+**Scored 29.31.** That is 1.64 points below the family mean of 30.95, 1.6 sd, and below every member
+of {30.00, 30.56, 30.56, 30.97, 32.64}. Under our own two-point rule this is NOT a demonstration
+that the cap is harmful. It is a failure of the prediction, which was neutral-to-positive from the
+timing log. P(draw <= 29.31) under the measured family is 0.05, so it is weak evidence against and
+none in favour.
+
+Why the timing argument failed is the useful part. The log was per-task on one card and says nothing
+about how a 240-task queue interacts with four workers and a wall. Capping rearranges which tasks
+land on which worker and where each tail falls, and session-speed sensitivity acts on that
+rearrangement. Separating them needs a paired design, about eight runs at sigma ~ 1, which we
+record rather than pay.
+
+### Superseded record
 
 Never cleanly tested. v7.4 is the only build that really ran 1200 and it scored 29.44, but the same run
 fired 24 unbudgeted greedy fills through a gate that treated the string `"0"` as true, so two factors

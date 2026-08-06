@@ -1515,6 +1515,33 @@ dominates waiting, and Appendix~\ref{app:math} already derives the fixed-cutoff 
 this queue. We derived the mathematics and never applied the policy, which is the same failure this
 paper records elsewhere in a different costume.
 
+\textbf{We then applied it, and the timing model did not survive contact with the hidden set.} The
+cap had never once been tested cleanly: v7.3 declared 1200 and ran 1800 because the build script's
+replacement targeted a form of the guard that exists only inside a commented-out cell, and v7.4
+really ran 1200 but also fired 24 unbudgeted greedy fills, so two factors moved and its 29.44 is
+void rather than adverse. The clean test changes one live literal in the replicate notebook, the
+artifact whose code cells hash identical to the runs that scored 30.56 and 32.64, with the config
+banner's default moved to match so it cannot again print a cap the code does not run. It scored
+\textbf{29.31}.
+
+That is 1.64 points below the same-configuration mean, 1.6 standard deviations, and below every
+member of the five-run family. By this paper's own rule a difference of under two points is not a
+result, and we hold to the rule: the cap is \emph{not} shown to be harmful. What it is not is
+supported. The prediction, recorded before the run and derived from our own timing log, was neutral
+to positive on the reasoning that the four tasks past 1200 seconds were all misses consuming 26.3\%
+of the budget while the slowest solve arrived at 1118 seconds. The observation is the lowest score
+any variant of this configuration has produced. A draw this low or lower has probability 0.05 under
+the measured family, so it is weak evidence against the prediction and no evidence for it.
+
+The instructive part is why a well-grounded timing argument can fail. Our timing log was collected
+on one card at a per-task granularity, and it says nothing about how a 240-task queue interacts with
+four workers and a wall. Capping does not only remove doomed tasks, it changes which tasks land on
+which worker and where each worker's tail falls, and the same session-speed sensitivity that gives
+this pipeline a one-point standard deviation acts on that rearrangement too. A single submission
+cannot separate those. Settling it needs the paired design this section spent its length arguing
+for, which at one submission per day and $\sigma \approx 1$ is roughly eight runs, and we record the
+cost rather than paying it.
+
 The proposal is to cap hard and spend the reclaimed time on a second independent adapter for tasks that
 missed, unioning the candidate pools. Seven thousand eight hundred seconds per worker buys roughly
 fifteen restarts each, sixty across the node, against about one hundred and fifty misses on a 240-task
@@ -1667,14 +1694,32 @@ for it first and should. CompressARC establishes that fitting to the test input 
 as an entire from-scratch solver rather than as a warm-up. The two adjacent ARC-side measurements
 point opposite ways, which is the only reason the question is still live.
 
-The three arms are on the card as this draft is compiled, at forty pre-fit steps over eight
-stratified tasks with a 900-second decode budget per cell, and the outcome is reported here
-whichever way it falls. Our own prediction, stated in advance so it
-can be scored, is a null: the demonstration inputs already carry the palette, the object vocabulary
-and the symmetry group of the test input by construction, so the marginal information in $x_\star$
-is small, and the perceptual account of ARC failure that motivates the intervention is weakest
-exactly in our regime, since the 80\% perception figure it rests on comes from vision models reading
-rendered images rather than from text-grid models with literal cell access.
+We stated a prediction in advance so that it could be scored: a null, because the demonstration
+inputs already carry the palette, the object vocabulary and the symmetry group of the test input by
+construction, so the marginal information in $x_\star$ is small, and because the perceptual account
+of ARC failure that motivates the intervention is weakest exactly in our regime, the 80\% perception
+figure resting on vision models reading rendered images rather than on text-grid models with literal
+cell access.
+
+\textbf{The prediction was correct, and the null is unusually clean.} Forty pre-fit steps per cell
+over eight stratified tasks, 900 seconds of decode each, 24 cells: the truth is in the pool for
+\textbf{7} of 14 outputs under the deployed configuration, \textbf{7} under pre-fitting on the
+task's own test input, and \textbf{6} under the control that denoises a different task's grid for
+the same number of steps on the same volume of data. Not one output changed status. Zero gained,
+zero lost, so the intervention did not even trade coverage, which is the signature of a change the
+downstream objective absorbs entirely rather than one that perturbs it.
+
+The denoising itself worked. Each pre-fit stage supervised 870 label positions per sample across
+sixteen corrupted views and ran in about 33 seconds, on grids from $10\times20$ to $30\times30$. The
+adapter learned to reconstruct the instance's grid and that competence transferred nothing to the
+transformation objective. Read against the prior art, this places an ARC-side companion beside
+Akyurek et al.'s BIG-Bench Hard ablation of the neighbouring loss: putting a generative objective on
+input grids inside test-time training was measured to lose there, and measured to do nothing here,
+on the one variant they did not run, the real unlabeled test input under a masked-cell rather than
+autoregressive form. CompressARC's per-task grid signal is therefore either already supplied by
+pretraining or not reachable by this route on a model of this kind. We report it as a kill, and note
+that the control arm is what makes it one: without the third arm, ``7 against 7'' would have been an
+uninterpretable wash rather than a measurement.
 
 \section{Conclusion}
 \label{sec:conclusion}
