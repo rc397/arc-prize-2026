@@ -26,6 +26,7 @@ There is no v7.3a. The variants are v7.1, v7.2, v7.3, v7.4, then the v7.5 bisect
 | no-dead-AIF | `rc7530/v7-2-without-the-discarded-aif-work` v2 | the replicate minus the discarded AIF work | 1800 | **30.00** |
 | replicate again | `rc7530/v7-2-replicate` v1, resubmitted | nothing, same immutable kernel version | 1800 | **32.64** |
 | cap1200 | `rc7530/v7-2-cap1200` v1 | the replicate with one live literal, 1800 to 1200 | 1200 | **29.31** |
+| replicate, third run | `rc7530/v7-2-replicate` v1, submitted again | nothing, same immutable kernel version | 1800 | **28.47** |
 
 The "cap actually run" column exists because it disagreed with the knob for the first four builds. The
 builder's replace targeted a `spend_time` form the source does not use, so it never matched, and v7.1,
@@ -56,14 +57,19 @@ notebook was byte-identical, SHA256 `EE49384A...`, with only the ownership metad
 mounted sorokin's own wheel tree and model upload exactly as its metadata specifies.
 
 That is the second public notebook to display a high score and land near 28 when actually run. The
-first was `koushikrudra/failed-in-aimo` at 28.06. Our own v7.2 scores 30.97. There was never a
-deficit to close. We were ahead of both.
+first was `koushikrudra/failed-in-aimo` at 28.06.
+
+**WITHDRAWN 2026-08-07.** This section went on to conclude we were "ahead of both". Our own
+unchanged pipeline scored 28.47 on 2026-08-07, the control's number exactly, so there is no gap and
+never was a measurable one. What survives is that a displayed score does not bind to the published
+file. What does not survive is any ranking of these artifacts against ours from single runs.
 
 Three things die with this result.
 
-The environment hypothesis is refuted rather than merely unsupported. The claim was that mounting
-sorokin's original attachments instead of the rc7530 fork was worth 3.33 points. This control mounted
-exactly those attachments and scored 28.47, which is below every build we have run on our own mounts.
+The environment hypothesis is UNSUPPORTED, not refuted. An earlier version of this line said refuted,
+on the grounds that the control scored below every build on our own mounts. It does not: our own
+unchanged pipeline also scored 28.47. The +3.33 claim has no evidence for it and this control gives
+none against it either.
 
 The cap hypothesis weakens sharply. LB33 runs cap 1200 and scores 28.47. Our v7.2 runs 1800 and
 scores 30.97. That is confounded by everything else that differs between the two builds, so it does
@@ -98,27 +104,35 @@ the day.
 | v7.2 | 2026-07-25 | 30.97 |
 | v7.2 replicate v1 | 2026-08-03 | 30.56 |
 | no-dead-AIF | 2026-08-04 | 30.00 |
-| v7.2 replicate v1, resubmitted | 2026-08-05 | **32.64** |
+| v7.2 replicate v1, run 2 | 2026-08-05 | **32.64** |
+| v7.2 replicate v1, run 3 | 2026-08-07 | **28.47** |
 
-Mean 30.95, range **2.64**, standard deviation **1.01**. The one-immutable-version pair alone spans
-2.08 points, five task credits, with no confound of any kind available.
+Mean **30.53**, range **4.17**, standard deviation **1.35**, 95% CI on that sd `[0.85, 3.32]`.
 
-Two consequences. The noise floor is about five task credits, not one, so no comparison in this file
-below two points means anything. And the wall-clock account of the cluster structure, dismissed in
+**The same immutable kernel version, three executions: 30.56, 32.64, 28.47.** Ten task credits on
+code that cannot have changed. This is the single most important number in the project.
+
+Two consequences. The noise floor is about ten task credits, so no comparison in this file below
+about three points means anything. And the wall-clock account of the cluster structure, dismissed in
 the next section because three runs failed to spread, is **reinstated**: the spread appeared as soon
 as the sample grew, and it appeared in the one comparison where nothing but session speed could
 differ.
 
-So the bimodality is real, and the regressions are real for the large ones only. Measured against the
-five-run family mean of 30.95 with sd 1.01, which is the corrected bar:
+Measured against the six-run family mean of 30.53 with sd 1.35, which is the corrected bar:
 
-| build | score | vs mean 30.95 | in credits | in sd | verdict |
+| build | score | vs mean 30.53 | in credits | in sd | verdict |
 |---|---|---|---|---|---|
-| no-dead-AIF | 30.00 | -0.95 | 2.3 | 0.9 | **inside noise, not a regression** |
-| v7.4 | 29.44 | -1.51 | 3.6 | 1.5 | not distinguishable, and separately void |
-| v7.3 | 28.61 | -2.34 | 5.6 | 2.3 | probable, confounded by two knobs |
-| LB33 control | 28.47 | -2.48 | 6.0 | 2.4 | real |
-| v7.5a | 27.92 | -3.03 | 7.3 | 3.0 | real |
+| no-dead-AIF | 30.00 | -0.53 | 1.3 | 0.39 | inside noise |
+| v7.4 | 29.44 | -1.09 | 2.6 | 0.81 | inside noise |
+| cap 1200 | 29.31 | -1.22 | 2.9 | 0.90 | inside noise |
+| v7.3 | 28.61 | -1.92 | 4.6 | 1.42 | inside noise |
+| LB33 control | 28.47 | -2.06 | 4.9 | 1.52 | inside noise |
+| ctrl (aimo) | 28.06 | -2.47 | 5.9 | 1.83 | inside noise |
+| v7.5a | 27.92 | -2.61 | 6.3 | 1.93 | inside noise |
+
+**Nothing clears two sigma. Every regression this project claimed is gone.** The LB33 control's
+28.47 is exactly what our own unchanged pipeline scored on 2026-08-07, so that comparison is dead
+too.
 
 The earlier version of this table used sd 0.24 from three runs and reported these at 4.7 to 11.2
 standard deviations, calling every one of them "far outside the noise". At the corrected sd only

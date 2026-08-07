@@ -67,6 +67,10 @@ VERSIONS = [
          ttt=240, note="dead arm\ndeleted"),
     dict(tag="v7.2r'", score=32.64, hours=None, time_est=True, accel="L4 x4",
          ttt=240, note="SAME kernel\nversion, re-run"),
+    dict(tag="cap", score=29.31, hours=None, time_est=True, accel="L4 x4",
+         ttt=240, note="cap 1200,\none literal"),
+    dict(tag="v7.2r''", score=28.47, hours=None, time_est=True, accel="L4 x4",
+         ttt=240, note="SAME version,\nthird run"),
 ]
 
 # Five runs of the unchanged pipeline landed at 30.00, 30.56, 30.56, 30.97 and 32.64. The last is the
@@ -75,7 +79,7 @@ VERSIONS = [
 # are read against measured noise and not against a single flattering number. An earlier version of
 # this figure drew it at 30.56 to 30.97 from three runs, which made four regressions look decisive
 # that are not.
-FAMILY = [30.00, 30.56, 30.56, 30.97, 32.64]
+FAMILY = [28.47, 30.00, 30.56, 30.56, 30.97, 32.64]
 _MEAN = sum(FAMILY) / len(FAMILY)
 _SD = (sum((x - _MEAN) ** 2 for x in FAMILY) / (len(FAMILY) - 1)) ** 0.5
 NOISE_LO, NOISE_HI = _MEAN - _SD, _MEAN + _SD
