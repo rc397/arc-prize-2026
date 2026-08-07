@@ -33,7 +33,20 @@ def _worker(q, src, inputs):
         devnull = open(os.devnull, "w")
         sys.stdout = devnull   # generated code may print in a loop; keep the parent log clean
         sys.stderr = devnull
+        # Pre-populate the namespace with the modules the prompt invites the model to use. Models
+        # routinely write np.array without an import line, assuming the harness supplies it, and a
+        # bare namespace turns that into a NameError that is indistinguishable from wrong logic.
+        # Scoring a near-correct program as zero because of a missing import corrupts any
+        # partial-credit fitness measured on top of this executor. Programs that do import are
+        # unaffected, since their own import simply rebinds the same name.
         ns = {}
+        for _alias, _mod in (("np", "numpy"), ("numpy", "numpy"), ("math", "math"),
+                             ("itertools", "itertools"), ("collections", "collections"),
+                             ("re", "re"), ("copy", "copy"), ("functools", "functools")):
+            try:
+                ns[_alias] = __import__(_mod)
+            except Exception:
+                pass
         exec(src, ns)
         f = ns["solve"]
         outs = []
