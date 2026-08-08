@@ -1,180 +1,140 @@
-# Plan to November
+# Plan to November, revision 2
 
-Written 2026-08-06. The runway is 88 days to code, 94 to paper. This exists so the allocation is
-decided once, while slack is cheap, rather than improvised in October when it is not.
+Rewritten 2026-08-08 after two results landed in one night and closed most of revision 1. Read the
+"what changed" section first, because the strategy inverts.
 
-| date | what | days from 2026-08-06 |
+| date | what | days from 2026-08-08 |
 |---|---|---|
-| **2 Nov 2026** | Kaggle submissions due | 88 |
-| **8 Nov 2026** | papers due | 94 |
-| 4 Dec 2026 | results announced | 120 |
+| **2 Nov 2026** | Kaggle submissions due | 86 |
+| **8 Nov 2026** | papers due | 92 |
+| 4 Dec 2026 | results announced | 118 |
 
-## Hard blockers, none of which are research
+## What changed
 
-These sink the entry regardless of score. Check them monthly, not in the last week.
+**1. The variance is far larger than any effect we can produce.** One immutable kernel version,
+three executions: 30.56, 32.64, 28.47. Family of six: mean 30.53, sd 1.35, range 4.17 points. Every
+build this project called a regression is inside two sigma, and so are both public controls. Third
+widening, same direction each time.
 
-- [ ] **Repo is private.** Solutions must be open-sourced under a permissive license to be prize
-      eligible. Repo is MIT-0 but `rc397/arc-prize-2026` is private. Flip it, or host the PDF and
-      code separately, before judging. Decide by 1 Oct, do not leave to November.
-- [ ] **The paper must link to a Kaggle code submission.** Currently `55261090` at 32.64. If a later
-      build wins, the link changes and so does the writeup's submission ID line.
-- [ ] **Paper Track needs the main-track submission to exist and be valid.** It does.
-- [ ] **Writeup is capped at 1500 words and sits at exactly 1500.** Every addition displaces
-      something. Do not discover this in November.
+**2. Execution-verified synthesis is closed for our hardware.** The gate ran the full public eval
+set, 120 tasks, 952 programs from a 14B coder at K=8. Zero solved. One task reproduced any
+demonstration pair. Median per-cell lift over identity +0.000, only 5% of tasks above +0.05, though
+68% got the output shape right. Evolution amplifies a baseline and there is none, and there is no
+gradient to climb either. Revision 1 made this the centrepiece; it is now a measured negative.
 
-## Where we stand
+**3. Therefore Accuracy is fixed at 32.64 and cannot be improved measurably.** Not "is hard to
+improve" — *cannot be measured*. With sd 1.35 and one submission per day, resolving a 1-point real
+effect needs about 30 runs per arm. We have 86 slots total. Anything we could plausibly build is
+smaller than our own instrument's resolution.
 
-| | |
-|---|---|
-| best hidden score | **32.64**, rank 43, tied with 21 others |
-| same-method family | {30.00, 30.56, 30.56, 30.97, 32.64}, mean 30.95, sd 1.01 |
-| best single-card config | 18.19 |
-| the paper's price on 16GB | about 12 points |
-| paper | 59 pages, 0 undefined refs, HTML mirrored |
-| leader | nvbanana at 67.50 |
+## The strategic consequence, stated plainly
 
-## Closed by measurement. Do not re-run these.
+**We cannot win on Accuracy, so the paper must win on the other five criteria, and the variance
+result is the strongest card we hold.** It is also the only one nobody else has played: the 2025
+winners mention 1-2 points of re-run variability in passing and never measured it.
 
-Re-deriving a closed lever is the most expensive habit available to us, so the list is explicit.
+That flips the priority order. Revision 1 spent the runway chasing score. Revision 2 spends it
+making the measurement contribution unimpeachable, and re-bases every other claim onto evidence that
+hidden-set noise cannot touch.
 
-| lever | verdict | evidence |
+## W1. Make the variance result unimpeachable
+
+Currently n=6, and the 95% interval on the standard deviation is `[0.85, 3.32]`. We are claiming
+"about 1.35" from data consistent with anything between 0.85 and 3.3. That is the weak point a
+reviewer will find, and it is fixable with the resource we have.
+
+**W1a. Extend the replicate series to n≈18-20.** Roughly 12 more slots, spread across the runway
+rather than in a block so machine-load seasonality is sampled rather than aliased. At n=20 the
+interval on the sd tightens to roughly ±25% instead of a factor of four. This is measurement, not
+noise-mining, and the paper must say which it is doing.
+
+**W1b. Report the distribution, not just the sd.** With 20 points we can say whether the spread is
+Gaussian, bimodal or heavy-tailed. Bimodal would be a much sharper finding, because it would suggest
+a discrete failure (a worker dropping its tail) rather than smooth speed variation.
+
+**W1c. Decompose the mechanism offline, with no submissions at all.** This is the experiment I most
+want to run and it needs zero GPU and zero slots. We have per-task wall times and outcomes for a
+40-task measurement run. Simulate the real thing: 240 tasks over 4 workers against a 42480-second
+wall, tasks drawn from the measured timing distribution, machine speed varied over a plausible
+range, and compute the resulting score distribution. Then compare its standard deviation against the
+measured 1.35.
+
+  - If the simulation reproduces ~1.35, throughput explains the variance and the paper can say so
+    quantitatively rather than by argument.
+  - If it produces much less, the residue belongs to decoder nondeterminism, which we have already
+    measured directly at 12.5% same-seed output disagreement and 0.543 same-config pool Jaccard.
+  - Either way the answer is a decomposition, which is a better result than the sd alone.
+
+Kaggle exposes no runtime on submissions (checked: date, status, scores and nothing else), so the
+correlational version of this test is unavailable and the simulation is the way in.
+
+## W2. Re-base every remaining claim onto offline evidence
+
+This is the quiet but important half. Several conclusions currently rest on single hidden-set
+comparisons that we have now shown cannot carry them. Each needs re-grounding on a within-task
+offline measurement, where run-to-run noise does not apply.
+
+| claim | currently rests on | must rest on |
 |---|---|---|
-| selector reweighting | dead | LOO scores below the deployed selector |
-| cell-wise voting | dead | 0 of 41 missing truths reconstructed |
-| best-first decode order | dead | median 2.9% over 16 logged trees |
-| augmentation-seed restarts | dead | union of 3 seeds equals best single seed exactly |
-| invariant mining as a filter | dead | 0 recovered, kills 11 of 19 truths |
-| dual-expert fusion | dead | oracle gap 0 of 18 on fresh tasks |
-| subset-adapter unioning | dead | +0 coverage over 20 outputs |
-| adapter rank / depth | at optimum | inverted U, current config sits on the peak |
-| bigger base model | wrong bet | 200M LongT5 scores 27, Qwen3 plateaus 0.6B to 8B |
+| oracle accuracy precondition | v7.5a's 27.92 (1.9 sd, dead) | invariant mining: 0 recovered, 11/19 truths killed |
+| selection is exhausted | partly on version deltas | the theorem, plus 0/18 oracle gap on fresh tasks |
+| the phantom notebooks | "below our band" (dead) | displayed-vs-executed, which never needed a gap |
+| cap / timing policy | 29.31 (0.9 sd, dead) | the budget table and W1c's simulation |
 
-The shape of all of it: **selection and search are exhausted, generation is not.** 65% of tasks never
-produce the truth under any view and consume 71% of the budget. That is the only number that matters.
+The general rule for the rest of the project: **an offline within-task comparison is worth more than
+a hidden-set delta, because it has no noise floor.** We should have been operating this way for
+months.
 
-## Workstreams, in priority order
+## W3. Rework the paper around its actual centre
 
-### W1. Execution-verified program synthesis (the centrepiece)
+The narrative has shifted from "we tried things and they regressed" to "we tried things and the
+leaderboard cannot tell, and here is how much it cannot tell by". That is a better paper and it
+needs the spine rewritten, not just the numbers patched. Sections affected: abstract and intro
+(done), the results variance passage (done), the phantom section (withdrawn claim, done), the
+escape-route ledger (re-based, done), plus the conclusion and the five-lessons section, which still
+argue from regressions that no longer exist.
 
-**What this is not.** It is not "the same score for less compute". That is the paper we already have,
-and it is finished: the same method on one card instead of four, priced at twelve points. It caps out
-mid-field because efficiency gains have nowhere to go. We measured that directly. 65% of tasks never
-generate the truth under any view, restarts add no coverage, the selector already ranks every
-reachable truth top-two. **A method that is capability-starved cannot convert saved time into score.**
+Rubric read after the change:
 
-**What it is.** A capability we do not currently have, whose published demonstration costs 12 to 40
-times the offline budget, made to fit inside it. Efficiency is the constraint, not the goal. If it
-lands the score rises because we solve tasks the current generator never reaches; if it does not, we
-report a measured negative about budget against someone else's positive.
+| criterion | before | after | why |
+|---|---|---|---|
+| Accuracy | weak-mid | weak-mid | unchanged and unimprovable |
+| Universality | strong | **stronger** | the variance result applies to every leaderboard-driven field |
+| Progress | mid-strong | **stronger** | stopping the field from over-reading ablations is real progress toward 85% |
+| Theory | strong | strong | ceiling theorem intact, now grounded offline |
+| Completeness | strong | strong | |
+| Novelty | weakest | **mid** | nobody has measured this; it is measurement novelty, not method novelty |
 
-The one-line framing: *we exhausted efficiency on a method that cannot use it, and the remaining
-question is whether the method that can use it fits the budget.*
-
-It is the single highest-value thing left, because it hits four of the six rubric criteria at once.
-
-Appendix F derives that selection over the adapted model's own likelihoods is bounded, and names
-execution against the demonstrations as the escape. Imbue then measured it: candidate Python
-programs scored 90% by execution against the task's own demonstration pairs lift an open-weights
-model from 12.1% to 34.0%. Our own v7.5a failed the same route with an *approximate* oracle and cost
-three sigma, which is the theorem's precondition confirmed from the other side.
-
-The open question, which nobody has answered publicly, is whether this fits the offline budget.
-Imbue runs at \$2.42 to \$8.71 per task. The offline track allows roughly \$0.20. **A local 4B doing
-execution-verified evolution inside 12 hours on four L4s is exactly our paper's efficiency framing
-applied to the one route that is not closed.**
-
-Feasibility, rough: 240 tasks over 4 workers in 12h is about 720 GPU-seconds per task. A 4B emitting
-a 500-token program at realistic decode speed is on the order of 10s, so roughly 60 program
-candidates per task before any batching. Imbue uses at most 16 iterations. It is tight and it is not
-obviously impossible, which is the definition of worth trying.
-
-**Prior-negative caution, stated up front.** Our own notes record an induction arm that scored 0 on
-the miss set across three model classes. That is a real result and it must not be waved away. But it
-was run on the miss set alone, the hardest slice, and without the evolutionary loop or the
-execution-fitness signal that is now externally validated. Our own standing lesson is not to
-generalise a one-arm negative into a whole-system ceiling. So: rebuild it in the validated shape,
-gate it on the rig, and only then spend submissions.
-
-Steps:
-1. Build the evolver offline against public eval. Fitness = exact execution on demonstrations, with
-   per-cell partial credit. No LLM judge terms initially; they need a second model we cannot afford.
-2. Rig-gate: measure solve rate on a stratified slice, and specifically on tasks the current pipeline
-   misses, since that is the only place it can add anything.
-3. Kill condition: if it recovers **zero** tasks from the current miss set on a 40-task rig slice, it
-   is dead and the paper reports it as a measured negative against imbue's positive, which is still
-   a publishable result about budget.
-4. If it recovers anything, route it as a second arm behind the vote-agreement signal and submit.
-
-### W2. Tighten the variance claim
-
-Our most novel contribution is the error bar, and it currently rests on five runs. The 95% CI on the
-standard deviation from n=5 is roughly **[0.60, 2.90]**; at n=15 it is about **[0.74, 1.59]**.
-
-Resubmitting the same kernel to keep a lucky maximum is noise-mining and pointless, because the
-displayed board is about half the test data and the final standing uses the other half. Resubmitting
-to estimate the variance is the experiment. Same action, different purpose, and the paper must say
-which one it is doing.
-
-Spend about 12 slots on this, spread across the runway rather than in a block, so machine-load
-seasonality is sampled rather than aliased.
-
-### W3. Finish what is in flight
-
-- Pre-fitting, 3 arms, running now. Pre-registered prediction is a null. Score it either way.
-- Cap 1200, submission `55283687`, pending. Read against the band, not as a single number.
-- Subset-disagreement as a **routing signal**: Jaccard 0.373 where the truth was found against 0.015
-  where it was not, on n=7 and n=4. That is the progress signal training loss fails to provide. Worth
-  a rig run at larger n before it can be more than a lead.
-
-## Submission budget, 88 slots
+## Submission budget, 86 slots
 
 | purpose | slots | notes |
 |---|---|---|
-| variance series (W2) | 12 | spread out, never in a block |
-| W1 synthesis arm | 16 | only after the rig gate passes |
-| in-flight and follow-ups | 10 | cap, pre-fitting, routing policy |
-| reserve | 50 | it feels like a lot in August and will not in October |
+| W1a variance series | 12-14 | the single highest-value use of a slot we have |
+| final submission selection | 2 | 1-2 November |
+| reserve | 70 | and it will not feel like enough in October |
 
-Rough calendar:
+Nothing is allocated to score-chasing. If a genuinely new idea appears with a mechanism worth more
+than three points, it comes out of reserve and goes through a rig gate first.
 
-- **August (25 left):** finish W3. Build and rig-gate W1. Start the variance series at roughly two
-  per week.
-- **September (30):** W1 submissions if the gate passed. Variance series continues. First full paper
-  pass against the rubric.
-- **October (31):** consolidate. Paper finalisation. Hard blockers cleared by 1 Oct. Reserve absorbs
-  whatever went wrong.
-- **1-2 November:** final submission selected and verified.
-- **3-8 November:** paper final, PDF hosted, links checked.
+## Hard blockers, unchanged and still not research
 
-## Decision rules
+- [ ] **Repo is private.** Solutions must be open-sourced for prize eligibility. Decide by 1 Oct.
+- [ ] Paper must link to a Kaggle code submission. Currently `55261090` at 32.64.
+- [ ] Writeup capped at 1500 words, currently 1498.
 
-These exist so a bad result does not turn into a week of explaining it, which has happened here
-before and cost the most expensive week of the project.
+## What I dropped from revision 1, and why
 
-1. **Run the control first.** If an effect's premise is an artifact whose provenance we cannot audit,
-   or is the basis for a programme rather than one comparison, the control is the first experiment,
-   not the seventh.
-2. **No hidden-set difference under about two points is a result.** State where a score sits in the
-   band. Prefer "not distinguishable" to a directional story.
-3. **Rig-gate before a submission slot**, in the actual TTT condition, for anything with a mechanism
-   we can test offline.
-4. **One factor per submission.** The builder must assert its edits landed and diff everything else.
-5. **A closed lever stays closed** unless a new measurement, not a new argument, reopens it.
-6. **Report negatives at the same weight as positives.** They are most of what we have and they are
-   why the paper is worth reading.
+- **W1 synthesis arm, 16 slots.** Closed by measurement, 0/120 with a flat gradient.
+- **Score-chasing generally.** We cannot resolve what we could build.
+- **The routing-policy build.** The subset-disagreement signal (0.373 vs 0.015) stays in the paper as
+  an offline lead. Building the policy would produce an improvement we could not measure.
 
-## Rubric self-assessment, and where the remaining effort should go
+## The decision I need from you
 
-Six equally weighted criteria, scored 0-5.
+**Do we accept that 32.64 is our final Accuracy and spend the runway on the measurement
+contribution?**
 
-| criterion | current | where it moves |
-|---|---|---|
-| Accuracy | weak-mid, 32.64 is mid-field | W1 is the only realistic lift |
-| Universality | strong | contamination instrument, selection theorem, replicate control all generalise |
-| Progress | mid-strong | the closed-lever map plus the escape-route bracketing |
-| Theory | strong | the ceiling theorem and its measured precondition |
-| Completeness | strong | 59 pages, controls, negatives, provenance |
-| **Novelty** | **weakest** | the method is a reproduction; novelty currently lives in measurement |
-
-**Novelty and Accuracy are the two weak scores and W1 is the only workstream that lifts both.** That
-is the argument for it being the centrepiece rather than one of several ideas.
+My recommendation is yes. The alternative is to keep spending slots on levers whose effects are
+smaller than our instrument's resolution, which is precisely the error this paper now exists to
+document. But it means accepting a mid-field score in a competition, and that is your call, not
+mine.
