@@ -162,10 +162,14 @@ def main(n_gen, decode_s):
                 load_lora(m, donors[other])
             tds = train_ds_for(ds, tname)
             t0 = time.time()
-            early = P.train_one(m, tok, collator, fmt, tds,
-                                deadline=time.time() + P.TRAIN_BUDGET, max_batches=EARLY_STEPS)
-            # continue to the full budget from the same state
+            # ONE training run, exactly as deployed, and the early loss is read off its own curve.
+            # An earlier version called train_one twice, once capped at EARLY_STEPS and once to the
+            # full budget, which restarts the optimizer and the LR schedule and makes the second a
+            # fresh warmup rather than a continuation.
             full = P.train_one(m, tok, collator, fmt, tds, deadline=time.time() + P.TRAIN_BUDGET)
+            curve = full.get("losses") or []
+            early = {"train_loss_last10": (sum(curve[:EARLY_STEPS]) / len(curve[:EARLY_STEPS]))
+                     if curve else 0.0}
             train_s = time.time() - t0
             base = m.get_base_model()
             base.config.use_cache = True
@@ -214,9 +218,24 @@ def summarize():
     n_out = sum(r["cold"]["outputs"] for r in rows)
     print("(%d outputs total)" % n_out)
 
-    ce, _, ch, _ = agg["cold"]
-    se, _, sh, _ = agg["warm_same"]
-    de, _, dh, _ = agg["warm_diff"]
+    ce, _, ch, cc = agg["cold"]
+    se, _, sh, sc = agg["warm_same"]
+    de, _, dh, dc = agg["warm_diff"]
+
+    # A verdict needs something to have been decoded. Zero candidates everywhere means the decode
+    # budget or the harness failed, not that warm starts do nothing, and this summariser printed
+    # "the route is closed" on exactly that once already.
+    if cc + sc + dc == 0:
+        print("\nNO VERDICT")
+        print("  Every arm produced zero candidates, so the coverage comparison is empty. That is a")
+        print("  budget or harness failure, not a result about warm starts. Raise the decode budget")
+        print("  and re-run before reading anything into the loss columns.")
+        return
+    if len(rows) < 5:
+        print("\nNO VERDICT")
+        print("  Only %d generators. Too few to separate three arms; run six or more." % len(rows))
+        return
+
     print("\nVERDICT")
     faster_same = se < ce * 0.9
     faster_diff = de < ce * 0.9

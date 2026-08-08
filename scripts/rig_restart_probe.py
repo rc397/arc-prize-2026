@@ -522,6 +522,10 @@ def train_one(peft_model, tokenizer, collator, formatter, train_ds, deadline=Non
     return {"train_loss_mean": float(np.mean(losses)) if losses else 0.0,
             "train_loss_final": float(losses[-1]) if losses else 0.0,
             "train_loss_last10": float(np.mean(losses[-10:])) if losses else 0.0,
+            # the whole curve, so a caller wanting the loss at step k does not have to train twice.
+            # Training twice restarts the optimizer and the schedule, which makes the second run a
+            # fresh warmup rather than a continuation and silently changes what is being compared.
+            "losses": [float(x) for x in losses],
             "train_steps": len(losses), "train_truncated": truncated, "optim": opt_name}
 
 
