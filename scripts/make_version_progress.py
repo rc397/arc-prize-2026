@@ -71,15 +71,17 @@ VERSIONS = [
          ttt=240, note="cap 1200,\none literal"),
     dict(tag="v7.2r''", score=28.47, hours=None, time_est=True, accel="L4 x4",
          ttt=240, note="SAME version,\nthird run"),
+    dict(tag="v7.2r'''", score=31.39, hours=None, time_est=True, accel="L4 x4",
+         ttt=240, note="SAME version,\nfourth run"),
 ]
 
-# Five runs of the unchanged pipeline landed at 30.00, 30.56, 30.56, 30.97 and 32.64. The last is the
-# same immutable kernel version as the 30.56, resubmitted, so 2.08 points of that spread carry no
-# confound at all. The band is the family mean plus and minus one standard deviation, so regressions
-# are read against measured noise and not against a single flattering number. An earlier version of
-# this figure drew it at 30.56 to 30.97 from three runs, which made four regressions look decisive
-# that are not.
-FAMILY = [28.47, 30.00, 30.56, 30.56, 30.97, 32.64]
+# Seven runs of the unchanged pipeline. Four of them are the SAME immutable Kaggle kernel version
+# resubmitted (30.56, 32.64, 28.47, 31.39), so 4.17 points of this spread carry no confound of any
+# kind. The band is the family mean plus and minus one standard deviation, so a regression is read
+# against measured noise rather than against a single flattering number. Earlier versions of this
+# figure drew the band from three runs and then five, and both made regressions look decisive that
+# are not; the estimate has widened every time and always in the same direction.
+FAMILY = [28.47, 30.00, 30.56, 30.56, 30.97, 31.39, 32.64]
 _MEAN = sum(FAMILY) / len(FAMILY)
 _SD = (sum((x - _MEAN) ** 2 for x in FAMILY) / (len(FAMILY) - 1)) ** 0.5
 NOISE_LO, NOISE_HI = _MEAN - _SD, _MEAN + _SD
@@ -116,8 +118,9 @@ def fig_version_score():
 
     # measured same-config noise band, three runs of the unchanged pipeline
     ax.axhspan(NOISE_LO, NOISE_HI, color=BLUE, alpha=0.10, zorder=1)
-    ax.text(0.1, NOISE_HI + 0.5,
-            "same-config spread across three runs (v7.1, v7.2, v7.2r): one task credit",
+    ax.text(0.1, NOISE_HI + 0.45,
+            "same-config spread, 7 runs: mean 30.66, sd 1.28. One kernel VERSION run 4x "
+            "spans 4.17 points",
             fontsize=8.8, color=BLUE)
 
     # 2025 Kaggle SOTA reference (the 2025 climb target, same base-model lineage)

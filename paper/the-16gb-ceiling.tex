@@ -78,15 +78,15 @@ card. That configuration turns out to fit the card's memory once the attention k
 deliberately, which corrects an earlier conclusion of our own, so the binding resource is time rather than
 capacity. We then measure the gap rather than assert it. Reproducing one such public pipeline on the
 contest's own four-L4 node, and repairing two defects the community port had introduced into it, scores
-\textbf{30.53\%} averaged over six runs of that one configuration, with a best single run of
+\textbf{30.66\%} averaged over seven runs of that one configuration, with a best single run of
 \textbf{32.64\%}. That result is a reproduction of named public work and is not a single-card result,
 and we report it as the measured price of the constraint, roughly twelve points against the best
 configuration we could serve inside the single-card budget.
 
 We quote a mean rather than a best because of what those six runs turned out to be. One immutable
-Kaggle kernel version, submitted three times, scored \textbf{30.56, 32.64 and 28.47} on identical
-code: a spread of \textbf{4.17 points}, ten task credits. The full family has a standard deviation of
-1.35 points. Measured against it, \emph{every} build this project called a regression, and both
+Kaggle kernel version, submitted four times, scored \textbf{30.56, 32.64, 28.47 and 31.39} on
+identical code: a spread of \textbf{4.17 points}, ten task credits. The full family has a standard
+deviation of 1.28 points. Measured against it, \emph{every} build this project called a regression, and both
 public notebooks we ran as controls, fall inside two standard deviations. That is the paper's most
 transferable result. At this operating point a single hidden-set score does not resolve the method
 differences the field routinely reports, our own included, and we only found it because we spent
@@ -146,7 +146,7 @@ H100 or GH200 GPUs, though the winning offline submission itself runs on four L4
 recipe under a constraint we think is widely shared, a single RTX~5070~Ti with 16~GB, on the
 Blackwell architecture, running native Windows. The aim on one card is not to top the leaderboard but to build a working, reproducible system, measure
 honest numbers, and map where the small model stops being enough. That map is the efficient floor of a
-larger climb. The ceiling in the title is the hardware, 16~GB of VRAM, not a score, and the number climbs beneath it as the method deepens, from 13.61 to 18.19 on the hidden set (Section~\ref{sec:results}). We also put a number on the ceiling itself. Reproducing a public pipeline that cannot fit one card, on the hardware the contest provides, averages 30.53\% over six runs on the same hidden set and peaks at 32.64\%, so the constraint is worth roughly twelve points rather than an unknown amount. The same contest hands every entrant four L4 GPUs, 96~GB together, and the offline frontier
+larger climb. The ceiling in the title is the hardware, 16~GB of VRAM, not a score, and the number climbs beneath it as the method deepens, from 13.61 to 18.19 on the hidden set (Section~\ref{sec:results}). We also put a number on the ceiling itself. Reproducing a public pipeline that cannot fit one card, on the hardware the contest provides, averages 30.66\% over seven runs on the same hidden set and peaks at 32.64\%, so the constraint is worth roughly twelve points rather than an unknown amount. The same contest hands every entrant four L4 GPUs, 96~GB together, and the offline frontier
 on that hardware has already passed 50\% with refinement loops and program synthesis~\cite{arc2025}. We
 read the 16~GB walls not as the limit of the task but as the exact places scaling up has to break, and
 Section~\ref{sec:scale} lays out that path. Figure~\ref{fig:solve} shows a representative task our system
@@ -463,6 +463,7 @@ ctrl2 & the notebook actually titled for 33.89, forked unmodified with its autho
 v7.2r & v7.2 re-run unchanged, the same-configuration replicate & 30.56 \\
 v7.2r$'$ & \emph{the same kernel version as v7.2r, resubmitted} & \textbf{32.64} \\
 v7.2r$''$ & \emph{the same kernel version again, a third execution} & \textbf{28.47} \\
+v7.2r$'''$ & \emph{and a fourth} & 31.39 \\
 cap & the replicate with one live literal, 1800 to 1200 & 29.31 \\
 noAIF & the replicate minus computation its own output discards & 30.00 \\
 \bottomrule
@@ -527,15 +528,15 @@ re-export, the same committed version identifier as the run that had scored 30.5
 \textbf{32.64}. Identical code, two executions, \textbf{2.08 points apart}, which is five task
 credits.
 
-We then submitted that same kernel version a third time, and it scored \textbf{28.47}. One immutable
-artifact, three executions, \textbf{30.56, 32.64 and 28.47}: a range of \textbf{4.17 points}, ten
-task credits, on code that cannot have changed. This is the central measurement of the paper and we
-arrived at it by widening the same estimate three times, each time in the same direction.
+We then kept submitting that same kernel version. Four executions of one immutable artifact scored
+\textbf{30.56, 32.64, 28.47 and 31.39}: a range of \textbf{4.17 points}, ten task credits, on code
+that cannot have changed. This is the central measurement of the paper and we arrived at it by
+widening the same estimate three times, each time in the same direction.
 
-The same-method family is now $\{28.47, 30.00, 30.56, 30.56, 30.97, 32.64\}$, mean \textbf{30.53},
-standard deviation \textbf{1.35}, range 4.17 points. Six runs is still a small sample and the 95\%
-interval on that standard deviation is $[0.85, 3.32]$, so the honest statement is that the noise is
-at least a point and might be three.
+The same-method family is now $\{28.47, 30.00, 30.56, 30.56, 30.97, 31.39, 32.64\}$, mean
+\textbf{30.66}, standard deviation \textbf{1.28}, range 4.17 points. Seven runs is still a small
+sample and the 95\% interval on that standard deviation is $[0.82, 2.81]$, so the honest statement is
+that the noise is at least a point and might be nearly three.
 
 The consequence is not a correction to one claim, it is the retirement of a whole class of claim.
 Measured against this family, \emph{every} deviation this project has recorded falls inside two
@@ -543,21 +544,23 @@ standard deviations:
 
 \begin{table}[H]
 \centering
-\caption{Every build we called a regression, priced against six runs of the unchanged configuration
-(mean 30.53, sd 1.35). Nothing clears two standard deviations. The rightmost column is what we
-previously reported, using a standard deviation estimated from three runs and then five.}
+\caption{Every build we called a regression, priced against seven runs of the unchanged
+configuration (mean 30.66, sd 1.28). The rightmost column is what we previously reported, using a
+standard deviation estimated from three runs, then five, then six. Only two entries reach two
+standard deviations and both sit within a tenth of that line, which is less a verdict than a
+demonstration that the line moves.}
 \label{tab:allnoise}
 \begin{tabular}{lrrrl}
 \toprule
 build & score & from mean & in sd & previously reported as \\
 \midrule
-v7.5a           & 27.92 & $-2.61$ & 1.93 & real, 11 then 3.0 sd \\
-ctrl (aimo)     & 28.06 & $-2.47$ & 1.83 & below our band \\
-LB33 control    & 28.47 & $-2.06$ & 1.52 & real, 8.8 then 2.4 sd \\
-v7.3            & 28.61 & $-1.92$ & 1.42 & real, 8.2 then 2.3 sd \\
-cap 1200        & 29.31 & $-1.22$ & 0.90 & prediction unsupported \\
-v7.4            & 29.44 & $-1.09$ & 0.81 & real, 4.7 then 1.5 sd \\
-no-dead-AIF     & 30.00 & $-0.53$ & 0.39 & already retracted \\
+v7.5a           & 27.92 & $-2.74$ & 2.14 & real at 11, then 3.0, then 1.93 sd \\
+ctrl (aimo)     & 28.06 & $-2.60$ & 2.03 & below our band \\
+LB33 control    & 28.47 & $-2.19$ & 1.71 & real, 8.8 then 2.4 sd \\
+v7.3            & 28.61 & $-2.05$ & 1.60 & real, 8.2 then 2.3 sd \\
+cap 1200        & 29.31 & $-1.35$ & 1.05 & prediction unsupported \\
+v7.4            & 29.44 & $-1.22$ & 0.95 & real, 4.7 then 1.5 sd \\
+no-dead-AIF     & 30.00 & $-0.66$ & 0.51 & already retracted \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -568,10 +571,14 @@ scored 28.47, and so did our own unmodified pipeline.} The phantom-notebook sect
 below our own unchanged pipeline's band''. Our own unchanged pipeline reaches exactly that number.
 The conclusion that survives is the one that never depended on the gap, that a displayed score does
 not bind to the published file; the comparison we drew underneath it does not survive. And
-\textbf{v7.5a, the symbolic prune we treated as the theorem's escape route measured and refuted, is
-1.9 standard deviations from the mean.} We keep the conclusion about oracle accuracy because the
-offline invariant-mining experiment reaches it independently and does not rely on the hidden score,
-but the hidden score on its own no longer carries the argument.
+\textbf{v7.5a, the symbolic prune we treated as the theorem's escape route measured and refuted,
+moved from 1.93 standard deviations at six runs to 2.14 at seven.} One additional draw carried it
+back across the line we had just used to retire it, which is a sharper argument against
+single-comparison verdicts than anything we could write. The interval on the standard deviation
+itself is $[0.82, 2.81]$, so v7.5a's distance from the mean is somewhere between about one and three
+sigma and the threshold is not a stable object. We keep the conclusion about oracle accuracy because
+the offline invariant-mining experiment reaches it independently and does not rely on the hidden
+score, and we decline to reinstate the hidden-score argument on a tenth of a sigma.
 
 This also settles the mechanism question the earlier draft went back and forth on. We wrote that the
 wall-clock account failed because three baseline runs did not spread. They spread as soon as the
@@ -641,8 +648,8 @@ writes the same test inline, the pattern never matched, and so every submission 
 onward ran the same hardcoded 1800-second cap while its configuration banner printed whichever value we
 had set. The two runs were therefore the identical build at the identical cap, and their 0.41-point spread is
 run-to-run variance. We took that 0.41 for the noise floor, and it was only the smallest gap the
-sample happened to contain. Resubmitting one immutable kernel version later produced 30.56, 32.64
-and 28.47 on the same artifact, so the floor is about ten task credits and not one, and every
+sample happened to contain. Resubmitting one immutable kernel version later produced 30.56, 32.64,
+28.47 and 31.39 on the same artifact, so the floor is about ten task credits and not one, and every
 comparison in this work should be read against the wider figure derived above rather than this one.
 Appendix~\ref{app:math} derives the resolution limit such a number instantiates. One further observation follows for
 anyone reading the leaderboard rather than the method. A single task credit separates an entire sixty-entry
@@ -1573,8 +1580,8 @@ artifact whose code cells hash identical to the runs that scored 30.56 and 32.64
 banner's default moved to match so it cannot again print a cap the code does not run. It scored
 \textbf{29.31}.
 
-That is 1.64 points below the same-configuration mean, 1.6 standard deviations, and below every
-member of the five-run family. By this paper's own rule a difference of under two points is not a
+That is 1.35 points below the same-configuration mean, 1.05 standard deviations, and below all but
+one member of the seven-run family. By this paper's own rule a difference of under two points is not a
 result, and we hold to the rule: the cap is \emph{not} shown to be harmful. What it is not is
 supported. The prediction, recorded before the run and derived from our own timing log, was neutral
 to positive on the reasoning that the four tasks past 1200 seconds were all misses consuming 26.3\%
@@ -2491,7 +2498,7 @@ contamination is removed. We record this as a closure rather than an untested po
 The other named escape, executing task-side structure against the demonstrations, was run on the
 hidden set as v7.5a: the symbolic arm's object-count signal restored as a pure re-ranking prune,
 adding $0.5$ to a beam's score per unit of disagreement with the predicted component count. It
-scored \textbf{27.92}, which against six runs of the unchanged configuration is 1.9 standard
+scored \textbf{27.92}, which against seven runs of the unchanged configuration is 2.1 standard
 deviations below the mean and therefore \emph{not} a demonstration of harm on its own. The
 conclusion below rests instead on the offline invariant-mining experiment, which reaches it with a
 within-task comparison that no hidden-set noise touches.

@@ -27,6 +27,7 @@ There is no v7.3a. The variants are v7.1, v7.2, v7.3, v7.4, then the v7.5 bisect
 | replicate again | `rc7530/v7-2-replicate` v1, resubmitted | nothing, same immutable kernel version | 1800 | **32.64** |
 | cap1200 | `rc7530/v7-2-cap1200` v1 | the replicate with one live literal, 1800 to 1200 | 1200 | **29.31** |
 | replicate, third run | `rc7530/v7-2-replicate` v1, submitted again | nothing, same immutable kernel version | 1800 | **28.47** |
+| replicate, fourth run | `rc7530/v7-2-replicate` v1, again | nothing | 1800 | **31.39** |
 
 The "cap actually run" column exists because it disagreed with the knob for the first four builds. The
 builder's replace targeted a `spend_time` form the source does not use, so it never matched, and v7.1,
@@ -106,11 +107,17 @@ the day.
 | no-dead-AIF | 2026-08-04 | 30.00 |
 | v7.2 replicate v1, run 2 | 2026-08-05 | **32.64** |
 | v7.2 replicate v1, run 3 | 2026-08-07 | **28.47** |
+| v7.2 replicate v1, run 4 | 2026-08-08 | **31.39** |
 
-Mean **30.53**, range **4.17**, standard deviation **1.35**, 95% CI on that sd `[0.85, 3.32]`.
+Mean **30.66**, range **4.17**, standard deviation **1.28**, 95% CI on that sd `[0.82, 2.81]`.
 
-**The same immutable kernel version, three executions: 30.56, 32.64, 28.47.** Ten task credits on
-code that cannot have changed. This is the single most important number in the project.
+**The same immutable kernel version, FOUR executions: 30.56, 32.64, 28.47, 31.39.** Ten task credits
+on code that cannot have changed. This is the single most important number in the project.
+
+The seventh run also demonstrated the instability directly. v7.5a sat at 1.93 sd against six runs and
+2.14 against seven, so one extra draw carried it back across the line we had just used to retire it.
+With the CI on the sd spanning 0.82 to 2.81, "two sigma" is not a stable threshold here and no
+verdict should be flipped on a tenth of one.
 
 Two consequences. The noise floor is about ten task credits, so no comparison in this file below
 about three points means anything. And the wall-clock account of the cluster structure, dismissed in
@@ -120,15 +127,15 @@ differ.
 
 Measured against the six-run family mean of 30.53 with sd 1.35, which is the corrected bar:
 
-| build | score | vs mean 30.53 | in credits | in sd | verdict |
+| build | score | vs mean 30.66 | in credits | in sd | verdict |
 |---|---|---|---|---|---|
-| no-dead-AIF | 30.00 | -0.53 | 1.3 | 0.39 | inside noise |
-| v7.4 | 29.44 | -1.09 | 2.6 | 0.81 | inside noise |
-| cap 1200 | 29.31 | -1.22 | 2.9 | 0.90 | inside noise |
-| v7.3 | 28.61 | -1.92 | 4.6 | 1.42 | inside noise |
-| LB33 control | 28.47 | -2.06 | 4.9 | 1.52 | inside noise |
-| ctrl (aimo) | 28.06 | -2.47 | 5.9 | 1.83 | inside noise |
-| v7.5a | 27.92 | -2.61 | 6.3 | 1.93 | inside noise |
+| no-dead-AIF | 30.00 | -0.66 | 1.6 | 0.51 | inside noise |
+| v7.4 | 29.44 | -1.22 | 2.9 | 0.95 | inside noise |
+| cap 1200 | 29.31 | -1.35 | 3.2 | 1.05 | inside noise |
+| v7.3 | 28.61 | -2.05 | 4.9 | 1.60 | inside noise |
+| LB33 control | 28.47 | -2.19 | 5.3 | 1.71 | inside noise |
+| ctrl (aimo) | 28.06 | -2.60 | 6.2 | 2.03 | at the line |
+| v7.5a | 27.92 | -2.74 | 6.6 | 2.14 | at the line, was 1.93 at n=6 |
 
 **Nothing clears two sigma. Every regression this project claimed is gone.** The LB33 control's
 28.47 is exactly what our own unchanged pipeline scored on 2026-08-07, so that comparison is dead
