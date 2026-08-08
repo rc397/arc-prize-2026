@@ -22,20 +22,73 @@ demonstration pair. Median per-cell lift over identity +0.000, only 5% of tasks 
 68% got the output shape right. Evolution amplifies a baseline and there is none, and there is no
 gradient to climb either. Revision 1 made this the centrepiece; it is now a measured negative.
 
-**3. Therefore Accuracy is fixed at 32.64 and cannot be improved measurably.** Not "is hard to
-improve" — *cannot be measured*. With sd 1.35 and one submission per day, resolving a 1-point real
-effect needs about 30 runs per arm. We have 86 slots total. Anything we could plausibly build is
-smaller than our own instrument's resolution.
+**3. A reasoning error in the first draft of this revision, corrected.** I wrote that Accuracy was
+now unimprovable because sd 1.35 makes effects unmeasurable. That conflates two different things.
+The runs-per-arm needed to detect an effect scales as $1/\delta^2$:
+
+| true effect | runs per arm to detect at 80% power |
+|---|---|
+| 1 point | 29 |
+| 2 points | 7 |
+| 3 points | 3 |
+| **4 points** | **2** |
+| 5 points | 1 |
+
+High variance is an argument against **sub-two-point tinkering**, and no argument at all against a
+four-point lever, which is three sigma and shows up in two or three runs. Rank 3 on the board is
++4.58 from where we sit. That is inside the range a real mechanism could deliver and inside the range
+we could confirm.
 
 ## The strategic consequence, stated plainly
 
-**We cannot win on Accuracy, so the paper must win on the other five criteria, and the variance
-result is the strongest card we hold.** It is also the only one nobody else has played: the 2025
-winners mention 1-2 points of re-run variability in passing and never measured it.
+Two things are true at once and the plan has to hold both.
 
-That flips the priority order. Revision 1 spent the runway chasing score. Revision 2 spends it
-making the measurement contribution unimpeachable, and re-bases every other claim onto evidence that
-hidden-set noise cannot touch.
+**The measurement is our strongest and most novel contribution** and deserves the slots to make it
+unimpeachable. Nobody else has played it; the 2025 winners mention 1-2 points of re-run variability
+in passing and never measured it.
+
+**And the variance finding points AT a score lever rather than away from one.** This is the part the
+first draft missed. The score moved 4.17 points on machine speed alone, which means the run is
+throughput-limited: the search stops where the wall arrives, and candidates it would have found
+never exist. So raw speed converts directly into coverage, and coverage is score. That is different
+from the reallocation the restart null killed, which moved time between tasks inside the same total.
+
+The bar for spending slots is therefore not "never chase score", it is **only chase a lever with a
+mechanism worth more than three points, and gate it on the rig first.**
+
+## W0. Throughput to coverage: the decode batch width
+
+The one lever we have with a mechanism worth more than three points, and it comes straight out of
+the variance result.
+
+The deployed decoder splits the sixteen evaluation views into four batches of four, fixed by
+hard-coded index offsets, and runs four sequential depth-first searches. Four trees cost the sum of
+their step counts; one tree over all sixteen lanes costs the max. Single-token decode is bounded by
+reading 8 GB of weights out of HBM rather than by arithmetic, so a wider batch should cost nearly the
+same per step.
+
+Measured, over 120 evaluation tasks: the sixteen views take exactly **one** distinct token length for
+39.5% of test outputs and exactly **two** for the other 60.5%, and never more. So every task decodes
+in at most two batches instead of four, 40% of them in one. The gaps are single-digit token counts
+from grid separators. Weighted, that is about a **2.5x reduction in sequential trees**.
+
+Why it should convert to score rather than just to time: twelve of sixteen rig decodes truncate at
+their budget, and the hidden-set variance proves the deployed run is wall-limited too. A search that
+truncates and is then given 2.5x the effective budget goes deeper and produces candidates that
+previously did not exist.
+
+Gates, in order, and each can kill it:
+
+1. **bench** Forward-pass time at width 1, 2, 4, 8, 16. Flat means the width is free. Linear means
+   decode is compute-bound here and the idea is dead with no further spend.
+2. **A/B** Per task, decode twice under an identical wall budget, deployed 4-wide against
+   length-grouped up to 16, comparing candidates and truth-in-pool. A within-task comparison, so
+   hidden-set noise does not enter.
+3. **correctness** Batch composition changes logits, so wider batching is not automatically
+   semantics-preserving. If the wide arm loses truths anywhere, it does not ship regardless of speed.
+4. Only then a submission, where a real effect of this size needs two or three runs to confirm.
+
+`scripts/rig_widebatch.py` implements all of it.
 
 ## W1. Make the variance result unimpeachable
 
@@ -109,12 +162,14 @@ Rubric read after the change:
 
 | purpose | slots | notes |
 |---|---|---|
+| W0 throughput lever | 6 | only after all three rig gates pass; 3 sigma needs 2-3 runs per arm |
 | W1a variance series | 12-14 | the single highest-value use of a slot we have |
 | final submission selection | 2 | 1-2 November |
-| reserve | 70 | and it will not feel like enough in October |
+| reserve | 64 | and it will not feel like enough in October |
 
-Nothing is allocated to score-chasing. If a genuinely new idea appears with a mechanism worth more
-than three points, it comes out of reserve and goes through a rig gate first.
+Score-chasing is allowed but rationed: a lever needs a mechanism worth more than three points and a
+passing rig gate before it costs a slot. Anything below that is smaller than our own instrument's
+resolution and would be the exact error this paper documents.
 
 ## Hard blockers, unchanged and still not research
 
@@ -129,12 +184,18 @@ than three points, it comes out of reserve and goes through a rig gate first.
 - **The routing-policy build.** The subset-disagreement signal (0.373 vs 0.015) stays in the paper as
   an offline lead. Building the policy would produce an improvement we could not measure.
 
-## The decision I need from you
+## Where the score could still come from
 
-**Do we accept that 32.64 is our final Accuracy and spend the runway on the measurement
-contribution?**
+Ranked by mechanism strength, not by hope.
 
-My recommendation is yes. The alternative is to keep spending slots on levers whose effects are
-smaller than our instrument's resolution, which is precisely the error this paper now exists to
-document. But it means accepting a mid-field score in a competition, and that is your call, not
-mine.
+1. **W0, decode batch width.** Measured 2.5x reduction in sequential trees available, on a run we
+   have proven is wall-limited. Three rig gates before a slot is spent. This is the only live one.
+2. **Anything else that raises throughput.** The same argument applies to any real speedup: prefill
+   reuse across views sharing a prefix, cheaper augmentation scoring, avoiding recomputation between
+   the four batches. Nobody has profiled the deployed path end to end. Worth one rig session.
+3. **Nothing on the selection side.** Closed by the theorem and by 0/18 on fresh tasks.
+4. **Nothing on the synthesis side at our budget.** Closed at 0/120 with a flat gradient.
+
+The honest position: one live lever with a real mechanism, a second worth profiling, and a
+measurement contribution that is strong regardless of how those land. That is a better place to be
+than the first draft of this revision suggested.
