@@ -198,7 +198,8 @@ table.book tbody tr:first-child td{padding-top:.5em;}
       <li class="sub"><span class="num">5.8</span><a href="#s5-8">Revisiting the big-grid wall with the host's memory</a></li>
       <li class="sub"><span class="num">5.9</span><a href="#s5-9">What the budget is actually spent on, and a policy the pipeline cannot express</a></li>
       <li class="sub"><span class="num">5.10</span><a href="#s5-10">Perceptual pre-fitting on the test input</a></li>
-      <li class="sub"><span class="num">5.11</span><a href="#s5-11">The complete ledger: what is closed, what is open, and why</a></li>
+      <li class="sub"><span class="num">5.11</span><a href="#s5-11">The decode batch width is a memory cliff</a></li>
+      <li class="sub"><span class="num">5.12</span><a href="#s5-12">The complete ledger: what is closed, what is open, and why</a></li>
       <li><span class="num">6</span><a href="#s6">Conclusion</a></li>
       <li><span class="num">A</span><a href="#sa">Reproducibility</a></li>
       <li><span class="num">B</span><a href="#sb">Extended results</a></li>
@@ -579,7 +580,30 @@ table.book tbody tr:first-child td{padding-top:.5em;}
 <p>We record the prior-art position before the outcome, because it does not depend on the outcome. The precise composition appears to be unclaimed, but the fair characterisation is adjacent-negative rather than unexplored. Aky&uuml;rek et al. [<a href="#refs">13</a>] defined the neighbouring objective, attributed it explicitly to the Sun et al. lineage, ablated it, and dropped it when it lost by 1.9 points; their loss targets were demonstration inputs of synthetic leave-one-out tasks rather than the real test input, and the ablation was on BIG-Bench Hard rather than ARC, but a reviewer will reach for it first and should. CompressARC establishes that fitting to the test input at test time works, as an entire from-scratch solver rather than as a warm-up. The two adjacent ARC-side measurements point opposite ways, which is the only reason the question is still live.</p>
 <p>The three arms are on the card as this draft is compiled, at forty pre-fit steps over eight stratified tasks with a 900-second decode budget per cell, and the outcome is reported here whichever way it falls. Our own prediction, stated in advance so it can be scored, is a null: the demonstration inputs already carry the palette, the object vocabulary and the symmetry group of the test input by construction, so the marginal information in the test input is small, and the perceptual account of ARC failure that motivates the intervention is weakest exactly in our regime, since the 80% perception figure it rests on comes from vision models reading rendered images rather than from text-grid models with literal cell access.</p>
 
-<h3 id="s5-11"><span class="sn">5.11</span>The complete ledger: what is closed, what is open, and why</h3>
+<h3 id="s5-11"><span class="sn">5.11</span>The decode batch width is a memory cliff, and the deployed setting is over it</h3>
+<p>The deployed decoder splits the sixteen evaluation views into batches of four and runs one depth-first search per batch. Nothing in the pipeline documents why the width is four, and on this card it is the single most expensive unexamined constant in the system.</p>
+<p>Single-token decoding is bounded by streaming the weights out of memory rather than by arithmetic, so doubling the batch should be close to free. It is, right up until it is catastrophic. Timing each width in its own process, on prefixes drawn from real evaluation tasks:</p>
+<div style="overflow-x:auto;">
+<table>
+<thead><tr><th>prefix tokens</th><th>width</th><th>per-step ms</th><th>peak reserved</th><th></th></tr></thead>
+<tbody>
+<tr><td>1398</td><td>2</td><td>129.0</td><td>9.73 GB</td><td></td></tr>
+<tr><td>1398</td><td>4</td><td><strong>127.6</strong></td><td>11.47 GB</td><td>free</td></tr>
+<tr><td>1642</td><td>2</td><td>131.3</td><td>10.27 GB</td><td></td></tr>
+<tr><td>1642</td><td>4</td><td><strong>130.2</strong></td><td>12.68 GB</td><td>free</td></tr>
+<tr><td>1994</td><td>2</td><td>129.4</td><td>11.05 GB</td><td></td></tr>
+<tr><td>1994</td><td>4</td><td><strong>3253.4</strong></td><td>14.23 GB</td><td>25&times;</td></tr>
+<tr><td>2730</td><td>2</td><td>126.9</td><td>13.54 GB</td><td></td></tr>
+<tr><td>2730</td><td>4</td><td><strong>4104.5</strong></td><td>19.22 GB</td><td>32&times;</td></tr>
+</tbody></table>
+</div>
+<p>First, the mechanism is memory and not computation. At 1398 and 1642 tokens the fourth lane costs nothing measurable, which is the bandwidth account behaving exactly as predicted. At 1994 and 2730 the same width costs twenty-five to thirty-two times more per step. Nothing about the arithmetic changed between those rows; what changed is that reserved memory crossed somewhere between 12.7 and 14.2 GB on a 16 GB card, after which the platform pages to host memory rather than failing.</p>
+<p>Second, <strong>the majority of the evaluation set is on the wrong side of that threshold</strong>. Over 172 test outputs the prompt length has median 2198 tokens, first quartile 1610 and third quartile 3018. <strong>57% of outputs exceed the shortest prefix at which width four collapsed, and 74% exceed the longest at which it was still free.</strong> So a single-card deployment of this configuration spends most of its decode budget running one to two orders of magnitude below the speed the same hardware delivers at half the width, and it does so on precisely the tasks with the most demonstration content.</p>
+<p>This is the sharpest instance we have of the ceiling in the title, and it is not the one we expected to find. The wall is usually described as capacity, whether the model and its adapter fit. Here everything fits, the configuration runs to completion, and the cost appears entirely as throughput. Since the search is deadline-bounded in three places, a decode running twenty-five times slower does not merely take longer, it truncates earlier and the candidates it would have found never exist. Throughput is coverage, and this constant costs most of it.</p>
+<p>The remedy is a two-line policy rather than a method change: choose the batch width from the prompt length so reserved memory stays under the cliff, which for this model means width four below roughly 1650 tokens and width two above it. It preserves the same thirty-two views and changes no score by construction, since lanes are independent and only the grouping differs.</p>
+<p>Two honest limits on the claim. The platform matters: this card runs Windows, where exceeding device memory pages silently to host rather than raising, so on Linux the same configuration would be expected to fail outright rather than degrade. And the contest node's L4s carry 24 GB each, where the arithmetic puts width four at 14.2 to 19.2 GB with headroom to spare, so the deployed four-L4 runs are probably not on this cliff at all. We cannot measure that from here, and we do not claim it. What we can say is that the constant was never examined, that on 16 GB it is the difference between 130 and 4100 milliseconds a step for most of the set, and that anyone porting this pipeline to a single consumer card inherits it silently.</p>
+
+<h3 id="s5-12"><span class="sn">5.12</span>The complete ledger: what is closed, what is open, and why</h3>
 <p>This section exists because the scattered negatives above are more useful collected than distributed, and because the most valuable thing a compute-poor entry can hand the next one is a map of where not to spend. Everything here is measured on this pipeline; none of it is argued.</p>
 <p><strong>One number organises the map.</strong> Sixty-five percent of tasks never produce the correct grid under <em>any</em> of the sixteen augmented views, and they consume seventy-one percent of the budget doing it. When the truth does reach the candidate pool, the deployed selector places it in the top two essentially always, 18 of 18 on freshly generated tasks. The system is therefore <strong>generation-starved, not selection-starved or time-starved</strong>, and every closed lever below is closed because it operates downstream of generation on a pool that either already contains the answer or never will.</p>
 <div style="overflow-x:auto;">

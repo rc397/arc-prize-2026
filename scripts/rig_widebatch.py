@@ -67,59 +67,64 @@ def views_for(P, arc, fmt, task):
     return multi, ds, by
 
 
-def bench(n_tasks):
+def bench(width):
+    """Time ONE width, in a process of its own.
+
+    The first version of this ran all five widths in one process in increasing order and reported a
+    100x prefill jump at width 4 that the KV arithmetic cannot explain: width 4 needs 1.18 GB on top
+    of a 10 GB resident model, which is comfortable inside 16 GB. This platform reports
+    expandable_segments unsupported, so the allocator cannot grow a segment and later widths inherit
+    whatever fragmentation the earlier ones left. That measures the allocator, not the width. One
+    width per process is the only version of this measurement worth believing.
+    """
     import numpy as np
     import torch
-    from torch.nn.attention import sdpa_kernel, SDPBackend
     P, arc, sols, tok, fmt = _setup()
     enc = P.encoder_for(tok)
-    keys, _, _ = P.select_tasks(max(4, n_tasks))
+    keys, _, _ = P.select_tasks(8)
     m = P.build_model()
     base = m.get_base_model()
     base.config.use_cache = True
     base.gradient_checkpointing_disable()
     m.eval()
 
-    task = keys[0]
+    # ARC_BENCH_TASK picks which task supplies the prefix. Prompt length varies from about 1100 to
+    # 2900 tokens across the evaluation set, and the KV cache scales with it, so where the memory
+    # cliff sits is a function of the task and not a property of the width alone.
+    ti = int(os.environ.get("ARC_BENCH_TASK", "0"))
+    task = keys[ti % len(keys)]
     _multi, ds, by = views_for(P, arc, fmt, task)
-    subkeys = list(by.values())[0]
-    toks = enc(ds.get(subkeys[0], fmt)["input"])
-    print("bench on %s, prefix %d tokens\n" % (task, len(toks)), flush=True)
-    print("%6s %12s %12s %10s" % ("width", "prefill_s", "per_step_ms", "vs width 1"), flush=True)
+    toks = enc(ds.get(list(by.values())[0][0], fmt)["input"])
+    resident = torch.cuda.memory_reserved() / 2 ** 30
 
-    base_ms = None
     with torch.inference_mode():
-        for w in (1, 2, 4, 8, 16):
-            ids = torch.tensor([toks] * w, device="cuda", dtype=torch.long)
-            torch.cuda.synchronize()
-            t0 = time.time()
-            out = m(input_ids=ids, return_dict=True, use_cache=True)
-            torch.cuda.synchronize()
-            prefill = time.time() - t0
-            cache = out.past_key_values
-            pos = ids.size(1)
-            # time single-token steps, which is what the DFS actually spends its life doing
-            step_tok = torch.zeros((w, 1), device="cuda", dtype=torch.long)
-            torch.cuda.synchronize()
-            t1 = time.time()
-            N = 20
-            for i in range(N):
-                o = m(input_ids=step_tok,
-                      position_ids=torch.full((w, 1), pos + i, device="cuda"),
-                      past_key_values=cache, return_dict=True, use_cache=True)
-                cache = o.past_key_values
-            torch.cuda.synchronize()
-            ms = (time.time() - t1) / N * 1000
-            if base_ms is None:
-                base_ms = ms
-            print("%6d %12.2f %12.2f %9.2fx" % (w, prefill, ms, ms / base_ms), flush=True)
-            del out, cache
-            gc.collect()
-            torch.cuda.empty_cache()
+        ids = torch.tensor([toks] * width, device="cuda", dtype=torch.long)
+        torch.cuda.synchronize()
+        t0 = time.time()
+        out = m(input_ids=ids, return_dict=True, use_cache=True)
+        torch.cuda.synchronize()
+        prefill = time.time() - t0
+        cache = out.past_key_values
+        pos = ids.size(1)
+        step_tok = torch.zeros((width, 1), device="cuda", dtype=torch.long)
+        # warm up once so the first step's lazy allocations are not charged to the timed loop
+        o = m(input_ids=step_tok, position_ids=torch.full((width, 1), pos, device="cuda"),
+              past_key_values=cache, return_dict=True, use_cache=True)
+        cache = o.past_key_values
+        torch.cuda.synchronize()
+        t1 = time.time()
+        N = 20
+        for i in range(N):
+            o = m(input_ids=step_tok,
+                  position_ids=torch.full((width, 1), pos + 1 + i, device="cuda"),
+                  past_key_values=cache, return_dict=True, use_cache=True)
+            cache = o.past_key_values
+        torch.cuda.synchronize()
+        ms = (time.time() - t1) / N * 1000
 
-    print("\nA width that costs the same per step as width 1 is free, and four sequential trees can", flush=True)
-    print("become one. A width that scales linearly means the decode is compute-bound here and the", flush=True)
-    print("whole idea is dead.", flush=True)
+    peak = torch.cuda.max_memory_reserved() / 2 ** 30
+    print("RESULT width=%d prefix=%d prefill_s=%.2f per_step_ms=%.2f resident_gb=%.2f peak_gb=%.2f"
+          % (width, len(toks), prefill, ms, resident, peak), flush=True)
     return True
 
 
@@ -284,6 +289,6 @@ if __name__ == "__main__":
         summarize()
         sys.exit(0)
     if mode == "bench":
-        sys.exit(0 if bench(int(sys.argv[2]) if len(sys.argv) > 2 else 3) else 1)
+        sys.exit(0 if bench(int(sys.argv[2]) if len(sys.argv) > 2 else 4) else 1)
     sys.exit(0 if ab(int(sys.argv[2]) if len(sys.argv) > 2 else 10,
                      int(sys.argv[3]) if len(sys.argv) > 3 else 600) else 1)
