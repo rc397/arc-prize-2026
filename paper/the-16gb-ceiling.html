@@ -198,6 +198,7 @@ table.book tbody tr:first-child td{padding-top:.5em;}
       <li class="sub"><span class="num">5.8</span><a href="#s5-8">Revisiting the big-grid wall with the host's memory</a></li>
       <li class="sub"><span class="num">5.9</span><a href="#s5-9">What the budget is actually spent on, and a policy the pipeline cannot express</a></li>
       <li class="sub"><span class="num">5.10</span><a href="#s5-10">Perceptual pre-fitting on the test input</a></li>
+      <li class="sub"><span class="num">5.11</span><a href="#s5-11">The complete ledger: what is closed, what is open, and why</a></li>
       <li><span class="num">6</span><a href="#s6">Conclusion</a></li>
       <li><span class="num">A</span><a href="#sa">Reproducibility</a></li>
       <li><span class="num">B</span><a href="#sb">Extended results</a></li>
@@ -577,6 +578,48 @@ table.book tbody tr:first-child td{padding-top:.5em;}
 <p>The third arm is the reason the experiment is worth running at all. A two-arm design cannot separate instance-specific grid fluency from the brute fact that the treated arm took more gradient steps than the control, and an unattributable positive is how three of this project's retracted explanations began. So the control arm denoises <em>a different task's</em> test input for the same number of steps on the same volume of data. If pre-fitting gains and the control does not, the effect follows the grid. If both gain, the honest finding is that more steps help and the interesting claim is dead.</p>
 <p>We record the prior-art position before the outcome, because it does not depend on the outcome. The precise composition appears to be unclaimed, but the fair characterisation is adjacent-negative rather than unexplored. Aky&uuml;rek et al. [<a href="#refs">13</a>] defined the neighbouring objective, attributed it explicitly to the Sun et al. lineage, ablated it, and dropped it when it lost by 1.9 points; their loss targets were demonstration inputs of synthetic leave-one-out tasks rather than the real test input, and the ablation was on BIG-Bench Hard rather than ARC, but a reviewer will reach for it first and should. CompressARC establishes that fitting to the test input at test time works, as an entire from-scratch solver rather than as a warm-up. The two adjacent ARC-side measurements point opposite ways, which is the only reason the question is still live.</p>
 <p>The three arms are on the card as this draft is compiled, at forty pre-fit steps over eight stratified tasks with a 900-second decode budget per cell, and the outcome is reported here whichever way it falls. Our own prediction, stated in advance so it can be scored, is a null: the demonstration inputs already carry the palette, the object vocabulary and the symmetry group of the test input by construction, so the marginal information in the test input is small, and the perceptual account of ARC failure that motivates the intervention is weakest exactly in our regime, since the 80% perception figure it rests on comes from vision models reading rendered images rather than from text-grid models with literal cell access.</p>
+
+<h3 id="s5-11"><span class="sn">5.11</span>The complete ledger: what is closed, what is open, and why</h3>
+<p>This section exists because the scattered negatives above are more useful collected than distributed, and because the most valuable thing a compute-poor entry can hand the next one is a map of where not to spend. Everything here is measured on this pipeline; none of it is argued.</p>
+<p><strong>One number organises the map.</strong> Sixty-five percent of tasks never produce the correct grid under <em>any</em> of the sixteen augmented views, and they consume seventy-one percent of the budget doing it. When the truth does reach the candidate pool, the deployed selector places it in the top two essentially always, 18 of 18 on freshly generated tasks. The system is therefore <strong>generation-starved, not selection-starved or time-starved</strong>, and every closed lever below is closed because it operates downstream of generation on a pool that either already contains the answer or never will.</p>
+<div style="overflow-x:auto;">
+<table>
+<thead><tr><th>lever</th><th>where</th><th>what closed it</th></tr></thead>
+<tbody>
+<tr><td colspan="3"><em>Selection, downstream of a fixed pool</em></td></tr>
+<tr><td>selector reweighting</td><td>offline</td><td>leave-one-task-out refit scores below the deployed selector</td></tr>
+<tr><td>cell-wise voting</td><td>offline</td><td>0 of 41 missing truths reconstructed; pool errors are correlated</td></tr>
+<tr><td>second-model rescoring</td><td>offline</td><td>oracle gap 0 of 18 on fresh tasks; nothing to fuse</td></tr>
+<tr><td>any belief-only selector</td><td>proof</td><td>bounded by top-two posterior mass</td></tr>
+<tr><td colspan="3"><em>Search, over a fixed adapter</em></td></tr>
+<tr><td>best-first enumeration</td><td>offline</td><td>median 2.9% saving over 16 logged trees, 30,480 passes</td></tr>
+<tr><td>augmentation-seed restarts</td><td>offline</td><td>union of three seeds equals the best single seed exactly</td></tr>
+<tr><td>invariant mining as a filter</td><td>offline</td><td>0 recovered, kills 11 of 19 truths</td></tr>
+<tr><td>per-task cap at 1200s</td><td>hidden</td><td>29.31, inside noise; prediction unsupported</td></tr>
+<tr><td colspan="3"><em>Adaptation</em></td></tr>
+<tr><td>adapter rank and depth</td><td>offline</td><td>inverted U; the shipped configuration sits on its peak</td></tr>
+<tr><td>pre-fitting on the test input</td><td>offline</td><td>7 / 7 / 6 across base, treated, control; nothing moved</td></tr>
+<tr><td>leave-one-demo subset adapters</td><td>offline</td><td>+0 coverage over 20 outputs</td></tr>
+<tr><td>continued fine-tuning of the base</td><td>offline</td><td>honest negative; bimodality unmoved</td></tr>
+<tr><td>refinement loops</td><td>offline</td><td>no partial-credit middle for a loop to grip</td></tr>
+<tr><td colspan="3"><em>Program synthesis</em></td></tr>
+<tr><td>1.5B DSL proposer</td><td>offline</td><td>0 of 101; could not express the transforms</td></tr>
+<tr><td>14B coder, zero-shot</td><td>offline</td><td>0 of 120 on the full set, median per-cell lift over identity +0.000</td></tr>
+<tr><td>14B reasoner</td><td>offline</td><td>0 of 12 bounded, empty near-miss band</td></tr>
+<tr><td>symbolic object-count prune</td><td>both</td><td>27.92 hidden; offline, a predicted oracle is not accurate enough</td></tr>
+</tbody></table>
+</div>
+<p><strong>Seven architectural constraints, and which of them we actually probed.</strong></p>
+<ol>
+<li><strong>The base model has a sixteen-token vocabulary.</strong> It emits grid tokens and control ids and nothing else. Chain-of-thought, self-critique, natural-language hypotheses, textual verifier feedback and program emission are all structurally unavailable, which removes most of the contemporary reasoning literature in one stroke. This is the deepest constraint in the system and <strong>we never attacked it</strong>.</li>
+<li><strong>Gradients flow only on output grids.</strong> Inherited from the ARChitects as an explicit design choice. Probed: pre-fitting on the test input returned an exact null.</li>
+<li><strong>Two hundred and forty independent adaptations that share nothing.</strong> A fresh adapter per task, discarded after use. Nothing learned on one task reaches another. <strong>Unprobed.</strong></li>
+<li><strong>A narrow augmentation space.</strong> Eight dihedral transforms crossed with colour permutation and example order. No crops, tiling, rescaling, or demonstrations synthesised from the task&rsquo;s own structure. <strong>Largely unprobed.</strong></li>
+<li><strong>Every budget is wall-clock, not operations.</strong> Three deadlines in seconds. This is why one immutable artifact scores 30.56, 32.64 and 28.47, and why throughput converts into coverage.</li>
+<li><strong>The search admits on a hard threshold over half-precision logits.</strong> Identical runs disagree on 12.5% of outputs and share only 0.543 of their pools.</li>
+<li><strong>The base is bimodal per task.</strong> It internalises a rule or concentrates on a wrong one, with no partial-credit middle. This kills refinement, verification-gated resampling and every method assuming a gradient of partial correctness.</li>
+</ol>
+<p><strong>What we would tell the next entrant to try.</strong> Two surfaces have a plausible mechanism, no measurement against them, and no published work claiming them. First, <strong>cross-task transfer at test time</strong>: the pipeline fits and discards 240 adapters, and nothing has been tried on initialising one from a bank of previously fitted ones, from a nearest neighbour by demonstration similarity, or from any meta-initialisation. Every closure in the table above is about a single task in isolation. Second, <strong>the augmentation space itself</strong>: the sixteen views are the object every downstream stage consumes, and widening or re-choosing them acts directly on generation, which is the only starved stage. Both act upstream of the pool rather than on it, which is what distinguishes them from everything the table closes.</p>
 
 <h2 id="s6"><span class="sn">6</span>Conclusion</h2>
 <p>The 2025 winning recipe survives a single 16&nbsp;GB consumer GPU, but only after the inference engine is fixed. That one change is worth more than every other knob, and it is what makes per-task TTT tractable through an adapter-serving bridge. The honest result is a 12.79% no-TTT baseline and a 16.28% regularized-TTT blend on the public evaluation, 13.61% and then 18.19% on the hidden leaderboard as the per-task training deepened, with the gains bounded by adapter overfitting and by a VRAM wall on large grids that later proved to be partly a context-truncation artifact rather than a true limit. Against that single-card ceiling we set one measurement from above. A faithful reproduction of a public pipeline that one 16&nbsp;GB card can hold but not serve in budget, run on the contest's own four-L4 node and repaired of two defects its community port had introduced, scores 30.97% on the same hidden set. That result is not ours and not single-card, and its value here is that it prices the constraint at roughly twelve points instead of leaving it an open question.</p>

@@ -1770,6 +1770,96 @@ pretraining or not reachable by this route on a model of this kind. We report it
 that the control arm is what makes it one: without the third arm, ``7 against 7'' would have been an
 uninterpretable wash rather than a measurement.
 
+\subsection{The complete ledger: what is closed, what is open, and why}
+\label{sec:ledger}
+This section exists because the scattered negatives above are more useful collected than distributed,
+and because the most valuable thing a compute-poor entry can hand the next one is a map of where not
+to spend. Everything here is measured on this pipeline; none of it is argued.
+
+\paragraph{One number organises the map.} Sixty-five percent of tasks never produce the correct grid
+under \emph{any} of the sixteen augmented views, and they consume seventy-one percent of the budget
+doing it. When the truth does reach the candidate pool, the deployed selector places it in the top two
+essentially always, 18 of 18 on freshly generated tasks. The system is therefore
+\textbf{generation-starved, not selection-starved or time-starved}, and every closed lever below is
+closed because it operates downstream of generation on a pool that either already contains the answer
+or never will.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Every lever this project measured and closed, with the evidence that closed it. Hidden-set
+numbers are quoted against the six-run same-configuration family (mean 30.53, sd 1.35); note that no
+hidden-set delta we recorded clears two standard deviations, which is why the offline column carries
+the weight.}
+\label{tab:ledger}
+\begin{tabular}{@{}p{0.30\linewidth}p{0.13\linewidth}p{0.50\linewidth}@{}}
+\toprule
+lever & where & what closed it \
+\midrule
+\multicolumn{3}{@{}l}{\itshape Selection, downstream of a fixed pool} \
+selector reweighting & offline & leave-one-task-out refit scores below the deployed selector \
+cell-wise voting & offline & 0 of 41 missing truths reconstructed; pool errors are correlated \
+second-model rescoring & offline & oracle gap 0 of 18 on fresh tasks; nothing to fuse \
+any belief-only selector & proof & bounded by top-two posterior mass (Appendix~\ref{app:math}) \
+\midrule
+\multicolumn{3}{@{}l}{\itshape Search, over a fixed adapter} \
+best-first enumeration & offline & median 2.9\% saving over 16 logged trees, 30{,}480 passes \
+augmentation-seed restarts & offline & union of three seeds equals the best single seed exactly \
+invariant mining as a filter & offline & 0 recovered, kills 11 of 19 truths \
+per-task cap at 1200s & hidden & 29.31, inside noise; prediction unsupported \
+\midrule
+\multicolumn{3}{@{}l}{\itshape Adaptation} \
+adapter rank and depth & offline & inverted U; the shipped configuration sits on its peak \
+pre-fitting on the test input & offline & 7 / 7 / 6 across base, treated, control; nothing moved \
+leave-one-demo subset adapters & offline & $+0$ coverage over 20 outputs \
+continued fine-tuning of the base & offline & honest negative; bimodality unmoved \
+refinement loops & offline & no partial-credit middle for a loop to grip \
+\midrule
+\multicolumn{3}{@{}l}{\itshape Program synthesis} \
+1.5B DSL proposer & offline & 0 of 101; could not express the transforms \
+14B coder, zero-shot & offline & 0 of 120 on the full set, median per-cell lift over identity $+0.000$ \
+14B reasoner & offline & 0 of 12 bounded, empty near-miss band \
+symbolic object-count prune & both & 27.92 hidden; offline, a predicted oracle is not accurate enough \
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Seven architectural constraints, and which of them we actually probed.} The closures above
+are consequences of a small number of structural facts about the system, and separating the two makes
+clear which walls are load-bearing.
+
+\begin{enumerate}[leftmargin=1.5em,itemsep=2pt]
+\item \textbf{The base model has a sixteen-token vocabulary.} It emits grid tokens and control ids and
+nothing else. Chain-of-thought, self-critique, natural-language hypotheses, verifier feedback in text
+and program emission are all structurally unavailable to it, which removes most of the contemporary
+reasoning literature from consideration in one stroke. This is the deepest constraint in the system
+and \textbf{we never attacked it}.
+\item \textbf{Gradients flow only on output grids.} Inherited from the ARChitects as an explicit design
+choice. Probed: pre-fitting on the test input returned an exact null.
+\item \textbf{Two hundred and forty independent adaptations that share nothing.} A fresh adapter per
+task, discarded after use. Nothing learned on one task reaches another. \textbf{Unprobed.}
+\item \textbf{A narrow augmentation space.} Eight dihedral transforms crossed with colour permutation
+and example order. No crops, tiling, rescaling, or demonstrations synthesised from the task's own
+structure. Sixteen views sample a space we defined narrowly. \textbf{Largely unprobed.}
+\item \textbf{Every budget is wall-clock, not operations.} Three deadlines in seconds. This is why one
+immutable artifact scores 30.56, 32.64 and 28.47, and why throughput converts into coverage.
+\item \textbf{The search admits on a hard threshold over half-precision logits.} Identical runs
+disagree on 12.5\% of outputs and share only 0.543 of their pools.
+\item \textbf{The base is bimodal per task.} It internalises a rule or concentrates on a wrong one,
+with no partial-credit middle. This is what kills refinement, verification-gated resampling and every
+method that assumes a gradient of partial correctness.
+\end{enumerate}
+
+\paragraph{What we would tell the next entrant to try.} Two surfaces have a plausible mechanism, no
+measurement against them, and no published work claiming them. First, \textbf{cross-task transfer at
+test time}: the pipeline fits and discards 240 adapters, and nothing has been tried on initialising
+one from a bank of previously fitted ones, from a nearest neighbour by demonstration similarity, or
+from any meta-initialisation. Every closure in Table~\ref{tab:ledger} is about a single task in
+isolation. Second, \textbf{the augmentation space itself}: the sixteen views are the object every
+downstream stage consumes, and widening or re-choosing them acts directly on generation, which is the
+only starved stage. Both act upstream of the pool rather than on it, which is what distinguishes them
+from everything the table closes.
+
 \section{Conclusion}
 \label{sec:conclusion}
 The 2025 winning recipe survives a single 16~GB consumer GPU, but only after the inference engine is
