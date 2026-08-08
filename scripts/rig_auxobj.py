@@ -219,7 +219,7 @@ def main(n_tasks, decode_s, rate):
         torch.cuda.empty_cache()
 
     for task in keys:
-        for arm in ("base", "mask", "mask_ctrl", "crop", "invert"):
+        for arm in ("base", "crop", "mask", "mask_ctrl", "invert"):
             run(task, arm)
     print("ALL ARMS DONE", flush=True)
     summarize()
@@ -232,7 +232,7 @@ def summarize():
     by = {}
     for r in rows:
         by.setdefault(r["task"], {})[r["arm"]] = r
-    arms = ("base", "mask", "mask_ctrl", "crop", "invert")
+    arms = ("base", "crop", "mask", "mask_ctrl", "invert")
     full = {t: a for t, a in by.items() if "base" in a}
     if not full:
         print("no rows")
