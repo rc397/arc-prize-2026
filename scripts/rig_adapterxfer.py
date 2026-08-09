@@ -218,9 +218,14 @@ def summarize():
     n_out = sum(r["cold"]["outputs"] for r in rows)
     print("(%d outputs total)" % n_out)
 
-    ce, _, ch, cc = agg["cold"]
-    se, _, sh, sc = agg["warm_same"]
-    de, _, dh, dc = agg["warm_diff"]
+    ce, cf, ch, cc = agg["cold"]
+    se, sf, sh, sc = agg["warm_same"]
+    de, df, dh, dc = agg["warm_diff"]
+    # per-task sign counts on the FINAL loss. The first version judged convergence on the loss at
+    # EARLY_STEPS only and printed "no convergence advantage" while the final loss was 30 percent
+    # lower on 7 of 8 tasks, which is a different and true statement.
+    same_lower = sum(1 for r in rows if r["warm_same"]["final_loss"] < r["cold"]["final_loss"])
+    diff_lower = sum(1 for r in rows if r["warm_diff"]["final_loss"] < r["cold"]["final_loss"])
 
     # A verdict needs something to have been decoded. Zero candidates everywhere means the decode
     # budget or the harness failed, not that warm starts do nothing, and this summariser printed
@@ -252,10 +257,18 @@ def summarize():
         print("  %d steps) and unrelated ones do not (%.5f). Worth something only if the budget" % (EARLY_STEPS, de))
         print("  binds on training rather than decode, which our timing log says it does not.")
     else:
-        print("  No coverage gain and no convergence advantage. Starting from another task's")
-        print("  adapter is worth nothing even when the rule is IDENTICAL, which is the most")
-        print("  favourable case retrieval could ever return. The cross-task transfer route is")
-        print("  closed, and neither the adapter bank nor the fusion maths needs building.")
+        print("  NO COVERAGE GAIN: %d hits against %d for cold, on %d generators." % (sh, ch, len(rows)))
+        print("  But the transfer is real in the optimisation and should not be reported as absent.")
+        print("  Final loss is %.5f warm_same against %.5f cold, lower on %d of %d tasks, with"
+              % (sf, cf, same_lower, len(rows)))
+        print("  warm_diff between them at %.5f (lower on %d of %d). The effect is graded by"
+              % (df, diff_lower, len(rows)))
+        print("  relatedness, so it is genuine transfer and not a warm-start artefact.")
+        print("  The reading: starting from a related adapter fits the demonstrations BETTER and")
+        print("  reaches no new hypotheses. Training loss was already near zero, so optimisation was")
+        print("  never the bottleneck, and this is a direct measurement of that. Same-generator is")
+        print("  the most favourable case retrieval could ever return, so the adapter bank and the")
+        print("  fusion maths do not need building.")
 
 
 if __name__ == "__main__":

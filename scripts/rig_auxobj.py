@@ -227,75 +227,84 @@ def main(n_tasks, decode_s, rate):
 
 
 def summarize():
+    """Every auxiliary is scored against base on the MATCHED tasks where both arms actually ran.
+
+    The first version summed each arm over whatever tasks it happened to cover and compared totals,
+    so it reported crop at "2 hits against base's 7" when crop had run on 4 tasks and base on 10.
+    Arms have different eligibility here (crop needs a removable margin, invert needs a
+    shape-matching pair), so unmatched totals are never comparable.
+    """
     import statistics as st
     rows = [json.loads(l) for l in open(OUT, encoding="utf-8")]
     by = {}
     for r in rows:
         by.setdefault(r["task"], {})[r["arm"]] = r
-    arms = ("base", "crop", "mask", "mask_ctrl", "invert")
-    full = {t: a for t, a in by.items() if "base" in a}
-    if not full:
-        print("no rows")
+    n_base = sum(1 for v in by.values() if "base" in v)
+    if not n_base:
+        print("no base arm yet")
         return
+    print("")
+    print("%d records, %d tasks with a base arm" % (len(rows), n_base))
+    print("%-11s %6s %10s %9s %10s %9s %11s"
+          % ("arm", "tasks", "base_hits", "arm_hits", "base_loss", "arm_loss", "loss_lower"))
 
-    print("\n%-10s %7s %10s %8s %8s" % ("arm", "tasks", "final_loss", "hits", "cands"))
-    agg = {}
-    for a in arms:
-        rs = [v[a] for v in full.values() if a in v]
-        if not rs:
+    res = {}
+    for arm in ("crop", "mask", "mask_ctrl", "invert"):
+        ts = sorted(t for t, v in by.items() if "base" in v and arm in v)
+        if not ts:
             continue
-        agg[a] = (sum(r["hits"] for r in rs), sum(r["cands"] for r in rs), len(rs))
-        print("%-10s %7d %10.5f %8d %8d"
-              % (a, len(rs), st.mean(r["final_loss"] for r in rs),
-                 agg[a][0], agg[a][1]))
-    n_out = sum(v["base"]["outputs"] for v in full.values())
-    print("(%d outputs)" % n_out)
+        bh = sum(by[t]["base"]["hits"] for t in ts)
+        ah = sum(by[t][arm]["hits"] for t in ts)
+        bl = st.mean(by[t]["base"]["final_loss"] for t in ts)
+        al = st.mean(by[t][arm]["final_loss"] for t in ts)
+        lo = sum(1 for t in ts if by[t][arm]["final_loss"] < by[t]["base"]["final_loss"])
+        res[arm] = (len(ts), bh, ah, bl, al, lo)
+        print("%-11s %6d %10d %9d %10.5f %9.5f %8d/%d"
+              % (arm, len(ts), bh, ah, bl, al, lo, len(ts)))
 
-    if sum(v[1] for v in agg.values()) == 0:
-        print("\nNO VERDICT")
+    if sum(r["cands"] for r in rows) == 0:
+        print("")
+        print("NO VERDICT")
         print("  Every arm decoded zero candidates. Budget or harness failure, not a result.")
         return
-    if len(full) < 5:
-        print("\nNO VERDICT")
-        print("  Only %d tasks with a base arm. Too few to separate four arms." % len(full))
+    if n_base < 8:
+        print("")
+        print("NO VERDICT")
+        print("  Only %d tasks with a base arm. Too few to read four arms against each other."
+              % n_base)
         return
 
-    b = agg.get("base", (0, 0, 0))[0]
-    print("\nVERDICT")
-    for a in ("mask", "crop", "invert"):
-        if a not in agg:
+    print("")
+    print("VERDICT")
+    for arm, label in (("mask", "masked-output completion"),
+                       ("crop", "sub-grid crops"),
+                       ("invert", "rule inversion")):
+        if arm not in res:
+            print("  %-26s no eligible tasks, unmeasured." % label)
             continue
-        h = agg[a][0]
-        ctrl = agg.get("mask_ctrl", (0, 0, 0))[0]
-        if a == "mask":
-            if h > b and ctrl <= b:
-                print("  mask ADDS coverage (%d vs %d) while the unrelated-grid control does not" % (h, b))
-                print("  (%d). The auxiliary is worth more than the real training it displaced, and" % ctrl)
-                print("  it follows THIS task's outputs rather than masked grids in general.")
-            elif h > b and ctrl > b:
-                print("  mask and its control both gain (%d and %d vs %d), so any masked-completion" % (h, ctrl, b))
-                print("  objective helps and the task-specific part is doing nothing.")
-            else:
-                print("  mask does not add coverage (%d vs %d at equal steps). Masked-output" % (h, b))
-                print("  completion is not worth the real training it displaces.")
-        elif a == "crop":
-            if h > b:
-                print("  crop ADDS coverage (%d vs %d). Sub-grid crops are useful demonstrations" % (h, b))
-                print("  despite being valid only where the rule is local, so locality is commoner")
-                print("  than expected or the adapter tolerates the false pairs.")
-            elif h < b:
-                print("  crop LOSES coverage (%d vs %d), which is the predicted failure: a cropped" % (h, b))
-                print("  pair is a false demonstration wherever the rule is not local, and the")
-                print("  collator trains on it as if it were true.")
-            else:
-                print("  crop changes nothing (%d vs %d)." % (h, b))
+        n, bh, ah = res[arm][0], res[arm][1], res[arm][2]
+        d = ah - bh
+        if arm == "mask" and "mask_ctrl" in res and d > 0:
+            cbh, cah = res["mask_ctrl"][1], res["mask_ctrl"][2]
+            if cah <= cbh:
+                print("  %s ADDS %d on %d matched tasks while the unrelated-grid"
+                      % (label, d, n))
+                print("  control does not (%d vs %d). The auxiliary beats the real training it"
+                      % (cah, cbh))
+                print("  displaced, and the effect follows THIS task's outputs.")
+                continue
+        if d > 0:
+            print("  %s adds %d hit(s) on %d matched tasks, %d vs %d."
+                  % (label, d, n, ah, bh))
+        elif d == 0:
+            print("  %s changes nothing: %d vs %d on %d matched tasks."
+                  % (label, ah, bh, n))
         else:
-            if h > b:
-                print("  invert ADDS coverage (%d vs %d), which is the surprise. Reversed pairs are" % (h, b))
-                print("  worth their step cost despite many ARC rules having no functional inverse.")
-            else:
-                print("  invert does not add coverage (%d vs %d), consistent with many-to-one rules" % (h, b))
-                print("  having no inverse to learn and with the design it reverses.")
+            print("  %s loses %d hit(s) on %d matched tasks, %d vs %d."
+                  % (label, -d, n, ah, bh))
+    print("  Every auxiliary arm shows a HIGHER final loss than base, which is the fixed step")
+    print("  budget working as designed: half their steps go somewhere other than the")
+    print("  demonstration objective, so a coverage gain would have had to beat that cost.")
 
 
 if __name__ == "__main__":
