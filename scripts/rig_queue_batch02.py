@@ -36,10 +36,29 @@ PHASES = [
 
 
 def say(msg):
+    """Never let a log line kill the queue.
+
+    It already did once. A detached Start-Process on this box redirects stdout at cp1252 unless
+    PYTHONIOENCODING is set on the PARENT, and the first tqdm bar out of the weight loader carries a
+    block character cp1252 cannot encode. The queue died on the print, five hours into an empty
+    card, while the phase it had launched was still loading. So the console write is forced to ascii
+    and the real text goes to the log file, which is opened as utf-8 explicitly.
+    """
     line = "[%s] %s" % (time.strftime("%m-%d %H:%M:%S"), msg)
-    print(line, flush=True)
-    with open(LOG, "a", encoding="utf-8") as f:
-        f.write(line + "\n")
+    try:
+        print(line.encode("ascii", "replace").decode("ascii"), flush=True)
+    except Exception:
+        pass
+    try:
+        with open(LOG, "a", encoding="utf-8") as f:
+            f.write(line + "\n")
+    except Exception:
+        pass
+
+
+def interesting(line):
+    """Drop progress-bar redraws, which are most of the volume and none of the information."""
+    return "%|" not in line and "it/s]" not in line and "s/it]" not in line
 
 
 def alive(pid):
@@ -69,8 +88,12 @@ def main(wait_pid):
                              encoding="utf-8", errors="replace", bufsize=1)
         # streamed line by line rather than captured, so a phase that runs for hours is watchable
         # and a phase killed mid-run still leaves everything it printed
-        for line in p.stdout:
-            say("  %s" % line.rstrip())
+        try:
+            for line in p.stdout:
+                if interesting(line):
+                    say("  %s" % line.rstrip())
+        except Exception as e:
+            say("  [log stream failed: %s %s, the phase keeps running]" % (type(e).__name__, e))
         p.wait()
         say("PHASE %s finished rc=%d in %.0fs" % (name, p.returncode, time.time() - t0))
     say("QUEUE COMPLETE")

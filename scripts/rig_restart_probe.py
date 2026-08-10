@@ -75,8 +75,13 @@ EXP = os.path.join(BASE, "experiments")
 STATUS = os.path.join(BASE, "eval_status_restart.json")
 RESULTS = os.path.join(EXP, "restart_probe.jsonl")
 SUMMARY = os.path.join(EXP, "restart_probe_summary.json")
-MODEL_DIR = os.path.join(BASE, "models", "kagglehub", "models", "sorokin",
-                         "qwen3_4b_grids15_sft139", "transformers", "bfloat16", "1")
+# The NVARC base. Overridable so a fine-tuned checkpoint can be run through the SAME pipeline as the
+# base rather than through a second harness, which is the only way an A/B between them compares like
+# with like. Default unchanged, so nothing that does not set the variable can be affected.
+MODEL_DIR = os.environ.get(
+    "ARC_MODEL_DIR",
+    os.path.join(BASE, "models", "kagglehub", "models", "sorokin",
+                 "qwen3_4b_grids15_sft139", "transformers", "bfloat16", "1"))
 
 # the deployed configuration, from arc_solver.py's peft_params and train_args
 RANK = int(os.environ.get("ARC_PROBE_RANK", "256"))

@@ -28,6 +28,13 @@ There is no v7.3a. The variants are v7.1, v7.2, v7.3, v7.4, then the v7.5 bisect
 | cap1200 | `rc7530/v7-2-cap1200` v1 | the replicate with one live literal, 1800 to 1200 | 1200 | **29.31** |
 | replicate, third run | `rc7530/v7-2-replicate` v1, submitted again | nothing, same immutable kernel version | 1800 | **28.47** |
 | replicate, fourth run | `rc7530/v7-2-replicate` v1, again | nothing | 1800 | **31.39** |
+| replicate, fifth run | `rc7530/v7-2-replicate` v1, sub 55365698 | nothing | 1800 | **30.56** |
+| replicate, sixth run | `rc7530/v7-2-replicate` v1, sub 55400700 | nothing | 1800 | **30.56** |
+
+Six runs of one immutable kernel version: 30.56, 32.64, 28.47, 31.39, 30.56, 30.56. Mean 30.70,
+sd 1.36, range 4.17, 95% CI on the standard deviation [0.85, 3.34]. This is the project's variance
+instrument and it is now the cleanest form of it, because nothing at all differs between these six
+draws except the day Kaggle ran them.
 
 The "cap actually run" column exists because it disagreed with the knob for the first four builds. The
 builder's replace targeted a `spend_time` form the source does not use, so it never matched, and v7.1,

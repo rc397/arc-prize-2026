@@ -29,16 +29,24 @@ matrix drift apart otherwise. Delete a row only when its result is folded in eve
 | cap 1200, kernel `rc7530/v7-2-cap1200` v1 | submit when the UTC day rolls, score ~9h later | tex appendix cap passage, which currently says the cap is untested; EXPERIMENTS.md "Where the cap question actually stands"; memory. Report against the corrected band, not against a single number |
 | perceptual pre-fitting, 3 arms | re-run after subsetttt | tex sec:prefit, replacing the in-flight paragraph with the outcome and scoring the pre-registered null; score-levers section 2 if it is a kill; writeup only if positive |
 | subset-disagreement TTT | ~10:00 local, 34/48 cells done | new tex passage on demonstration underdetermination, this is the headline if the number is interesting; writeup only if it displaces something |
-| composition learnability, `rig_composelearn.py` | 14 pairs, 4 done at 21:40 on 10 Aug | decides whether the 78,792-example compositional corpus is worth training on. Early and not yet a result: single 4/4, composed 1/4 |
+| replicate runs 5 and 6, subs 55365698 and 55400700 | **30.56 and 30.56** | EXPERIMENTS.md table updated. **Still owed**: tex variance passage and abstract, which quote a five-member family; the same-kernel series is now n=6, mean 30.70, sd 1.36, range 4.17, CI on sd [0.85, 3.34] |
+| composition learnability, `rig_composelearn.py` | **DONE, 28 records.** single 14/14 truth-in-pool, composed **5/14**; paired composed worse on 9, tied on 5, better on 0; mean final loss 0.0019 against 0.0176 | This is the pre-registered "clearly between" outcome: harder than a single rule and still learnable, which is what a corpus meant to teach composition should look like. It clears the gate on the 78,792-example corpus. Lands in a new tex passage and gates the fine-tune |
+| prompt budget, `sim_token_budget.py` | at Kaggle's 8192, **0 of 240 training views and 6 of 344 eval views** lose a demonstration, 6 of 1046 total | kills the whole token-saving family by removing its motivation. Also a methodology note worth the paper: the rig's 6144 loses 18, so every rig probe runs a slightly harder problem than the submission and is biased toward null |
 | batch-02 queue, `rig_queue_batch02.py` (pid 12900) | maskloss then dfsfloor then dimprefix, chained behind composelearn | tex sec:ledger rewritten ONCE with the five offline closures and these three, rather than three times; EXPERIMENTS.md; idea-batch-01.md Part 6 |
 | five offline closures, 10 Aug | done, no GPU | folded into idea-triage.md Part 2 and idea-batch-01.md Part 6. **Still owed to the paper**: candidate-filter replay, depth-decay dominated by the flat floor, palette canon no-op proof, column-major already in D4, augmentation damage numbers |
 
 ## Reading any new hidden score
 
-The family is $\{30.00, 30.56, 30.56, 30.97, 32.64\}$, mean 30.95, sd 1.01. A single submission
-resolves nothing below about two points. Before calling any new score a result, state where it sits
-in that band, and prefer "not distinguishable" to a directional story. The 30.00 was called a
-regression on the old sd of 0.24 and was not one.
+Use the same-kernel series, because it is the only one with nothing else varying:
+$\{30.56, 32.64, 28.47, 31.39, 30.56, 30.56\}$ from `rc7530/v7-2-replicate` v1, six runs of one
+immutable artifact. Mean 30.70, sd 1.36, range **4.17**, 95% CI on the standard deviation
+[0.85, 3.34].
+
+A single submission resolves nothing below about three points. Before calling any new score a
+result, state where it sits in that band, and prefer "not distinguishable" to a directional story.
+The 30.00 was called a regression on an old sd of 0.24 and was not one. The wider family that mixes
+one-factor variants in ($\{30.00, 30.97, ...\}$) is still useful for the ledger but is the wrong
+reference for judging a new run, since its spread confounds the change with the day.
 
 ## Rules for folding in
 
