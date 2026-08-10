@@ -90,7 +90,8 @@ def main(n_pairs, n_inst):
     pool_keys = sorted(bank)
 
     rng = random.Random(5)
-    stats = {"tried": 0, "ran": 0, "b_acts": 0, "a_matters": 0, "nontrivial": 0, "kept": 0}
+    stats = {"tried": 0, "ran": 0, "b_acts": 0, "a_matters": 0, "nontrivial": 0,
+             "shape_consistent": 0, "kept": 0}
     kept = []
 
     # n_pairs <= 0 means exhaust every ordered pair, which is the only way to get the exact count
@@ -113,7 +114,8 @@ def main(n_pairs, n_inst):
         stats["tried"] += 1
 
         pairs, ok = [], True
-        b_acts = a_matters = nontrivial = False
+        b_acts_all = a_matters_all = nontrivial_all = True
+        shapes = set()
         for x in bank[a]:
             try:
                 ax = as_list(vs[a](x))
@@ -128,20 +130,30 @@ def main(n_pairs, n_inst):
                 bx = as_list(vs[b](x))
             except Exception:
                 bx = None
-            if bax != ax:
-                b_acts = True
-            if bx is None or bax != bx:
-                a_matters = True
-            if bax != as_list(x):
-                nontrivial = True
+            # EVERY instance must satisfy each predicate, not merely one. The first version used
+            # "at least one" and let through pairs where the second stage is a no-op on some
+            # instances: rendering one showed after-A and after-B identical on the test case, which
+            # makes the task two-step on some examples and one-step on others. As training data that
+            # teaches that the second rule sometimes does nothing.
+            if bax == ax:
+                b_acts_all = False
+            if bx is not None and bax == bx:
+                a_matters_all = False
+            if bax == as_list(x):
+                nontrivial_all = False
+            shapes.add((len(bax) - len(x), len(bax[0]) - len(x[0])))
             pairs.append({"input": as_list(x), "output": bax})
         if not ok:
             continue
         stats["ran"] += 1
-        stats["b_acts"] += int(b_acts)
-        stats["a_matters"] += int(a_matters)
-        stats["nontrivial"] += int(nontrivial)
-        if b_acts and a_matters and nontrivial:
+        stats["b_acts"] += int(b_acts_all)
+        stats["a_matters"] += int(a_matters_all)
+        stats["nontrivial"] += int(nontrivial_all)
+        # the shape relationship must also be consistent: a rule whose output-to-input size ratio
+        # changes between instances is one the demonstrations cannot teach.
+        consistent = len(shapes) == 1
+        stats["shape_consistent"] = stats.get("shape_consistent", 0) + int(consistent)
+        if b_acts_all and a_matters_all and nontrivial_all and consistent:
             stats["kept"] += 1
             # every kept pair, not the first forty. The loop is A-major, so a truncated list shows
             # one first stage repeatedly and hides whether the yield is concentrated in a handful of
@@ -153,9 +165,10 @@ def main(n_pairs, n_inst):
 
     print("\ncomposition survey over %d ordered pairs, %d instances each" % (stats["tried"], n_inst))
     print("  B runs on A's output              : %5d (%.1f%%)" % (stats["ran"], pct(stats["ran"])))
-    print("  ... and B actually acts           : %5d (%.1f%%)" % (stats["b_acts"], pct(stats["b_acts"])))
-    print("  ... and A is visible in the result: %5d (%.1f%%)" % (stats["a_matters"], pct(stats["a_matters"])))
-    print("  ... and the pair is non-trivial   : %5d (%.1f%%)" % (stats["nontrivial"], pct(stats["nontrivial"])))
+    print("  ... and B acts on EVERY instance  : %5d (%.1f%%)" % (stats["b_acts"], pct(stats["b_acts"])))
+    print("  ... and A visible on EVERY one    : %5d (%.1f%%)" % (stats["a_matters"], pct(stats["a_matters"])))
+    print("  ... and non-trivial on EVERY one  : %5d (%.1f%%)" % (stats["nontrivial"], pct(stats["nontrivial"])))
+    print("  ... and shape relation consistent : %5d (%.1f%%)" % (stats.get("shape_consistent", 0), pct(stats.get("shape_consistent", 0))))
     print("  KEPT, all filters passed          : %5d (%.1f%%)" % (stats["kept"], pct(stats["kept"])))
     total_possible = len(bank) * (len(keys) - 1)
     print("\nordered pairs available in principle: %d" % total_possible)

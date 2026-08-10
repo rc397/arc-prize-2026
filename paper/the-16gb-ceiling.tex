@@ -2018,15 +2018,26 @@ What is not free is non-degeneracy, so we require that $B$ runs on $A$'s output,
 acts, that $A$ remains visible in the result, that the pair is not an identity in disguise, and that
 the output is within ARC's dimension and colour bounds.
 
-Exhaustively, \textbf{1{,}440 of the 159{,}600 ordered pairs survive all five filters}, and each
-composed rule can be instantiated without limit because the generators supply fresh inputs on demand.
-That is more distinct rules than ARC-AGI-2's training set contains, obtained from parts that were
-already public, for a few hours of CPU. The honest qualification is diversity rather than count: the
-survivors draw on only 44 distinct first stages against 130 second stages, because most verifiers
-raise on another verifier's output, each having been written for its own input distribution.
-Concentration is mild, the most prolific first stage contributing 7.8\%, so this is 1{,}440 rules and
-not a handful in disguise, but the first-stage bottleneck is the obvious place a serious attempt
-would start.
+A first pass applied each predicate as ``holds on at least one instance'' and kept 1{,}440 pairs.
+That number is wrong, and how we found out is the useful part: we rendered two surviving tasks as
+grids and looked at them. In one, the stage-by-stage trace showed the second stage was a
+\emph{no-op on the test instance}, so the task was two-step on some examples and one-step on others.
+In the same task the shape relationship changed between demonstrations, because a
+combine-two-halves first stage was being fed an input that did not split evenly. Neither defect is
+visible in any aggregate we had computed, and both would have taught a model the wrong thing.
+
+Tightening every predicate to hold on \emph{every} instance, and adding a consistency requirement on
+the input-to-output shape relationship, leaves \textbf{402 of the 159{,}600 ordered pairs}, drawn
+from 30 distinct first stages and 28 second stages. Each can still be instantiated without limit.
+The count is therefore below ARC-AGI-2's training set rather than above it, and the compositional
+variety is narrow: thirty first operations crossed with twenty-eight second ones.
+
+Two qualifications, in opposite directions. The shape-consistency filter is blunt, since real ARC
+rules do produce variable output shapes and ``extract the largest object'' is one, so 402 is a
+conservative floor and the true figure lies between it and 1{,}440. And the first-stage bottleneck is
+an engineering limit rather than a fundamental one: verifiers raise on each other's outputs because
+each was written for its own input distribution, so a normalisation pass between stages would likely
+recover a share of the 158{,}000 pairs that never ran at all.
 
 We report this as a capability rather than a result, because we have not trained on it and do not
 claim it helps. Two things would have to hold and neither is established here: that compositions of
