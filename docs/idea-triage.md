@@ -6,6 +6,93 @@ its absence produced a wrong answer at least once.
 
 ---
 
+## Part 0: how the system actually works
+
+Point at a stage when proposing something. Each stage is annotated with where it sits relative to the
+candidate pool, because that is the strongest predictor of whether an idea can work (Gate 1).
+
+### The base
+
+`qwen3_4b_grids15_sft139` — NVARC's Qwen3-4B, specialised to grids. **16-token vocabulary**: the ten
+digits plus control ids. 36 layers, hidden 2560, 32 attention heads, 8 KV heads, head dim 128, bf16.
+Prompts are ID-level ChatML. We did not train it and we do not modify it. It was already heavily
+pretrained on synthetic ARC data, which is why adding more ARC-1-shaped data was redundant.
+
+### Per task, 240 tasks over 4 L4s in 12 hours
+
+```
+  task (2-6 demonstration pairs + 1-2 test inputs)
+        |
+   [1] AUGMENT  ---------------------------------------------  UPSTREAM
+        |   16 views = D4 dihedral group (8 transforms)
+        |              x colour permutation
+        |              x example order shuffle
+        |   two separate draws: augment(n=16, seed=1) for TRAINING,
+        |   augment(n=2, seed=2) for EVAL. cut_to_len drops demo pairs
+        |   from the front until the text fits 8192 tokens.
+        v
+   [2] TEST-TIME TRAINING  -----------------------------------  UPSTREAM
+        |   fresh LoRA per task: rank 256, alpha 32, rslora, 7 modules
+        |   AdamW, cosine LR with warmup, grad clipping, ~240s
+        |   COLLATOR SUPERVISES ONLY ASSISTANT SPANS, i.e. only OUTPUT
+        |   grids, and only for examples after the first. Gradients never
+        |   touch an input grid. This is the ARChitects' explicit choice.
+        v
+   [3] DFS DECODE  -------------------------------------------  the POOL is produced here
+        |   turbo_dfs: enumerate EVERY completion whose cumulative
+        |   probability stays above 0.2 (max_score = -log 0.2).
+        |   Recurses once per token. Batched 4 views at a time, by
+        |   hard-coded index offsets over the sorted view keys.
+        |   Candidates inverted back to the original frame, deduplicated.
+        v
+   [4] SELECT  -----------------------------------------------  DOWNSTREAM
+        |   score_kgmon = multiplicity - mean augmentation NLL,
+        |   rescored under fresh augmentations. Top 2 become attempt_1
+        |   and attempt_2.
+        v
+  submission.json
+```
+
+### The three deadlines, all in wall-clock seconds
+
+| where | budget |
+|---|---|
+| global run | 12 h minus a 600 s reserve (42480 s) |
+| per task | 1800 s |
+| inside one DFS call | 540 s |
+
+Nothing is budgeted in operations, which is why identical code scores differently on different days
+and why anything that changes speed changes which candidates exist.
+
+### Where the score comes from
+
+240 tasks, two attempts each, either attempt correct scores the task. Roughly 0.417 points per
+single-output task. Our best run: 32.64.
+
+### Two stacks, and they are not the same
+
+| | Kaggle (scored) | our rig (probes) |
+|---|---|---|
+| hardware | 4x L4, 24 GB each | 1x RTX 5070 Ti, 16 GB |
+| OS | Linux | Windows |
+| stack | **Unsloth** (`FastLanguageModel`) | plain `transformers` + `peft` |
+
+Unsloth needs Triton, which has no native-Windows backend, which is why the rig cannot run the
+deployed stack. Any memory or throughput measurement on the rig is therefore a statement about the
+rig, not about the scored runs. This bit us once already: a decode memory cliff we measured at 16 GB
+may not exist at all on the L4s.
+
+### What each stage has already absorbed
+
+| stage | tried there | outcome |
+|---|---|---|
+| [1] augment | masked-output completion, crops, rule inversion, run-length serialization | all null or unimplementable |
+| [2] TTT | rank/depth sweep, pre-fitting, subset adapters, cross-task warm start, continued fine-tune | all null on coverage |
+| [3] decode | best-first ordering, batch width, per-task cap, seed restarts | all null |
+| [4] select | reweighting, cell-wise voting, dual-expert fusion, invariant filtering | all null, and bounded by proof |
+
+---
+
 ## Part 1: the six facts that constrain every idea
 
 **1. The system is generation-starved, not selection-starved.** 65% of tasks never produce the
