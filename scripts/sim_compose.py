@@ -143,8 +143,10 @@ def main(n_pairs, n_inst):
         stats["nontrivial"] += int(nontrivial)
         if b_acts and a_matters and nontrivial:
             stats["kept"] += 1
-            if len(kept) < 40:
-                kept.append({"a": a, "b": b, "n": len(pairs)})
+            # every kept pair, not the first forty. The loop is A-major, so a truncated list shows
+            # one first stage repeatedly and hides whether the yield is concentrated in a handful of
+            # A's, which is the difference between 1440 rules and 1440 variations on a few.
+            kept.append({"a": a, "b": b, "n": len(pairs)})
 
     def pct(x):
         return 100.0 * x / stats["tried"] if stats["tried"] else 0.0
@@ -158,7 +160,20 @@ def main(n_pairs, n_inst):
     total_possible = len(bank) * (len(keys) - 1)
     print("\nordered pairs available in principle: %d" % total_possible)
     print("extrapolated usable compositions    : %d" % int(total_possible * stats["kept"] / max(stats["tried"], 1)))
-    json.dump({"stats": stats, "examples": kept, "n_inst": n_inst,
+    from collections import Counter
+    das = sorted({k["a"] for k in kept})
+    dbs = sorted({k["b"] for k in kept})
+    ca = Counter(k["a"] for k in kept)
+    print("")
+    print("distinct first stages  : %d of %d tasks with a bank" % (len(das), len(bank)))
+    print("distinct second stages : %d of %d verifiers" % (len(dbs), len(keys)))
+    if ca:
+        top = ca.most_common(5)
+        share = 100.0 * sum(n for _, n in top) / max(len(kept), 1)
+        print("most prolific first stages: %s" % ", ".join("%s x%d" % t for t in top))
+        print("share of all compositions from the top 5 first stages: %.1f%%" % share)
+    json.dump({"stats": stats, "kept": kept, "n_inst": n_inst,
+               "distinct_a": len(das), "distinct_b": len(dbs),
                "total_possible": total_possible}, open(OUT, "w"), indent=1)
 
     print("\nVERDICT")

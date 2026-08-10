@@ -2001,6 +2001,41 @@ The two serialization-shrinking variants failed before reaching a GPU, one becau
 vocabulary has no spare token for a run marker, the other because lossless uniform deletion saves
 1.0\% of cells while truncating the true answer on 6.7\% of tasks.
 
+\paragraph{One constructive result, and it began as a claim we made without measuring.} Asked whether
+a compute-poor entrant could train a base model rather than inherit one, we answered that the blocker
+was data rather than GPUs: ARC-AGI-2's difficulty is compositional, its training set is about a
+thousand tasks, and procedural generators such as RE-ARC implement ARC-1 rules. Building generators
+for ARC-2-style composition, we said, was a larger project than a remaining season. That was an
+assertion, and this paper's own discipline says a question about how much structure exists is
+answered with a script.
+
+It is answerable in an afternoon, and the answer is no. RE-ARC ships 400 \emph{verifiers}, each a
+pure grid-to-grid function implementing one task's rule. Transformations compose, so
+$\mathrm{verify}_B(\mathrm{verify}_A(x))$ is a new deterministic rule and 400 verifiers give 159{,}600
+ordered pairs. Consistency, the property that normally makes synthetic task generation hard, is free:
+both stages are functions, so every instance of the composition obeys the same rule by construction.
+What is not free is non-degeneracy, so we require that $B$ runs on $A$'s output, that $B$ visibly
+acts, that $A$ remains visible in the result, that the pair is not an identity in disguise, and that
+the output is within ARC's dimension and colour bounds.
+
+Exhaustively, \textbf{1{,}440 of the 159{,}600 ordered pairs survive all five filters}, and each
+composed rule can be instantiated without limit because the generators supply fresh inputs on demand.
+That is more distinct rules than ARC-AGI-2's training set contains, obtained from parts that were
+already public, for a few hours of CPU. The honest qualification is diversity rather than count: the
+survivors draw on only 44 distinct first stages against 130 second stages, because most verifiers
+raise on another verifier's output, each having been written for its own input distribution.
+Concentration is mild, the most prolific first stage contributing 7.8\%, so this is 1{,}440 rules and
+not a handful in disguise, but the first-stage bottleneck is the obvious place a serious attempt
+would start.
+
+We report this as a capability rather than a result, because we have not trained on it and do not
+claim it helps. Two things would have to hold and neither is established here: that compositions of
+two ARC-1 rules resemble ARC-2's compositional difficulty rather than merely stacking, and that a
+corpus consistent by construction is also \emph{learnable}, since a composition is guaranteed
+well-defined but not guaranteed to admit a short description. What we can say is that the reason we
+gave for not attempting it was wrong, and wrong in a way one script would have caught at any point in
+the preceding months.
+
 What survives as advice is therefore narrower and, we think, more useful than a list of ideas. Every
 lever we have measured either operates downstream of generation, where the theorem bounds it, or
 improves the fit to the demonstrations, where there was no headroom to begin with. The demonstrations
