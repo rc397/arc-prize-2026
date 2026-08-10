@@ -1866,6 +1866,28 @@ This section exists because the scattered negatives above are more useful collec
 and because the most valuable thing a compute-poor entry can hand the next one is a map of where not
 to spend. Everything here is measured on this pipeline; none of it is argued.
 
+\paragraph{The headline count.} \textbf{Twenty-four levers were built and measured. None moved the
+hidden score.} That is the finding, not an apology for one: a system whose remaining knobs are all
+worth less than its own measurement noise is at a ceiling, and the useful thing to publish is which
+knobs and why. Two of the twenty-four produced a genuine positive on their own terms without moving
+coverage --- task retrieval by demonstration embedding, and warm-starting an adapter from a
+same-rule neighbour --- and both sit \emph{upstream} of the candidate pool. Every lever that produced
+nothing at all sits downstream of it, on candidates the search has already generated or on how time
+is divided between them. We did not notice that pattern until the ledger was assembled, and it is the
+single thing we would most like a reader to take from this section: the theorem bounds the
+downstream half, the budget table says the upstream half is starved, and we spent most of a season
+optimising the bounded one.
+
+A second pattern is about cost rather than direction. Five of the closures required no GPU at all.
+The selection bound is a proof. Sub-grid cropping was closed by measuring that 5.8\% of cells in
+ARC-AGI-2 grids are removable margin. Run-length serialization was closed by observing that a
+16-token vocabulary has no spare token for a run marker, and its lossless variant by measuring that
+uniform row deletion truncates the true answer on 6.7\% of tasks. The tail-dropping account of our
+own score variance was refuted by simulating the task queue against the wall. Each of those took
+minutes and pre-empted an overnight run; several were only attempted after the expensive version had
+already been planned. Pricing an idea before building it is the cheapest discipline available in a
+compute-poor project and we adopted it late.
+
 \paragraph{One number organises the map.} Sixty-five percent of tasks never produce the correct grid
 under \emph{any} of the sixteen augmented views, and they consume seventy-one percent of the budget
 doing it. When the truth does reach the candidate pool, the deployed selector places it in the top two
