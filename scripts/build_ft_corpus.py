@@ -79,6 +79,58 @@ def official_pools(challenges_path):
     return pools
 
 
+def composed_pools(rearc_dir, tasks_dir, survey_path, per_pool):
+    """Pools for TWO-STEP rules, verify_B(verify_A(x)), from the pairs that survived the survey.
+
+    The base was already pretrained on ARC-1-shaped synthetic data, and our first continued
+    fine-tune on more of the same came back a null. ARC-AGI-2's stated difficulty is compositional,
+    so the question these pools exist to answer is whether data the base has NOT effectively seen
+    moves it where more of the same did not.
+
+    Consistency is free because both stages are deterministic functions. The survey already filtered
+    for non-degeneracy: B must run on A's output, B must act, A must stay visible, the pair must not
+    be an identity, the output must be well formed.
+    """
+    cwd = os.getcwd()
+    sys.path.insert(0, rearc_dir)
+    os.chdir(rearc_dir)
+    try:
+        import verifiers
+    finally:
+        os.chdir(cwd)
+    vs = {n[len("verify_"):]: getattr(verifiers, n)
+          for n in dir(verifiers) if n.startswith("verify_")}
+
+    survey = json.loads(open(survey_path, encoding="utf-8").read())
+    kept = survey.get("kept") or survey.get("examples") or []
+    pools, dropped = {}, 0
+    for k in kept:
+        a, b = k["a"], k["b"]
+        p = os.path.join(tasks_dir, "%s.json" % a)
+        if not os.path.isfile(p):
+            continue
+        src = json.loads(open(p, encoding="utf-8").read())
+        pool = []
+        for e in src[:per_pool * 3]:
+            try:
+                y = vs[b](vs[a](e["input"]))
+            except Exception:
+                continue
+            y = [list(r) for r in y]
+            if not y or not y[0] or len(y) > 30 or len(y[0]) > 30:
+                continue
+            pool.append({"input": [list(r) for r in e["input"]], "output": y})
+            if len(pool) >= per_pool:
+                break
+        if len(pool) >= 2:
+            pools["comp_%s_%s" % (a, b)] = pool
+        else:
+            dropped += 1
+    print("composed pools: %d built, %d dropped for too few instances" % (len(pools), dropped),
+          flush=True)
+    return pools
+
+
 def mint(pools, per_task, kmax, max_ctx_tokens, seed):
     rng = np.random.default_rng(seed)
     seen, out = set(), []
@@ -114,6 +166,13 @@ def main():
     ap.add_argument("--val-frac", type=float, default=0.02)
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument("--smoke", action="store_true", help="tiny end-to-end validation run")
+    ap.add_argument("--compose-survey", default="",
+                    help="path to compose_survey.json; adds two-step composed pools")
+    ap.add_argument("--compose-per-pool", type=int, default=40,
+                    help="instances generated per composed rule")
+    ap.add_argument("--compose-only", action="store_true",
+                    help="build the corpus from composed pools ALONE, so a fine-tune on it is a "
+                         "clean test of compositional data rather than a mixture")
     a = ap.parse_args()
 
     t0 = time.time()
@@ -121,12 +180,23 @@ def main():
     if a.smoke:
         a.rearc_pool, a.per_task = 4, 3
 
-    print("generating RE-ARC pools (pool=%d)..." % a.rearc_pool, flush=True)
-    pools = rearc_pools(a.rearc_dir, os.path.join(a.out, "rearc"), a.rearc_pool, a.seed)
-    print("RE-ARC pools:", len(pools), flush=True)
-    op = official_pools(a.challenges)
-    print("official ARC-2 pools:", len(op), flush=True)
-    pools.update(op)
+    if a.compose_only:
+        assert a.compose_survey, "--compose-only needs --compose-survey"
+        tasks_dir = os.path.join(a.rearc_dir, "..", "experiments", "rearc_pools", "tasks")
+        tasks_dir = os.environ.get("ARC_REARC_TASKS", os.path.abspath(tasks_dir))
+        pools = composed_pools(a.rearc_dir, tasks_dir, a.compose_survey, a.compose_per_pool)
+    else:
+        print("generating RE-ARC pools (pool=%d)..." % a.rearc_pool, flush=True)
+        pools = rearc_pools(a.rearc_dir, os.path.join(a.out, "rearc"), a.rearc_pool, a.seed)
+        print("RE-ARC pools:", len(pools), flush=True)
+        op = official_pools(a.challenges)
+        print("official ARC-2 pools:", len(op), flush=True)
+        pools.update(op)
+        if a.compose_survey:
+            tasks_dir = os.environ.get(
+                "ARC_REARC_TASKS",
+                os.path.abspath(os.path.join(a.rearc_dir, "..", "experiments", "rearc_pools", "tasks")))
+            pools.update(composed_pools(a.rearc_dir, tasks_dir, a.compose_survey, a.compose_per_pool))
     if a.smoke:
         pools = {k: pools[k] for k in list(pools)[:20]}
 
