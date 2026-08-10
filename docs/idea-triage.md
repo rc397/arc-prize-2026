@@ -151,6 +151,8 @@ Do not re-propose these. A closed lever reopens only on a new **measurement**, n
 | augmentation-seed restarts | union of three seeds = best single seed, exactly |
 | invariant mining as a filter | 0 recovered, kills 11 of 19 truths |
 | per-task cap at 1200s | 29.31, inside noise; the prediction was wrong |
+| task-mined candidate filters, 9 rules | replayed over the 432-candidate pool: 7 of 9 false-kill, and the other 2 kill **nothing at all**. No candidate the decoder emits ever uses an unseen colour or has the wrong shape where the task preserves shape — the model already satisfies those constraints. `sim_prune_replay.py` |
+| depth-decayed DFS threshold | dominated at matched cost by simply raising the flat floor, and backwards in premise: truths emit **deeper** (median 199 vs 143) and **cheaper** (headroom 1.600 of 1.609 vs 0.846). Depth is not the axis that separates them. `sim_dfs_budget.py` |
 
 ### Adaptation
 | lever | what closed it |
@@ -170,6 +172,9 @@ Do not re-propose these. A closed lever reopens only on a new **measurement**, n
 | rule inversion (shape-matched) | 4 vs 4 on 7 matched tasks |
 | run-length serialization | unimplementable: no spare token in a 16-token vocabulary |
 | lossless uniform row/col deletion | saves 1.0% of cells, truncates the answer on 6.7% of tasks |
+| column-major output ordering | it is the transpose view, and `augment` already keeps it: `mod(np.transpose, keep=True)` at arc_loader.py:250. Every training set already contains the column-major reading |
+| canonical palette pre-sorting | two independent kills. Applied before the deployed augmentation it is provably a **no-op**, because `permute_rnd_all_` draws uniformly from all 10! bijections and a fixed map composed with a uniform one is uniform. Applied per demonstration as proposed, the maps disagree on a shared colour in **92% of tasks**. `sim_palette_canon.py` |
+| toroidal wrap, zero-padded translation, blank row/col permutation | false supervision at scale: content touches an edge on **79% of grids** and **93% of tasks**, the cells the rule changes touch the border on **65%** of shape-matched pairs, and the count of uniform rows/cols changes across **72%** of them. `sim_aug_damage.py` |
 
 ### Program synthesis
 | lever | what closed it |
@@ -179,7 +184,9 @@ Do not re-propose these. A closed lever reopens only on a new **measurement**, n
 | 14B reasoner | 0 of 12, empty near-miss band |
 | symbolic object-count prune | 27.92 hidden; offline, a *predicted* oracle is not accurate enough |
 
-**Running total: 24 levers measured, none moved the hidden score.**
+**Running total: 24 levers measured against coverage or the hidden score, none moved it. Five more
+closed offline at zero GPU cost** (the five new rows above), which is the cheaper way to close
+something and the one to reach for first.
 
 ---
 
@@ -196,7 +203,22 @@ built. Whether training on it helps is being measured. The first-stage bottlenec
 159,600 pairs never ran because verifiers raise on each other's outputs — is engineering, not a
 fundamental limit, and fixing it would multiply the corpus.
 
-**Anything attacking the 16-token vocabulary.** Untouched, and the deepest constraint we have.
+**The DFS probability floor itself.** Not from any idea list; it fell out of replaying the logged
+trees. **12 of 16 logged decodes hit their wall clock**, and 29.8% of lane-nodes sit in subtrees that
+emit nothing. Raising the floor from 0.20 to 0.25 is free on both replays; 0.45 returns 22% of the
+forward passes and costs 3 of 19 truths on the pool replay while costing none of 13 on the tree
+replay. The two replays disagree, and neither can see what the freed budget would buy, because those
+candidates were never generated. `rig_dfsfloor.py` runs it: one adapter per task, three decodes at a
+fixed wall clock.
+
+**Unchanged-cell loss masking.** 88% of a median output is a verbatim copy of its input, on the 67.5%
+of tasks that preserve shape. Queued, three arms.
+
+**Anything attacking the 16-token vocabulary.** Untouched, and the deepest constraint we have. The
+cheapest instance is now built: a zero-padded `HHWW` header before each output grid, entirely
+in-vocabulary, five extra tokens. Gate 4 warns it will be weak — the decoder already agrees with
+itself about shape on 82% of pools — so what it really prices is what it costs to teach this base
+any new syntax during TTT.
 
 ---
 

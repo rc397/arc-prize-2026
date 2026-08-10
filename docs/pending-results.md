@@ -29,6 +29,9 @@ matrix drift apart otherwise. Delete a row only when its result is folded in eve
 | cap 1200, kernel `rc7530/v7-2-cap1200` v1 | submit when the UTC day rolls, score ~9h later | tex appendix cap passage, which currently says the cap is untested; EXPERIMENTS.md "Where the cap question actually stands"; memory. Report against the corrected band, not against a single number |
 | perceptual pre-fitting, 3 arms | re-run after subsetttt | tex sec:prefit, replacing the in-flight paragraph with the outcome and scoring the pre-registered null; score-levers section 2 if it is a kill; writeup only if positive |
 | subset-disagreement TTT | ~10:00 local, 34/48 cells done | new tex passage on demonstration underdetermination, this is the headline if the number is interesting; writeup only if it displaces something |
+| composition learnability, `rig_composelearn.py` | 14 pairs, 4 done at 21:40 on 10 Aug | decides whether the 78,792-example compositional corpus is worth training on. Early and not yet a result: single 4/4, composed 1/4 |
+| batch-02 queue, `rig_queue_batch02.py` (pid 12900) | maskloss then dfsfloor then dimprefix, chained behind composelearn | tex sec:ledger rewritten ONCE with the five offline closures and these three, rather than three times; EXPERIMENTS.md; idea-batch-01.md Part 6 |
+| five offline closures, 10 Aug | done, no GPU | folded into idea-triage.md Part 2 and idea-batch-01.md Part 6. **Still owed to the paper**: candidate-filter replay, depth-decay dominated by the flat floor, palette canon no-op proof, column-major already in D4, augmentation damage numbers |
 
 ## Reading any new hidden score
 

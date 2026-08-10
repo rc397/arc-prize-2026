@@ -207,3 +207,79 @@ most likely to simply confuse a model pretrained to emit grids directly.
 Everything else waits on those, and the honest prior is that all three are null like the 24 before
 them. What has changed is that the top pick is aimed at a quantity we measured at 88% rather than at
 one we assumed.
+
+---
+
+## Part 6: what happened when the plan above was run
+
+Ryan asked for the whole list to be worked rather than sampled: queue what needs the card, and run
+anything that does not need it on CPU anyway, including the ideas already crossed out. Five CPU
+measurements went out that evening. Two of the three survivors above did not survive them, and the
+thing that replaced them came from neither list.
+
+### Survivor 2 died, and left a better question behind
+
+Replaying the 16 logged DFS trees, exactly, under every non-increasing threshold schedule
+(`sim_dfs_budget.py`; tightening is exact offline because cumulative NLL only grows along a path, so
+ancestors of a surviving node survive automatically):
+
+| | truths | wrongs |
+|---|---|---|
+| headroom under the 1.609 ceiling, median | **1.600** | 0.846 |
+| depth at emission, median | **199** | 143 |
+
+Truths are near-certain completions that arrive **deep**. Wrongs are marginal ones that arrive
+**shallow**. The proposal taxes depth, so it taxes precisely the population it wanted to protect,
+and at matched cost a flat tightening beats it on every row of the table. What the replay found
+instead is the budget: **12 of 16 decodes hit their wall clock**, and 29.8% of lane-nodes sit in
+subtrees that emit nothing at all.
+
+So the real lever is the flat floor. The pool replay (`sim_prune_replay.py`, 60 outputs, 432
+candidates) disagrees with the tree replay about how far it goes — free to 0.25, then 19 truths fall
+to 16 — and neither can see what the returned budget buys, because those candidates were never
+generated. That is now a queued run, not an argument.
+
+### Survivor 3 died twice
+
+`sim_palette_canon.py`. Applied before the deployed augmentation, canonicalisation is provably a
+**no-op**: `permute_rnd_all_` draws uniformly from all 10! bijections, and a fixed map composed with
+a uniform one is uniform. Applied per demonstration as written, the per-demonstration maps disagree
+about where a shared colour goes in **92% of tasks**, on the 50% of tasks where the palette itself
+carries the rule. The only version that changes anything is canonicalising *instead of* permuting,
+which is an ablation of colour diversity and should be argued as one.
+
+### The rule-breaker in Part 4 was already in the pipeline
+
+**Column-major output ordering** is the transpose view, and `augment` keeps it —
+`mod(np.transpose, keep=True)`, arc_loader.py:250. Every training set already contains the
+column-major reading. No run needed.
+
+### The crossed-out filters, priced one by one
+
+Nine task-mined rules replayed over the pool. Seven false-kill. The other two — palette contained in
+the seen colours, and shape equal to the test input's where the task preserves shape — kill
+**nothing at all**, on any candidate, ever. That is the more useful half: those constraints are not
+worth enforcing because the model already satisfies them. Gate 1 was right, and this is what it
+looks like rule by rule rather than by analogy.
+
+### The crossed-out augmentations, priced too
+
+`sim_aug_damage.py`. Content touches an edge on **79% of grids** and **93% of tasks**; the cells the
+rule changes touch the border on **65%** of shape-matched pairs; the count of uniform rows and
+columns changes across **72%** of them. Wrap, translate and line-permutation are not slightly noisy
+views, they are false demonstrations on most of the set, and the collator trains on them as true.
+
+### What is queued on the card
+
+In order, one process, resumable, chained behind the composition probe:
+
+1. `rig_maskloss.py` — survivor 1, three arms. Alignment verified on CPU first: 58% of assistant
+   spans qualify and 91% of their cells mask, which matches the 88% the grids predicted.
+2. `rig_dfsfloor.py` — the floor, three decodes off one adapter per task, fixed wall clock.
+3. `rig_dimprefix.py` — the dimension header, Gate 3 violated on purpose. Round-trips exactly in a
+   16-token vocabulary. Gate 4 already warns it will be weak: the decoder agrees with itself about
+   shape on **82%** of pools, so the header has little to reject and what it really prices is the
+   cost of teaching this base new syntax during TTT.
+
+Scoreboard for the batch: of 5 survivors, 2 closed offline, 1 was already in the pipeline, 2 are on
+the card, and the best thing to come out of the evening was a decode constant nobody proposed.
