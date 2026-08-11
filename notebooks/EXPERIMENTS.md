@@ -36,6 +36,15 @@ sd 1.36, range 4.17, 95% CI on the standard deviation [0.85, 3.34]. This is the 
 instrument and it is now the cleanest form of it, because nothing at all differs between these six
 draws except the day Kaggle ran them.
 
+**Verified by script version, not by description.** Every submission was audited against the
+`scriptVersionId` in its URL. All six carry `339772104`, including 55204113, whose note said
+"unchanged except commit size" and which therefore could have been a different build and was not.
+A seventh draw, 55424200, is pending on the same version.
+
+The audit also shows why the wider family is the wrong reference for judging a new score: 30.97 is
+version 337769272, 30.00 is 340004463 and 29.31 is 340454473. Those are different builds, so their
+spread confounds a code change with the day. Only the `339772104` set isolates the noise.
+
 The "cap actually run" column exists because it disagreed with the knob for the first four builds. The
 builder's replace targeted a `spend_time` form the source does not use, so it never matched, and v7.1,
 v7.2 and v7.3 all ran the hardcoded 1800 while their config banners printed whatever we had asked for.
