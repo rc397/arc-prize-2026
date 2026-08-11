@@ -174,6 +174,7 @@ Do not re-propose these. A closed lever reopens only on a new **measurement**, n
 | per-task cap at 1200s | 29.31, inside noise; the prediction was wrong |
 | task-mined candidate filters, 9 rules | replayed over the 432-candidate pool: 7 of 9 false-kill, and the other 2 kill **nothing at all**. No candidate the decoder emits ever uses an unseen colour or has the wrong shape where the task preserves shape — the model already satisfies those constraints. `sim_prune_replay.py` |
 | depth-decayed DFS threshold | dominated at matched cost by simply raising the flat floor, and backwards in premise: truths emit **deeper** (median 199 vs 143) and **cheaper** (headroom 1.600 of 1.609 vs 0.846). Depth is not the axis that separates them. `sim_dfs_budget.py` |
+| **raising the DFS probability floor** | run at a fixed 600s decode, one adapter per task, three floors. 0.20 gives 6 of 14 outputs and 56 candidates; 0.35 and 0.45 both give **5** and 48/43. Worse on one task, better on none, tied on seven. The freed forward passes bought nothing: every arm still exhausted its wall clock. It also scored the two offline replays against each other, and the **pool replay was right** (truth falls above 0.25) while the tree replay's 13 covered outputs were too few. `rig_dfsfloor.py` |
 
 ### Adaptation
 | lever | what closed it |
