@@ -283,3 +283,40 @@ In order, one process, resumable, chained behind the composition probe:
 
 Scoreboard for the batch: of 5 survivors, 2 closed offline, 1 was already in the pipeline, 2 are on
 the card, and the best thing to come out of the evening was a decode constant nobody proposed.
+
+---
+
+## Part 7: the top pick ran, and it is the most informative negative we have
+
+`rig_maskloss.py`, 8 tasks, 14 outputs, three arms at an identical step budget.
+
+| arm | truth in pool | selected | candidates | error on COPIED cells | error on CHANGED cells |
+|---|---|---|---|---|---|
+| base | **6** / 14 | 5 | 48 | 0.024 | 0.286 |
+| unchanged-masked | **3** / 14 | 3 | 39 | **0.095** | **0.062** |
+| random, equal size | **6** / 14 | 6 | 44 | 0.021 | 0.146 |
+
+Paired: masked worse on 3 tasks, tied on 5, better on 0. The random control tied on all 8.
+
+**The idea did exactly what it was designed to do.** Redirecting the gradient off the copied cells
+cut the error on the cells the rule actually changes by a factor of 4.6, from 0.286 to 0.062. That is
+the largest movement any lever has produced on any quantity in this project.
+
+**And it lost, because it broke the other half.** Error on the cells that should have been copied
+went up 4x, and since 88% of a median output is copied, a model that transforms beautifully and
+mis-copies one cell in ten produces a grid that is wrong. Coverage fell from 6 to 3.
+
+The control is what makes this conclusive rather than suggestive. Masking the same NUMBER of cells at
+random is **indistinguishable from base** on every task. So the loss is not caused by having less
+supervision, and it is not caused by a smaller effective learning rate. It is caused specifically by
+removing all supervision on copying. A uniform 12% sample of every kind of cell is enough; zero
+copy-supervision is fatal.
+
+The honest caveat on strength: the coverage drop is 3 tasks of 8, which a sign test alone would not
+call significant. The cell-level error split is measured over thousands of cells and is not close.
+
+**What this does to the rest of the batch.** The premise shared by the whole loss-shaping cluster,
+that gradient spent reproducing unchanged cells is waste, is refuted: it is the load-bearing half.
+Survivor 2, the binary change-mask auxiliary, is not killed by this, since it ADDS an objective
+rather than removing supervision, but its motivation is gone and it should be re-argued before it is
+built.
