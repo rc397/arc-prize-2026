@@ -35,7 +35,23 @@ matrix drift apart otherwise. Delete a row only when its result is folded in eve
 | **unchanged-cell loss masking, `rig_maskloss.py`** | **DONE.** base 6/14 in pool, masked 3/14, random control 6/14. Error on CHANGED cells 0.286 to 0.062; error on COPIED cells 0.024 to 0.095 | The mechanism worked and the idea still lost, with a control that rules out the "less supervision" confound. This deserves its own tex passage: it is the only lever that moved a quantity by 4.6x, and the reason it failed is the 88% copy fraction, which the paper already establishes. idea-batch-01.md Part 7, idea-triage.md Part 2 |
 | **DFS floor sweep, `rig_dfsfloor.py`** | **DONE.** floor 0.20 = 6 of 14 outputs, 56 candidates; 0.35 = 5, 48; 0.45 = 5, 43. Worse on 1 task, better on 0, tied on 7. All 24 decodes exhausted the 600s wall clock | closes the floor. Also scores the two offline replays against each other: the POOL replay was right, the tree replay's 13 covered outputs were too small a sample. Belongs in the tex passage on offline replay as a method, since it is a case where two replays of the same system disagreed and the run adjudicated. **Known gap**: batches-completed was not recorded, so we cannot say whether the tighter floor got further and found nothing, or simply needed less |
 | batch-02 queue, `rig_queue_batch02.py` (pid 12440) | maskloss DONE, dfsfloor DONE, dimprefix running (pid 15864, 10 of 12) | tex sec:ledger rewritten ONCE with the five offline closures and these three, rather than three times; EXPERIMENTS.md; idea-batch-01.md Part 6 |
-| batch-03 queue, `rig_queue_batch03.py` (pid 13040) | **has not started**, still waiting on batch-02. The compositional fine-tune has not run | pilot fine-tune then `rig_ftgate.py` |
+| batch-03 pilot fine-tune (pid 22248) | running since 18:56 on 11 Aug. **step 2000 of 8000 at 01:39, trainloss 0.1084, valloss 0.1087, 24093s.** That is **12.0 s/step** | ETA about 22:00 on 12 Aug, then `rig_ftgate.py` for ~3h behind it. Two things to record when it lands, below |
+
+### Two things the pilot already tells us
+
+**It is 27 hours, not the 1 to 3 I estimated.** 12.0 s/step at rank 32, batch 1, 2048 tokens, with the
+card at 97.6% of its 16 GB. So the FULL corpus, 78,792 examples, is 9.85x the pilot and lands near
+**eleven days** on this hardware. The full fine-tune is not affordable on one 5070 Ti at this
+configuration, and that is a finding, not a scheduling note: it is the concrete price of the 16 GB
+constraint on the one lever that changes the model. Scaling it needs rented compute or a much
+shorter `max_len`, and the token-budget measurement says most sequences are far below 2048 anyway,
+so length-bucketed batching is the cheap fix to try first.
+
+**There is no step-0 baseline, so 0.1087 is uninterpretable on its own.** `finetune_base.py` only
+evaluates at `eval_every` intervals, so we never measured the stock base's val loss on this corpus.
+Train and val are near identical (0.1084 vs 0.1087), which says it is not overfitting, but not how
+much it learned. The gate is the decision-relevant comparison and it does not depend on this, so
+this is a gap to fill afterwards rather than a reason to restart.
 | replicate run 10, sub **55424200** | submitted 2026-08-11 05:17 UTC, PENDING, score in ~9h | seventh draw of the same-kernel series. Recompute mean, sd and the CI on sd when it lands; the paper's variance passage quotes them |
 | five offline closures, 10 Aug | done, no GPU | folded into idea-triage.md Part 2 and idea-batch-01.md Part 6. **Still owed to the paper**: candidate-filter replay, depth-decay dominated by the flat floor, palette canon no-op proof, column-major already in D4, augmentation damage numbers |
 
