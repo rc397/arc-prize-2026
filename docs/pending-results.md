@@ -52,21 +52,24 @@ evaluates at `eval_every` intervals, so we never measured the stock base's val l
 Train and val are near identical (0.1084 vs 0.1087), which says it is not overfitting, but not how
 much it learned. The gate is the decision-relevant comparison and it does not depend on this, so
 this is a gap to fill afterwards rather than a reason to restart.
-| replicate run 10, sub **55424200** | submitted 2026-08-11 05:17 UTC, PENDING, score in ~9h | seventh draw of the same-kernel series. Recompute mean, sd and the CI on sd when it lands; the paper's variance passage quotes them |
+| replicate run 10, sub **55424200** | **28.89.** Series is now n=7: mean 30.44, sd 1.42, range 4.17, CI on sd [0.91, 3.12], CI on mean [29.13, 31.75] | EXPERIMENTS.md done. **Still owed to the tex**: the abstract, intro and variance passage all quote 32.64 as the result. It is the maximum of seven draws from a distribution centred on 30.44, so it should be reported as an order statistic with the band, not as the score |
 | five offline closures, 10 Aug | done, no GPU | folded into idea-triage.md Part 2 and idea-batch-01.md Part 6. **Still owed to the paper**: candidate-filter replay, depth-decay dominated by the flat floor, palette canon no-op proof, column-major already in D4, augmentation damage numbers |
 
 ## Reading any new hidden score
 
 Use the same-kernel series, because it is the only one with nothing else varying:
-$\{30.56, 32.64, 28.47, 31.39, 30.56, 30.56\}$ from `rc7530/v7-2-replicate` v1, six runs of one
-immutable artifact. Mean 30.70, sd 1.36, range **4.17**, 95% CI on the standard deviation
-[0.85, 3.34].
+$\{30.56, 32.64, 28.47, 31.39, 30.56, 30.56, 28.89\}$ from `rc7530/v7-2-replicate` v1, seven runs of
+one immutable artifact. **Mean 30.44, sd 1.42, range 4.17**, 95% CI on the sd [0.91, 3.12].
 
-A single submission resolves nothing below about three points. Before calling any new score a
+A single submission resolves nothing below about three points, and a properly powered comparison
+needs about **3.4 points of separation with three runs per arm**. Before calling any new score a
 result, state where it sits in that band, and prefer "not distinguishable" to a directional story.
 The 30.00 was called a regression on an old sd of 0.24 and was not one. The wider family that mixes
 one-factor variants in ($\{30.00, 30.97, ...\}$) is still useful for the ledger but is the wrong
 reference for judging a new run, since its spread confounds the change with the day.
+
+**And stop quoting 32.64 as the result.** It is the maximum of seven draws from a distribution
+centred on 30.44. The honest headline is 30.4 plus or minus 1.4.
 
 ## Rules for folding in
 
