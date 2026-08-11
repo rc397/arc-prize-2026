@@ -24,19 +24,27 @@ pretrained on synthetic ARC data, which is why adding more ARC-1-shaped data was
   task (2-6 demonstration pairs + 1-2 test inputs)
         |
    [1] AUGMENT  ---------------------------------------------  UPSTREAM
-        |   16 views = D4 dihedral group (8 transforms)
-        |              x colour permutation
-        |              x example order shuffle
-        |   two separate draws: augment(n=16, seed=1) for TRAINING,
-        |   augment(n=2, seed=2) for EVAL. cut_to_len drops demo pairs
-        |   from the front until the text fits 8192 tokens.
+        |   TRAIN augment(n=16, seed=1) = 2 (transpose) x 4 (rot90)
+        |              x 16 random colour permutations = 128 ROWS,
+        |              then example-order shuffle.
+        |   EVAL  augment(n=2, seed=2) = 8 x 2 = 16 views.
+        |   cut_to_len drops demo pairs from the FRONT until the text
+        |   fits, 8192 for training text, 8192 - 931 for eval input.
         v
    [2] TEST-TIME TRAINING  -----------------------------------  UPSTREAM
-        |   fresh LoRA per task: rank 256, alpha 32, rslora, 7 modules
-        |   AdamW, cosine LR with warmup, grad clipping, ~240s
-        |   COLLATOR SUPERVISES ONLY ASSISTANT SPANS, i.e. only OUTPUT
-        |   grids, and only for examples after the first. Gradients never
-        |   touch an input grid. This is the ARChitects' explicit choice.
+        |   fresh LoRA per task, reset to the saved default weights
+        |   every task: rank 256, alpha 32, rslora (effective scale 2),
+        |   dropout 0, NINE modules -- the seven projections PLUS
+        |   embed_tokens and lm_head.
+        |   128 rows, 1 epoch, batch 1, accum 1 = 128 optimizer steps.
+        |   AdamW, lr 5e-5, cosine, warmup_ratio 0.1, clip 1.0, ~240s.
+        |   The collator supervises EVERY assistant span, including the
+        |   first demonstration's output (measured: 96 of 96 rows,
+        |   sim_ttt_shape.py). 35% of tokens carry a loss. So this is
+        |   NOT leave-one-out; it is next-token prediction over the whole
+        |   demonstration sequence. No input grid is ever supervised,
+        |   which IS the ARChitects' explicit choice. The test answer is
+        |   never seen anywhere.
         v
    [3] DFS DECODE  -------------------------------------------  the POOL is produced here
         |   turbo_dfs: enumerate EVERY completion whose cumulative
@@ -81,6 +89,19 @@ Unsloth needs Triton, which has no native-Windows backend, which is why the rig 
 deployed stack. Any memory or throughput measurement on the rig is therefore a statement about the
 rig, not about the scored runs. This bit us once already: a decode memory cliff we measured at 16 GB
 may not exist at all on the L4s.
+
+**And the rig probe is a strictly weaker pipeline than the submission, in three separate ways.** Any
+rig null has to be read against all three before it is believed:
+
+| | deployed | rig probe |
+|---|---|---|
+| LoRA targets | 9, including `embed_tokens` and `lm_head` | **7**, no embedding, no head |
+| context | 8192 | **6144** |
+| optimizer steps | 128 (one epoch over 128 rows) | 128, but **32** in the fixed-budget arm probes |
+
+The module list is the one that should worry us most. On a 16-token vocabulary `embed_tokens` and
+`lm_head` are 16x2560 each, so adapting them is nearly free and is literally re-learning what each
+colour token MEANS for this task. The probe cannot do that at all.
 
 ### What each stage has already absorbed
 
