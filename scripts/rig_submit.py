@@ -84,9 +84,23 @@ def push(slug, message):
     match = [k for k in ks if getattr(k, "ref", "") == slug]
     if not match:
         raise SystemExit("kernel %s not found among %d of your kernels" % (slug, len(ks)))
-    print("found %s, last run %s" % (slug, getattr(match[0], "lastRunTime", "?")))
-    out = api.competition_submit_code(file_name="submission.json", message=message,
-                                      competition=comp_slug(), kernel=slug)
+    # kernel_version is REQUIRED, and omitting it or passing 0 both return a bare 403 that reads
+    # like a permissions failure. It is not one: it is a missing argument. kernels_list reports
+    # current_version_number as 0 for this kernel, so fall back to 1, which is the version every
+    # replicate has been submitted from.
+    ver = getattr(match[0], "current_version_number", 0) or 1
+    print("found %s, submitting version %d" % (slug, ver))
+    try:
+        out = api.competition_submit_code(file_name="submission.json", message=message,
+                                          competition=comp_slug(), kernel=slug,
+                                          kernel_version=ver)
+    except Exception as e:
+        resp = getattr(e, "response", None)
+        if resp is not None:
+            # the bare exception string hides the server's reason; print the body before giving up
+            raise SystemExit("submit failed HTTP %s: %s"
+                             % (resp.status_code, (resp.text or "(empty body)")[:600]))
+        raise
     print(out)
     print("submitted; the score lands about nine hours later")
     return out

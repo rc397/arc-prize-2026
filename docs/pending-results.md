@@ -34,7 +34,7 @@ matrix drift apart otherwise. Delete a row only when its result is folded in eve
 | prompt budget, `sim_token_budget.py` | at Kaggle's 8192, **0 of 240 training views and 6 of 344 eval views** lose a demonstration, 6 of 1046 total | kills the whole token-saving family by removing its motivation. Also a methodology note worth the paper: the rig's 6144 loses 18, so every rig probe runs a slightly harder problem than the submission and is biased toward null |
 | **unchanged-cell loss masking, `rig_maskloss.py`** | **DONE.** base 6/14 in pool, masked 3/14, random control 6/14. Error on CHANGED cells 0.286 to 0.062; error on COPIED cells 0.024 to 0.095 | The mechanism worked and the idea still lost, with a control that rules out the "less supervision" confound. This deserves its own tex passage: it is the only lever that moved a quantity by 4.6x, and the reason it failed is the 88% copy fraction, which the paper already establishes. idea-batch-01.md Part 7, idea-triage.md Part 2 |
 | batch-02 queue, `rig_queue_batch02.py` (pid 12440) | maskloss DONE, dfsfloor running (pid 15768), dimprefix next | tex sec:ledger rewritten ONCE with the five offline closures and these three, rather than three times; EXPERIMENTS.md; idea-batch-01.md Part 6 |
-| Kaggle API code submission | **403 Forbidden**, twice, with and without an explicit kernel version. `kernels_status` returns COMPLETE and the token authenticates for reads | the API route is not available to this token. Submissions must be pushed from the browser. Do not schedule another unattended waiter against this endpoint |
+| replicate run 10, sub **55424200** | submitted 2026-08-11 05:17 UTC, PENDING, score in ~9h | seventh draw of the same-kernel series. Recompute mean, sd and the CI on sd when it lands; the paper's variance passage quotes them |
 | five offline closures, 10 Aug | done, no GPU | folded into idea-triage.md Part 2 and idea-batch-01.md Part 6. **Still owed to the paper**: candidate-filter replay, depth-decay dominated by the flat floor, palette canon no-op proof, column-major already in D4, augmentation damage numbers |
 
 ## Reading any new hidden score
@@ -67,6 +67,18 @@ the two heroes all read their numbers from source and must be re-run.
 
 Section~\ref{sec:prefit} carries a pre-registered prediction of a null. Score it explicitly when the
 numbers land, whichever way it goes, rather than quietly deleting it.
+
+## Submitting from the API
+
+`api.competition_submit_code` needs `kernel_version` and it is **not optional**. Omitting it, or
+passing the 0 that `kernels_list` reports as `current_version_number`, returns a bare
+`403 Forbidden` with no message. That reads exactly like a permissions failure and it is not one:
+`kernel_version=1` submits fine on the same token in the same session. Two attempts were abandoned
+and a submission slot nearly lost to that misreading.
+
+The lesson generalises. The Kaggle SDK raises `requests.HTTPError`, whose `str()` shows only the
+status line; the server's explanation is in `e.response.text`. Print the body before concluding
+anything about permissions. `scripts/rig_submit.py` now does.
 
 ## Rig operating notes
 
