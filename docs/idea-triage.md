@@ -197,6 +197,7 @@ Do not re-propose these. A closed lever reopens only on a new **measurement**, n
 | the whole token-saving family (RLE, coordinate interleaving, digit prefixes) | motivation removed: at Kaggle's 8192, **0 of 240 training views** and 6 of 344 eval views lose a demonstration. `cut_to_len` is the only channel by which a saved token can change an answer, and it is barely firing. `sim_token_budget.py` |
 | **unchanged-cell loss masking** | the mechanism WORKED and it lost anyway. Error on the cells the rule changes fell from 0.286 to **0.062**; error on the cells it copies rose from 0.024 to **0.095**; coverage fell 6 to 3 of 14. The equal-size random control is indistinguishable from base (6 of 14, tied on all 8 tasks), so this is not "less supervision", it is specifically that the supervision teaching the model to COPY is load-bearing. `rig_maskloss.py` |
 | column-major output ordering | it is the transpose view, and `augment` already keeps it: `mod(np.transpose, keep=True)` at arc_loader.py:250. Every training set already contains the column-major reading |
+| **forced output-dimension prefix (Gate 3, run on purpose)** | total wipe-out. base 4 of 10 outputs and 37 candidates; dim **0 of 10** and **2**. Of 19 completions the dim arm produced, 14 declared a shape and then drew a different one, and 3 had no well formed header at all. After 32 TTT steps the model cannot hold its own stated intent for the length of one grid. This is the price of new in-vocabulary syntax and every proposal in that family pays it. `rig_dimprefix.py` |
 | canonical palette pre-sorting | two independent kills. Applied before the deployed augmentation it is provably a **no-op**, because `permute_rnd_all_` draws uniformly from all 10! bijections and a fixed map composed with a uniform one is uniform. Applied per demonstration as proposed, the maps disagree on a shared colour in **92% of tasks**. `sim_palette_canon.py` |
 | toroidal wrap, zero-padded translation, blank row/col permutation | false supervision at scale: content touches an edge on **79% of grids** and **93% of tasks**, the cells the rule changes touch the border on **65%** of shape-matched pairs, and the count of uniform rows/cols changes across **72%** of them. `sim_aug_damage.py` |
 
@@ -227,22 +228,21 @@ built. Whether training on it helps is being measured. The first-stage bottlenec
 159,600 pairs never ran because verifiers raise on each other's outputs — is engineering, not a
 fundamental limit, and fixing it would multiply the corpus.
 
-**The DFS probability floor itself.** Not from any idea list; it fell out of replaying the logged
-trees. **12 of 16 logged decodes hit their wall clock**, and 29.8% of lane-nodes sit in subtrees that
-emit nothing. Raising the floor from 0.20 to 0.25 is free on both replays; 0.45 returns 22% of the
-forward passes and costs 3 of 19 truths on the pool replay while costing none of 13 on the tree
-replay. The two replays disagree, and neither can see what the freed budget would buy, because those
-candidates were never generated. `rig_dfsfloor.py` runs it: one adapter per task, three decodes at a
-fixed wall clock.
+**Training the model itself.** Everything above and everything in Part 2 changes the PIPELINE around
+a fixed model. None of it moved the score. The compositional corpus is the first thing that changes
+the model: 402 two-step rules from composed RE-ARC verifiers, 78,792 examples, each instantiable
+without limit. The learnability probe cleared its gate at 5 of 14 against 14 of 14 for single rules.
+A pilot fine-tune and its no-TTT gate are running.
 
-**Unchanged-cell loss masking.** 88% of a median output is a verbatim copy of its input, on the 67.5%
-of tasks that preserve shape. Queued, three arms.
+**Meta-learned initialization.** Not the same as the cross-task warm start we closed. That transferred
+a neighbour's adapter; this trains an initialization THROUGH the adaptation step, Reptile-style. It
+needs a distribution of tasks, which is exactly what the 402 composed rules now provide and what we
+did not have before. Gated behind the fine-tune, since it inherits any damage the corpus does.
 
-**Anything attacking the 16-token vocabulary.** Untouched, and the deepest constraint we have. The
-cheapest instance is now built: a zero-padded `HHWW` header before each output grid, entirely
-in-vocabulary, five extra tokens. Gate 4 warns it will be weak — the decoder already agrees with
-itself about shape on 82% of pools — so what it really prices is what it costs to teach this base
-any new syntax during TTT.
+**Anything attacking the 16-token vocabulary.** Still the deepest constraint we have, and now priced
+rather than untouched: the dimension-prefix run says new in-vocabulary syntax costs the entire pool
+during TTT. That does not close the direction, but it sets the bar. Anything here has to explain how
+it avoids the 14-of-19 self-inconsistency the header hit.
 
 ---
 
