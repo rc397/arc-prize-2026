@@ -75,15 +75,20 @@ VERSIONS = [
          ttt=240, note="SAME version,\nfourth run"),
     dict(tag="v7.2r5", score=30.56, hours=None, time_est=True, accel="L4 x4",
          ttt=240, note="SAME version,\nfifth run"),
+    dict(tag="v7.2r6", score=30.56, hours=None, time_est=True, accel="L4 x4",
+         ttt=240, note="SAME version,\nsixth run"),
+    dict(tag="v7.2r7", score=28.89, hours=None, time_est=True, accel="L4 x4",
+         ttt=240, note="SAME version,\nseventh run"),
 ]
 
-# Eight runs of the unchanged pipeline. Four of them are the SAME immutable Kaggle kernel version
-# resubmitted (30.56, 32.64, 28.47, 31.39), so 4.17 points of this spread carry no confound of any
-# kind. The band is the family mean plus and minus one standard deviation, so a regression is read
-# against measured noise rather than against a single flattering number. Earlier versions of this
-# figure drew the band from three runs and then five, and both made regressions look decisive that
-# are not; the estimate has widened every time and always in the same direction.
-FAMILY = [28.47, 30.00, 30.56, 30.56, 30.56, 30.97, 31.39, 32.64]
+# SEVEN runs of ONE immutable Kaggle kernel version, verified by scriptVersionId rather than by the
+# submission description. Nothing differs between them except the day Kaggle executed them, so the
+# whole 4.17-point spread carries no confound of any kind. Earlier versions of this figure drew the
+# band from three runs, then five, then an eight-member family that pooled in one-factor variants;
+# that last one was the wrong instrument, since its spread confounds the code change with the day,
+# and it was also the NARROWER of the two. The estimate has widened at every revision and always in
+# the same direction.
+FAMILY = [30.56, 32.64, 28.47, 31.39, 30.56, 30.56, 28.89]
 _MEAN = sum(FAMILY) / len(FAMILY)
 _SD = (sum((x - _MEAN) ** 2 for x in FAMILY) / (len(FAMILY) - 1)) ** 0.5
 NOISE_LO, NOISE_HI = _MEAN - _SD, _MEAN + _SD
@@ -118,12 +123,17 @@ def fig_version_score():
     fig, ax = plt.subplots(figsize=(12.6, 5.4))
     xs = list(range(len(VERSIONS)))
 
-    # measured same-config noise band, three runs of the unchanged pipeline
-    ax.axhspan(NOISE_LO, NOISE_HI, color=BLUE, alpha=0.10, zorder=1)
-    ax.text(0.1, NOISE_HI + 0.45,
-            "same-config spread, 8 runs: mean 30.64, sd 1.18. One kernel VERSION run 5x "
-            "spans 4.17 points",
-            fontsize=8.8, color=BLUE)
+    # Measured noise: one immutable kernel version, seven executions. Both bands are drawn, because
+    # the paper's claim is about TWO standard deviations and an earlier version of this figure shaded
+    # only one while asserting everything fell inside it. Six points sit below the inner band.
+    ax.axhspan(_MEAN - 2 * _SD, _MEAN + 2 * _SD, color=BLUE, alpha=0.06, zorder=1)
+    ax.axhspan(NOISE_LO, NOISE_HI, color=BLUE, alpha=0.12, zorder=1)
+    ax.text(0.1, 21.8,
+            "ONE kernel version run 7x: mean %.2f, sd %.2f, spanning 4.17 points.\n"
+            "Bands are $\\pm1$ and $\\pm2$ sd. Every score from v7.1 onward, including\n"
+            "every build we called a regression, lies within $1.8$ sd of that mean."
+            % (_MEAN, _SD),
+            fontsize=9.2, color=BLUE, va="top")
 
     # 2025 Kaggle SOTA reference (the 2025 climb target, same base-model lineage)
     ax.axhline(SOTA_2025, ls="--", color=GREY, lw=1.3)
@@ -148,7 +158,10 @@ def fig_version_score():
                         ha="center", fontsize=10, color=BLUE, fontweight="bold")
 
     ax.set_xticks(xs)
-    ax.set_xticklabels([f"{v['tag']}\n{v['note']}" for v in VERSIONS], fontsize=8.2)
+    # Twenty-five two-line labels do not fit horizontally; rotating is the only thing that keeps the
+    # note readable, and the note is where the "SAME version" repeats do their work.
+    ax.set_xticklabels([f"{v['tag']}: {v['note']}".replace("\n", " ") for v in VERSIONS],
+                       fontsize=7.6, rotation=42, ha="right", rotation_mode="anchor")
     ax.set_ylabel("hidden 240-task main-track score (%)", fontsize=10.5)
     ax.set_ylim(0, 34)
     ax.set_xlim(-0.45, len(VERSIONS) - 0.55)
