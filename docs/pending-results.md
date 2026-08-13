@@ -62,9 +62,16 @@ applications holding contexts were a red herring.
 Also measured: the **val pass costs 185.6 s** for its 200 examples, once per `eval_every`. Cheap in
 the pilot at four calls, but it is 200 forward passes for one number.
 
-Not yet verified: flatness is measured over 60 steps and the mechanism predicts it holds, but the
-pilot only degraded after hundreds. An 8,000-step padded run is on the card now as the direct
-comparison against the pilot's 26 hours.
+**Verified at full pilot scale.** The same 8,000 examples the pilot took **26.0 hours** to train
+finished in **2.42 hours** wall clock, including corpus load, model load and the merge-and-save.
+That is 1.06 s/step against the pilot's 11.6, a **10.9x** speedup, and step 299 was still at
+0.99-1.21 s so it never degraded. One epoch of the full 78,792-example corpus is therefore
+**23.2 hours**, not eleven days.
+
+The checkpoint that run produced is a throwaway: `--eval-every` was set to 100000 to keep the val
+pass out of the timing, so `best` stayed at infinity and it saved the final adapter rather than the
+best one. A real full run wants `--eval-every` back at something sane, and the val pass is now cheap
+enough to afford.
 
 ### Two things the pilot already tells us
 
