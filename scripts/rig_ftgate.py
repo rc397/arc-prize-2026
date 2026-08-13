@@ -39,7 +39,9 @@ BASE = os.environ.get("ARC_PROBE_BASE", r"D:\arc")
 for _p in (HERE, BASE):
     if _p not in sys.path:
         sys.path.insert(0, _p)
-OUT = os.path.join(BASE, "experiments", "ftgate.jsonl")
+# Overridable, because the resume logic keys on (arm, task) and would silently skip every task
+# already recorded against a DIFFERENT checkpoint, reporting a finished gate that never ran.
+OUT = os.environ.get("ARC_FTGATE_OUT", os.path.join(BASE, "experiments", "ftgate.jsonl"))
 TMP = os.path.join(BASE, "_ftgate")
 
 

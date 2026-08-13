@@ -91,6 +91,26 @@ this is a gap to fill afterwards rather than a reason to restart.
 | replicate run 10, sub **55424200** | **28.89.** Series is now n=7: mean 30.44, sd 1.42, range 4.17, CI on sd [0.91, 3.12], CI on mean [29.13, 31.75] | EXPERIMENTS.md done. **Still owed to the tex**: the abstract, intro and variance passage all quote 32.64 as the result. It is the maximum of seven draws from a distribution centred on 30.44, so it should be reported as an order statistic with the band, not as the score |
 | five offline closures, 10 Aug | done, no GPU | folded into idea-triage.md Part 2 and idea-batch-01.md Part 6. **Still owed to the paper**: candidate-filter replay, depth-decay dominated by the flat floor, palette canon no-op proof, column-major already in D4, augmentation damage numbers |
 
+## Does the variance generalise beyond one artifact? Partly answered
+
+Sub **55475642**, 13 Aug: a second run of `scriptVersionId=337769272`, the v7.2 build that scored
+30.97 the first time. It scored **30.56**, so that artifact's two draws differ by 0.41, one task
+credit, against 4.17 for the seven-run series.
+
+That is not evidence of a quieter build. Two draws from a distribution with sd 1.42 have a
+difference with sd 2.01, so a 0.41 gap is 0.20 sd and **84% of pairs would differ by more**. It is an
+unremarkable draw, and two draws cannot confirm or refute anything. What it does do is remove the
+easiest objection: nothing here suggests the variance is peculiar to the one kernel we hammered.
+
+Pooling both builds of the same configuration, since the replicate differs from it only in the size
+of its own commit run: **n = 9, mean 30.51, sd 1.24, range 4.17**, 95% CI on the sd $[0.84, 2.38]$.
+The single-version series stays the primary instrument because it has no build confound at all; the
+pooled figure is the check that the result is not an artifact of one build.
+
+One oddity worth recording rather than interpreting: **30.56 has now come up 4 times in 9 draws**,
+with every other value appearing once. That is more repetition than a smooth distribution suggests
+and it may mean the outcome space is lumpy, but nine draws is far too few to claim it.
+
 ## Reading any new hidden score
 
 Use the same-kernel series, because it is the only one with nothing else varying:
