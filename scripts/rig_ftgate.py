@@ -163,30 +163,48 @@ def summarize(path=OUT):
             print("%-6s %-6s %8d %8d %8d %8d"
                   % (arm, fam, len(r), sum(x["in_pool"] for x in r),
                      sum(x["outputs"] for x in r), sum(x["n_cands"] for x in r)))
+    # Paired counts, not totals. An earlier version of this verdict read the totals and announced
+    # both "the fine-tune learned the rules it was trained on" and "it cost grid ability", when each
+    # of those rested on ONE task moving by one output. Totals invite that error; sign counts do not.
+    paired = {}
+    for fam in ("comp", "arc"):
+        b = {r["task"]: r for r in recs if r["arm"] == "base" and r["family"] == fam}
+        f = {r["task"]: r for r in recs if r["arm"] == "ft" and r["family"] == fam}
+        shared = sorted(set(b) & set(f))
+        up = sum(1 for t in shared if f[t]["in_pool"] > b[t]["in_pool"])
+        dn = sum(1 for t in shared if f[t]["in_pool"] < b[t]["in_pool"])
+        bc = sum(b[t]["n_cands"] for t in shared)
+        fc = sum(f[t]["n_cands"] for t in shared)
+        paired[fam] = (up, dn, len(shared), bc, fc)
+
     print("")
     print("VERDICT")
-    if ("ft", "comp") in cells and ("base", "comp") in cells:
-        b, bt = cells[("base", "comp")]
-        f, ft = cells[("ft", "comp")]
-        print("  composed: base %d of %d, fine-tuned %d of %d." % (b, bt, f, ft))
-        learned = f > b
-        print("  %s" % ("The fine-tune learned the rules it was trained on." if learned else
-                        "The fine-tune did NOT learn the rules it was trained on, so nothing"
-                        " downstream of this is worth running."))
-    if ("ft", "arc") in cells and ("base", "arc") in cells:
-        b, bt = cells[("base", "arc")]
-        f, ft = cells[("ft", "arc")]
-        print("  ARC-AGI-2: base %d of %d, fine-tuned %d of %d." % (b, bt, f, ft))
-        if f < b:
-            print("  It cost grid ability on the real target. That is the veto, and it is the")
-            print("  expected failure mode of continued training on a narrow distribution.")
-        elif f == b:
-            print("  Unchanged on the real target, which at this sample size means not")
-            print("  distinguishable rather than equal. It survives the gate without earning a")
-            print("  submission; the next step is a TTT A/B, not a push.")
-        else:
-            print("  Better on the real target as well. Confirm with a TTT A/B before believing it,")
-            print("  since no-TTT coverage and deployed coverage have disagreed before.")
+    for fam, label in (("comp", "composed"), ("arc", "ARC-AGI-2")):
+        if fam not in paired:
+            continue
+        up, dn, n, bc, fc = paired[fam]
+        print("  %-10s better on %d tasks, worse on %d, tied on %d of %d; candidates %d to %d (%+.0f%%)"
+              % (label, up, dn, n - up - dn, n, bc, fc, 100.0 * (fc - bc) / max(1, bc)))
+
+    cu, cd = paired.get("comp", (0, 0, 0, 0, 0))[:2]
+    au, ad = paired.get("arc", (0, 0, 0, 0, 0))[:2]
+    if max(cu, cd, au, ad) <= 1:
+        print("")
+        print("  Every arm is tied on all but at most one task, so this measures NOTHING in either")
+        print("  direction. It did not learn the composed rules and it did not damage the base; a")
+        print("  one-task move is not a result at these sample sizes. Read it together with the")
+        print("  training curve: if the val loss also barely moved, the honest conclusion is that")
+        print("  the intervention was too small to test the hypothesis, not that the hypothesis is")
+        print("  false. Scaling it up is then still an open question and still expensive.")
+    elif ad > au:
+        print("")
+        print("  The fine-tune costs coverage on the real target on more tasks than it gains. That")
+        print("  is the veto, and it is the expected failure mode of continued training on a narrow")
+        print("  distribution.")
+    elif cu > cd and au >= ad:
+        print("")
+        print("  It learned the composed rules without costing the real target. Confirm with a TTT")
+        print("  A/B before believing it, since no-TTT and deployed coverage have disagreed before.")
 
 
 if __name__ == "__main__":
