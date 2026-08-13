@@ -39,14 +39,41 @@ def load_jsonl(path, max_len):
     return ex
 
 
+def padded(ids, labels, mult):
+    """Round a sequence up to a multiple of `mult`, masking the padding out of both the loss and
+    the attention.
+
+    This is the whole fix, and it is about the ALLOCATOR rather than about the model. Every example
+    in this corpus is a different length, so every step asks CUDA's caching allocator for a block
+    size it has never seen; nothing is ever reused, reserved memory climbs to the card's limit, and
+    from then on each step pays for synchronising frees. Measured: 1.48 s/step over the first 15
+    steps, 2.97 over the first 19, and 11.5 averaged across the pilot's 8,000. Rounding to a multiple
+    of 256 leaves at most eight distinct shapes, which the allocator reuses forever.
+
+    On Linux the supported fix is PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True. This rig runs
+    native Windows, where that allocator prints "expandable_segments not supported on this platform"
+    and is ignored, so the padding is not a preference.
+
+    The loss is unchanged, not approximately: padded label positions are -100 and cross-entropy
+    ignores them, and the attention mask keeps the padding out of every score.
+    """
+    n = len(ids)
+    if not mult or n % mult == 0:
+        return ids, labels, [1] * n
+    m = ((n + mult - 1) // mult) * mult
+    return ids + [0] * (m - n), labels + [-100] * (m - n), [1] * n + [0] * (m - n)
+
+
 @torch.no_grad()
-def val_loss(peft_model, val, device, limit=200):
+def val_loss(peft_model, val, device, limit=200, pad_mult=0):
     peft_model.eval()
     tot, n = 0.0, 0
     for ids, labels in val[:limit]:
-        ii = torch.tensor([ids], device=device)
-        ll = torch.tensor([labels], device=device)
-        tot += float(peft_model(input_ids=ii, labels=ll).loss)
+        pi, pl, am = padded(ids, labels, pad_mult)
+        ii = torch.tensor([pi], device=device)
+        ll = torch.tensor([pl], device=device)
+        aa = torch.tensor([am], device=device)
+        tot += float(peft_model(input_ids=ii, labels=ll, attention_mask=aa).loss)
         n += 1
     peft_model.train()
     return tot / max(1, n)
@@ -67,6 +94,11 @@ def main():
     ap.add_argument("--limit", type=int, default=0, help="cap train examples (0 = all); use for a pilot")
     ap.add_argument("--eval-every", type=int, default=2000)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--pad-mult", type=int, default=256,
+                    help="round every sequence up to a multiple of this so the CUDA "
+                         "caching allocator sees repeating shapes; 0 disables")
+    ap.add_argument("--trace", type=int, default=0,
+                    help="print per-phase timing for the first N steps and for the val pass")
     a = ap.parse_args()
     device = "cuda"
     torch.manual_seed(a.seed)
@@ -95,19 +127,36 @@ def main():
     t0 = time.time()
     run = 0.0
     peft_model.train()
+    # Per-phase timing for the first few steps. The pilot ran at 11.7 s/step while an isolated
+    # harness measured the identical configuration at 1.37, and no amount of reading the code found
+    # the difference, so the loop reports where its own time goes.
     for step in range(steps):
+        ts = time.time()
         ids, labels = train[step % len(train)]
-        ii = torch.tensor([ids], device=device)
-        ll = torch.tensor([labels], device=device)
-        loss = peft_model(input_ids=ii, labels=ll).loss / a.accum
+        pi, pl, am = padded(ids, labels, a.pad_mult)
+        ii = torch.tensor([pi], device=device)
+        ll = torch.tensor([pl], device=device)
+        aa = torch.tensor([am], device=device)
+        t_data = time.time()
+        loss = peft_model(input_ids=ii, labels=ll, attention_mask=aa).loss / a.accum
+        t_fwd = time.time()
         loss.backward()
+        t_bwd = time.time()
         run += float(loss) * a.accum
         if (step + 1) % a.accum == 0:
             torch.nn.utils.clip_grad_norm_(params, 1.0)
             opt.step()
             opt.zero_grad()
+        t_opt = time.time()
+        if a.trace and step < a.trace:
+            print("  [trace] step %2d len %4d  data %.3f  fwd %.3f  bwd %.3f  opt %.3f  total %.3f"
+                  % (step, len(ids), t_data - ts, t_fwd - t_data, t_bwd - t_fwd,
+                     t_opt - t_bwd, t_opt - ts), flush=True)
         if (step + 1) % a.eval_every == 0:
-            vl = val_loss(peft_model, val, device)
+            tv = time.time()
+            vl = val_loss(peft_model, val, device, pad_mult=a.pad_mult)
+            if a.trace:
+                print("  [trace] val pass %.1fs" % (time.time() - tv), flush=True)
             print("step %d/%d trainloss %.4f valloss %.4f %.0fs"
                   % (step + 1, steps, run / a.eval_every, vl, time.time() - t0), flush=True)
             run = 0.0

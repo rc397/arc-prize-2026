@@ -38,6 +38,34 @@ matrix drift apart otherwise. Delete a row only when its result is folded in eve
 | batch-03 pilot fine-tune | **DONE, 26.0 hours.** val loss 0.1087 / 0.1047 / 0.0988 / **0.0981** at steps 2k/4k/6k/8k, train 0.0937 at the end. Monotone, train and val together, so it fit the corpus without overfitting | the checkpoint is at `D:\arc\models\comp_pilot\qwen3-4b-arc2ft`. Note the val loss is next-token loss on serialized grids and 88% of a grid is a copy, so it is a weak proxy for whether a rule was learned. The gate decides |
 | `rig_ftgate.py` | **DONE, 40 records.** composed: better on 1 task, worse on 0, tied on 7 of 8, candidates +13%. ARC-AGI-2: better on 0, worse on 1, tied on 11 of 12, candidates **-29%** | **The pilot is a null in both directions**, and the first verdict this script printed was wrong: it read the totals (3 to 4, and 5 to 4) and announced both that the fine-tune had learned the rules and that it had cost grid ability, when each rested on ONE task. Script corrected to report paired sign counts. Read with the training curve, which moved val loss only 9.8%: the intervention was too small to test the hypothesis, not evidence the hypothesis is false. The only quantity with size to it is the 29% drop in ARC candidates, and it points toward distribution shift |
 
+### The eleven-day figure was an allocator bug, and it is now about one day
+
+`rig_ftbench.py` plus a traced trainer, 13 Aug. **The full corpus is ~25 hours for one epoch, not
+eleven days.** Sequence lengths in this corpus are all different, so every step asked CUDA's caching
+allocator for a block size it had never seen, nothing was ever reused, reserved memory climbed to the
+card's limit and every step then paid for synchronising frees. Rounding each sequence up to a
+multiple of 256, with the padding masked out of both the loss and the attention, leaves at most eight
+distinct shapes and the allocator reuses them forever.
+
+| | steps 0-20 | 20-40 | 40-60 | s per 1k tokens | one epoch, 78,792 examples |
+|---|---|---|---|---|---|
+| unpadded | 4.36 s | 4.15 s | - | 2.9 | 3.8 days |
+| **pad to 256** | **1.13 s** | **1.14 s** | **1.17 s** | **0.75** | **1.05 days** |
+| pilot as realised | | | | | 10.7 days |
+
+Two hypotheses were wrong on the way and both cost a measurement to kill. **sdpa attention is
+slower here than eager**, 966 against 1133 tokens/s, so the "eager is the 13 s/step path" note in
+`src/arc/ttt.py` does not apply to this workload. And the card was **not** contended: the decisive
+re-test ran with the GPU at 293 MiB and 2% utilisation and was still slow, so the desktop
+applications holding contexts were a red herring.
+
+Also measured: the **val pass costs 185.6 s** for its 200 examples, once per `eval_every`. Cheap in
+the pilot at four calls, but it is 200 forward passes for one number.
+
+Not yet verified: flatness is measured over 60 steps and the mechanism predicts it holds, but the
+pilot only degraded after hundreds. An 8,000-step padded run is on the card now as the direct
+comparison against the pilot's 26 hours.
+
 ### Two things the pilot already tells us
 
 **It is 27 hours, not the 1 to 3 I estimated.** 12.0 s/step at rank 32, batch 1, 2048 tokens, with the
