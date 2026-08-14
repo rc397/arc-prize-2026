@@ -75,7 +75,7 @@ def api_surface():
         print("  %s" % n)
 
 
-def push(slug, message):
+def push(slug, message, version=0):
     """Resubmit an existing kernel version. The artifact is immutable, so this is a fresh DRAW from
     the same code, which is the point of the replicate series."""
     if listing():
@@ -88,7 +88,7 @@ def push(slug, message):
     # like a permissions failure. It is not one: it is a missing argument. kernels_list reports
     # current_version_number as 0 for this kernel, so fall back to 1, which is the version every
     # replicate has been submitted from.
-    ver = getattr(match[0], "current_version_number", 0) or 1
+    ver = version or getattr(match[0], "current_version_number", 0) or 1
     print("found %s, submitting version %d" % (slug, ver))
     try:
         out = api.competition_submit_code(file_name="submission.json", message=message,
@@ -106,7 +106,7 @@ def push(slug, message):
     return out
 
 
-def wait_push(slug, message):
+def wait_push(slug, message, version=0):
     """Block until the UTC day rolls, then submit once.
 
     The quota is one a day on a UTC boundary and today's is already spent, so 'push it' means push
@@ -119,7 +119,7 @@ def wait_push(slug, message):
     while datetime.datetime.now(datetime.timezone.utc).date() <= start:
         time.sleep(60)
     print("UTC day is now %s" % datetime.datetime.now(datetime.timezone.utc).date(), flush=True)
-    push(slug, message)
+    push(slug, message, version)
 
 
 if __name__ == "__main__":
@@ -132,6 +132,7 @@ if __name__ == "__main__":
         push(sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else "replicate for the variance series")
     elif cmd == "wait-push":
         wait_push(sys.argv[2],
-                  sys.argv[3] if len(sys.argv) > 3 else "replicate for the variance series")
+                  sys.argv[3] if len(sys.argv) > 3 else "replicate for the variance series",
+                  int(sys.argv[4]) if len(sys.argv) > 4 else 0)
     else:
         raise SystemExit(__doc__)
