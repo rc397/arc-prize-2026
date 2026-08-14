@@ -661,6 +661,33 @@ cannot see anything smaller than a third of our own score}, so a programme of si
 A/B tests, which is what the field and this project both ran, was never capable of the discrimination
 it claimed.
 
+\paragraph{The uncomfortable direction of that argument.}
+It is easy to read the preceding as a defence: our regressions were not real, so we did not break
+anything. The symmetric reading is the one that costs us something. If a single submission cannot
+resolve a two-point effect, then a lever that genuinely \emph{worked} by one or two points would have
+produced a score indistinguishable from a bad draw, and we would have killed it. We must therefore
+allow that some of what this project discarded was working, and we cannot say which. Five builds were
+rejected on a hidden score alone --- v7.3, v7.4, v7.5a, the 1200-second cap, and the no-dead-AIF
+variant --- and every one of them is a candidate for that error. We are not claiming any of them
+worked; we are recording that our procedure could not have told us.
+
+Two qualifications keep this from becoming a general licence to doubt everything. First, the
+measurement is taken at the 30-point operating point, and the per-task binomial component of the
+variance is smaller at 13 points, so the early v2-to-v5 comparisons are not automatically covered by
+this number and would need their own. Second, and more importantly, \textbf{most of the ledger was
+never judged on a hidden score at all.} Twenty-eight of the thirty-three levers were closed by paired
+offline measurement, where both arms see the same tasks under the same budget on the same afternoon,
+task difficulty cancels in the pairing, and the twelve-hour contest wall clock --- the mechanism that
+produces this variance --- is not in the loop. Those closures have a different weakness, which is
+small samples and sign tests at $p = 0.25$ to $0.50$, and it is not this one. Conflating the two
+would let a real result about submission noise excuse a separate and equally real problem with
+statistical power offline.
+
+The forward-looking cost is arithmetic. Re-testing one discarded lever properly, at three runs per
+arm, is six submission days. A season has of order ninety. So the entire remaining budget of a
+compute-poor entry, spent on nothing else, adjudicates about fifteen hypotheses --- and only those
+with effects above three points, which is larger than anything this project has produced.
+
 Two of those lines are worth stating plainly rather than leaving in a table. \textbf{The LB33 control
 scored 28.47, and so did our own unmodified pipeline.} The phantom-notebook section
 (Section~\ref{sec:phantom}) concluded that two public artifacts ``both land near 28 when executed,
