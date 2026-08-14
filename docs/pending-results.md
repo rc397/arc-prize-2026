@@ -125,23 +125,31 @@ so the sign test is unchanged at 3 against 0.
 
 ## Does the variance generalise beyond one artifact? Partly answered
 
-Sub **55475642**, 13 Aug: a second run of `scriptVersionId=337769272`, the v7.2 build that scored
-30.97 the first time. It scored **30.56**, so that artifact's two draws differ by 0.41, one task
-credit, against 4.17 for the seven-run series.
+**ANSWERED.** Three runs of `scriptVersionId=337769272`, the v7.2 build that had scored 30.97 once:
+it went **30.56** then **28.47**.
 
-That is not evidence of a quieter build. Two draws from a distribution with sd 1.42 have a
-difference with sd 2.01, so a 0.41 gap is 0.20 sd and **84% of pairs would differ by more**. It is an
-unremarkable draw, and two draws cannot confirm or refute anything. What it does do is remove the
-easiest objection: nothing here suggests the variance is peculiar to the one kernel we hammered.
+| script version | runs | mean | sd | range |
+|---|---|---|---|---|
+| 339772104, the replicate | 7 | 30.44 | **1.42** | 4.17 |
+| 337769272, the v7.2 build | 3 | 30.00 | **1.34** | 2.50 |
+| pooled | 10 | 30.31 | **1.34** | 4.17 |
 
-Pooling both builds of the same configuration, since the replicate differs from it only in the size
-of its own commit run: **n = 9, mean 30.51, sd 1.24, range 4.17**, 95% CI on the sd $[0.84, 2.38]$.
-The single-version series stays the primary instrument because it has no build confound at all; the
-pooled figure is the check that the result is not an artifact of one build.
+Variance ratio **F = 1.12**. Two separately built artifacts of the same configuration reproduce the
+run-to-run spread to two significant figures, so the standard deviation is a property of the
+pipeline and not of the one kernel we hammered. 95% CI on the pooled sd $[0.92, 2.44]$. Folded into
+the tex as Table~\ref{tab:twoartifacts}.
 
-One oddity worth recording rather than interpreting: **30.56 has now come up 4 times in 9 draws**,
-with every other value appearing once. That is more repetition than a smooth distribution suggests
-and it may mean the outcome space is lumpy, but nine draws is far too few to claim it.
+It also kills an intermediate reading we held for a day. After two draws that artifact showed a gap
+of 0.41 and looked quieter; two draws from sd 1.42 differ by more than that 84% of the time, and the
+third came in at 28.47. **A pair of runs cannot measure a spread**, which is the same lesson the
+three-run estimate taught, arriving a second time by a different route.
+
+28.47 is 1.37 sd below the pooled mean, from code identical to the run that scored 30.97. It is an
+ordinary draw and specifically not a regression.
+
+One oddity recorded rather than interpreted: across all ten draws, 30.56 appears 4 times and 28.47
+twice, with everything else once. That is more repetition than a smooth distribution suggests, and
+ten draws is far too few to claim it.
 
 ## Reading any new hidden score
 
