@@ -91,6 +91,38 @@ this is a gap to fill afterwards rather than a reason to restart.
 | replicate run 10, sub **55424200** | **28.89.** Series is now n=7: mean 30.44, sd 1.42, range 4.17, CI on sd [0.91, 3.12], CI on mean [29.13, 31.75] | EXPERIMENTS.md done. **Still owed to the tex**: the abstract, intro and variance passage all quote 32.64 as the result. It is the maximum of seven draws from a distribution centred on 30.44, so it should be reported as an order statistic with the band, not as the score |
 | five offline closures, 10 Aug | done, no GPU | folded into idea-triage.md Part 2 and idea-batch-01.md Part 6. **Still owed to the paper**: candidate-filter replay, depth-decay dominated by the flat floor, palette canon no-op proof, column-major already in D4, augmentation damage numbers |
 
+## The full compositional fine-tune: it learned, and it cost more than it learned
+
+67,671 examples, one epoch, 20.9 hours, best val loss **0.0719** against the pilot's 0.0981. Unlike
+the pilot this moved things, in both directions.
+
+| | coverage | tasks better/worse/tied | sign p | candidates |
+|---|---|---|---|---|
+| composed rules, no TTT | 3/8 -> **6/8** | 3 / 0 / 5 | 0.25 | 13 -> **39 (+200%)** |
+| ARC-AGI-2, no TTT | 5/20 -> **3/20** | 0 / 2 / 10 | 0.50 | 36 -> **19 (-47%)** |
+| ARC-AGI-2, under per-task TTT | 6/17 -> **4/17** | 0 / 2 / 8 | 0.50 | 54 -> 54 |
+
+**The corpus teaches what it contains and damages what it does not.** Composed-rule coverage doubles
+and candidate generation on composed tasks triples, which settles the pilot's ambiguity: that null
+was underpowering, not absence of an effect. On the real target, coverage falls and candidate
+generation halves, and **test-time training does not rebuild it** - a fresh rank-256 adapter per task
+still lands at 4 of 17 against the stock base's 6.
+
+Read the strengths honestly. Every individual sign test is weak (p = 0.25, 0.50, 0.50). What carries
+the result is that three independent measurements point the same way and that the candidate counts,
+which have far more samples than the task counts, move by +200% and -47%. **The checkpoint is dead
+for submission** and the direction is not: this is textbook catastrophic forgetting on a narrow
+distribution, and the standard remedy, mixing the composed corpus with the base's own distribution
+rather than training on composed data alone, was never tried. That is the obvious next experiment
+and it costs the same 23 hours.
+
+## Unchanged-cell loss masking, topped up to 12 tasks
+
+base 8 of 20 outputs, 74 candidates, copy error 0.019, change error 0.222. Masked arm worse on 3
+tasks, tied on 9, better on 0. **The random control is tied on all 12**, up from all 8, which is the
+half that matters: the confound stays excluded on a larger sample. The four new tasks were all ties,
+so the sign test is unchanged at 3 against 0.
+
 ## Does the variance generalise beyond one artifact? Partly answered
 
 Sub **55475642**, 13 Aug: a second run of `scriptVersionId=337769272`, the v7.2 build that scored
