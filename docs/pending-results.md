@@ -265,3 +265,37 @@ hours plus a 2.2-hour gate. If ARC is preserved there, mixing is confirmed.
 Do not compare the val losses across these runs. The pilot's 0.0981 is on the composed val set and
 the mixed run's 0.0601 is on a mixed val set that is half single-rule, so the difference is mostly
 the easier half being averaged in.
+
+## The compositional direction, closed by a complete 2x2
+
+The confound is resolved: at MATCHED composed exposure, adding protective data prevents the damage.
+It was the mixing, not the reduced exposure.
+
+| run | composed | protective | ARC-AGI-2 | ARC cands | composed | composed cands |
+|---|---|---|---|---|---|---|
+| pilot | 8k | 0 | 4/20 (**-1**) | **-29%** | 4/8 (+1) | +13% |
+| full | 67.7k | 0 | 3/20 (**-2**) | **-47%** | 6/8 (+3) | **+200%** |
+| mixed | 4k | 4k | 5/20 (0) | 0% | 4/8 (+1) | +8% |
+| **mixed** | **8k** | **8k** | **5/20 (0)** | **-6%** | 4/8 (+1) | -15% |
+
+Base is 5/20 on ARC and 3/8 on composed in every row.
+
+**And the direction is closed anyway, for a reason the confound was hiding.** No configuration at any
+scale has ever put ARC coverage above the base's 5/20. Best case is neutral. The large composed gain
+needed the unmixed full corpus, which is precisely the run that damaged ARC, and protecting ARC
+also removes the gain: composed candidates went from +200% unmixed to **-15%** mixed at 8k exposure.
+
+The one untested cell is full-scale mixed, 67.7k composed plus 67.7k protective, about 135,000 steps
+and **41 hours**. Its best plausible outcome is "ARC unchanged, composed better", and composed is our
+own synthetic benchmark rather than the target. That is not a score, so the cell is not worth 41
+hours unless something else motivates it.
+
+## no-dead-AIF, two draws
+
+30.00 and 29.03, mean 29.52 against the banked control's 30.31 (n=10, sd 1.34). Difference -0.79,
+se 1.04, **t = -0.77, not distinguishable**, and both draws sit below the control mean.
+
+A third draw narrows the interval to about +/-0.88 and the resolution at n=3 is 2.5 points, so it
+cannot make a -0.8 effect significant either way. Stopping at n=2 IS optional stopping and should be
+reported as such: **n=2, not distinguishable, point estimate slightly negative.** The slot is better
+spent on v7.3, which has a live mechanism.
