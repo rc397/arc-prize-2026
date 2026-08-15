@@ -236,3 +236,32 @@ whether it gave one. We cannot apportion them, because the API exposes no per-su
 mean and cut the variance together by converting empty pools into answers on slow sessions. The rig
 floor sweep found no gain from tightening at a fixed 600s budget, but that is not a contest worker at
 1800s with a variable machine underneath it. Testing it properly is three runs per arm, six days.
+
+## Mixing the corpus: encouraging, and confounded
+
+`rig_queue_batch06.py`, 15 Aug. 8,000 steps on 4,000 composed interleaved with 4,000 single-rule,
+2.3 hours training plus a 2.2-hour ft-arm-only gate. Compared at **equal compute** against the pilot,
+which spent its 8,000 steps on composed data alone.
+
+| training | composed | ARC-AGI-2 | ARC candidates |
+|---|---|---|---|
+| pilot, pure composed, 8k steps | +1 task, +13% cands | **-1 task** | **-29%** |
+| full, pure composed, 67.7k steps | +3 tasks, +200% cands | **-2 tasks** | **-47%** |
+| **mixed 50/50, 8k steps** | +1 task, +8% cands | **0 tasks** | **0%**, 36 to 36 |
+
+The damage is gone and the (weak) composed gain survives, which is what the anti-forgetting
+hypothesis predicts.
+
+**The confound, which is not small.** The mixed run contains 4,000 composed examples where the pilot
+had 8,000, so "mixing prevented the damage" is not separated from "half the composed exposure did
+half the damage". Two further signs point at the second reading: 7 of 12 ARC tasks produced a
+byte-identical candidate count, and the total is exactly 36 to 36, which is what a model that barely
+moved would look like rather than one that moved and was protected.
+
+**The decisive run isolates it**: 8,000 composed, matching the pilot exactly, plus 8,000 single-rule,
+so composed exposure is held fixed and only the protective half is added. 16,000 steps is about 4.5
+hours plus a 2.2-hour gate. If ARC is preserved there, mixing is confirmed.
+
+Do not compare the val losses across these runs. The pilot's 0.0981 is on the composed val set and
+the mixed run's 0.0601 is on a mixed val set that is half single-rule, so the difference is mostly
+the easier half being averaged in.
