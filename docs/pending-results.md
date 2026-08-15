@@ -207,3 +207,32 @@ which also gives the command line and the parent, so the queue and its child are
 The queue streams each phase's output to `experiments/novel_queue.log` line by line. It used to
 buffer with `capture_output`, which hid progress for hours and lost the entire log when the queue
 was killed mid-phase.
+
+## What the score variance is actually made of
+
+Pulled the per-submission `total_bytes` for all 28 submissions, 15 Aug. It is the only per-run
+quantity the Kaggle API exposes and it turns out to be an instrument.
+
+Across the ten same-configuration draws, **submission size and score correlate at r = +0.64**, and
+the relationship holds independently inside each artifact (+0.61 on seven runs, +0.80 on three). The
+size spread is 25.5 kB on a 778 kB file; at ~2.8 kB per output that is about **nine outputs' worth of
+content**, and nine outputs is 3.75 points against an observed range of 4.17.
+
+An empty pool is written out as the `[[0]]` fallback, a 1x1 grid, which is tiny and certainly wrong.
+So a slow session produces more empty pools, a smaller file and a lower score together. **The
+variance is substantially throughput**, and the whole observed range is accounted for by fewer than a
+dozen tasks producing no answer at all.
+
+This refines rather than contradicts the tail-dropping refutation: that simulation was about the
+GLOBAL twelve-hour wall, which does finish with 14% slack. The deadlines that bite are the per-task
+1800s and the 540s inside a DFS call.
+
+It also partly displaces the coin-flip account. sd 1.34 is consistent with ~41 marginal outputs,
+which matches the measured 12.5% same-seed pool disagreement almost exactly, and that effect is real.
+But size correlation says a large share is the coarser thing: not which answer a task gave but
+whether it gave one. We cannot apportion them, because the API exposes no per-submission log.
+
+**The actionable consequence points opposite to the obvious one.** A CHEAPER search should raise the
+mean and cut the variance together by converting empty pools into answers on slow sessions. The rig
+floor sweep found no gain from tightening at a fixed 600s budget, but that is not a contest worker at
+1800s with a variable machine underneath it. Testing it properly is three runs per arm, six days.

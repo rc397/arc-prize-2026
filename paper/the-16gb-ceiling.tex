@@ -661,6 +661,39 @@ cannot see anything smaller than a third of our own score}, so a programme of si
 A/B tests, which is what the field and this project both ran, was never capable of the discrimination
 it claimed.
 
+\paragraph{What the variance is made of, from the one per-run quantity Kaggle exposes.}
+The submission record carries the byte size of each run's \texttt{submission.json}, and that turns
+out to be a usable instrument. Across the ten same-configuration draws, size and score correlate at
+$r = +0.64$, and the relationship holds independently inside each artifact ($+0.61$ on seven runs,
+$+0.80$ on three). The size spread is 25.5~kB on a 778~kB file, which at roughly 2.8~kB per output is
+about \textbf{nine outputs' worth of content} --- and nine outputs is 3.75 points against an observed
+range of 4.17.
+
+The mechanism that fits is not exotic. A task whose pool comes back empty is written out as the
+\texttt{[[0]]} fallback, a 1$\times$1 grid, which is both tiny and certainly wrong. So a slower
+session produces more empty pools, a smaller file, and a lower score, all at once. The variance is
+substantially \emph{throughput}, and the entire observed range is accounted for by fewer than a dozen
+tasks failing to produce any answer at all.
+
+This refines rather than contradicts the earlier refutation of tail-dropping. That simulation asked
+whether the global twelve-hour wall truncates the task queue and found it finishes with 14\% slack,
+which remains true. The binding deadlines are the per-task 1800~seconds and the 540~seconds inside a
+single DFS call, and those fire task by task on a slow session without the global queue ever running
+out of room.
+
+It also revises a hypothesis we held earlier in this section. The observed standard deviation is
+consistent with about 41 outputs behaving as coin flips, which matches the independently measured
+12.5\% same-seed pool disagreement almost exactly, and that remains a real effect. But the size
+correlation says a substantial share of the variance is the coarser thing: not \emph{which} answer a
+task produced, but \emph{whether it produced one}. The two are not exclusive and we cannot yet
+apportion them, since Kaggle exposes no per-submission log through its API.
+
+The practical consequence points the opposite way from the obvious one. Making the search
+\emph{cheaper} rather than more thorough should raise the mean and cut the variance together, by
+converting empty pools into answered tasks on slow sessions. Our own offline floor sweep found no
+gain from a tighter threshold at a fixed decode budget, but that measured a rig at 600~seconds per
+task and not a contest worker at 1800 with a variable machine underneath it.
+
 \paragraph{The uncomfortable direction of that argument.}
 It is easy to read the preceding as a defence: our regressions were not real, so we did not break
 anything. The symmetric reading is the one that costs us something. If a single submission cannot
