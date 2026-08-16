@@ -343,3 +343,7 @@ That third one also explains why v7.3 and v7.4 are unreachable: no retained outp
 
 `push_v76.py` now asserts on `invalidModelSources` and pins `machine_shape`, and the three failure
 modes are recorded here because each cost a push cycle and none of them raises.
+
+**Resolved.** With `machine_shape: NvidiaL4` pinned, the v7.6 commit run completed in 24 minutes
+and `rc7530/arc-agi-2-v7-6-greedy-fallback-only` is submittable. It is queued for the next slot as
+draw 1 of 3 against the banked n=10 control.
