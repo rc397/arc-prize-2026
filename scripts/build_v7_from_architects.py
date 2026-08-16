@@ -101,6 +101,21 @@ VARIANTS = {
                  "against the demonstrations as one of two channels that break the assumption. This is "
                  "that channel. No configuration on either side has run it."),
     },
+    "v7.6": {
+        "file": "arc_submission_v7_6.ipynb",
+        "env": {"ARC_GREEDY_FALLBACK": "1", "ARC_GFB_BUDGET": "180", "ARC_N_EVAL": "4"},
+        "note": ("The greedy fallback ALONE, at the default 1800s cap and with the loss cut off. v7.3 "
+                 "bundled this with ARC_LOSS_CUT=0.05 and a 1200s cap and scored 28.61, so the one "
+                 "mechanism worth isolating was never isolated. The motivation is measured rather than "
+                 "guessed: submission size correlates with score at r=+0.64 across ten same-config runs, "
+                 "the spread is about nine outputs' worth of content, and an output whose pool comes back "
+                 "empty is written as the [[0]] fallback, a 1x1 grid that is certainly wrong. This fills "
+                 "those with a greedy decode inside a 180s budget. Do-no-harm by construction: it only "
+                 "touches keys that produced nothing, so it cannot displace a real candidate. The other "
+                 "free fallbacks are already dead, since the test output equals the test input on 0 of "
+                 "172 evaluation outputs, so a model prediction is the only thing left that can fill an "
+                 "empty pool with something better than a guaranteed miss."),
+    },
     "v7.5b": {
         "file": "arc_submission_v7_5b.ipynb",
         "env": {"ARC_AIF": "off", "ARC_DFS_BATCH": "2", "ARC_TASK_TIMEOUT": "1800", "ARC_N_EVAL": "4"},
