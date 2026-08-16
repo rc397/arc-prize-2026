@@ -299,3 +299,24 @@ A third draw narrows the interval to about +/-0.88 and the resolution at n=3 is 
 cannot make a -0.8 effect significant either way. Stopping at n=2 IS optional stopping and should be
 reported as such: **n=2, not distinguishable, point estimate slightly negative.** The slot is better
 spent on v7.3, which has a live mechanism.
+
+## Operational: not every past build is resubmittable
+
+Discovered 16 Aug trying to re-test v7.3. `competition_submit_code` returns
+**400 FAILED_PRECONDITION, "Did not find provided Notebook Output File"** for
+`rc7530/arc-agi-2-v7-3-and-onwards-26-07-26` at BOTH version 1 and version 2, so neither v7.3
+(338070403, 28.61) nor v7.4 (338271550, 29.44) can be re-run from the existing kernel. Kaggle no
+longer holds an output for it. A 400 creates nothing, so the failed attempts cost no slot.
+
+Still resubmittable, all verified by landing on the intended `scriptVersionId`:
+`v7-2-replicate` v1, `arc-agi-2-after-import-bug-25-07-26` v1,
+`v7-2-without-the-discarded-aif-work` v2.
+
+**Consequence for the re-test plan.** Of the five builds rejected on a single hidden score, only
+no-dead-AIF is directly re-testable. v7.3, v7.4 and cap1200 would each need rebuilding with
+`build_v7_from_architects.py` and pushing as a new kernel. Pushing costs no interactive quota, so
+that is affordable, but it means the greedy-fallback test is a build job rather than a submission.
+
+Given that, today's slot went to **no-dead-AIF draw 3 (sub 55543143)**, which completes the arm at
+the pre-registered n=3 instead of stopping at two. That was the honest thing to do with a slot that
+had no better use, and it removes the optional-stopping caveat from the record.
