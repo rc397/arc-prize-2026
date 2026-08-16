@@ -320,3 +320,26 @@ that is affordable, but it means the greedy-fallback test is a build job rather 
 Given that, today's slot went to **no-dead-AIF draw 3 (sub 55543143)**, which completes the arm at
 the pre-registered n=3 instead of stopping at two. That was the honest thing to do with a slot that
 had no better use, and it removes the optional-stopping caveat from the record.
+
+## Pushing a new submission kernel: three ways it fails silently
+
+Building v7.6 (greedy fallback isolated) found three, all of which let `kernels_push` report success:
+
+1. **`title` must slug to `id`.** "ARC-AGI-2 v7.6 greedy fallback only" created
+   `arc-agi-2-v7-6-greedy-fallback-only`, not the id we asked for, so we were editing a kernel we had
+   not named.
+2. **`model_sources` is validated but not enforced.** `mirzamilanfarabi/qwen3-4b-grids15-sft139/...`
+   comes back in `invalidModelSources` and the push still succeeds, leaving a kernel with no model
+   whose run dies at the model-path assert. The working string, from `v7-2-replicate`'s own metadata,
+   is **`sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1`**, capital T. The memory file
+   asserted the opposite and has been corrected.
+3. **`machine_shape` must be `NvidiaL4`.** Omitted, the kernel gets generic `Gpu` and Kaggle may
+   allocate a **Tesla P100 (sm_60)**, where torch 2.8+cu128 fails with *"no kernel image is available
+   for execution on the device"* since it supports sm_70 and up. The scoring rerun uses L4s and would
+   have been fine; it is the COMMIT run that dies, and a kernel whose commit fails has no output, so
+   `competition_submit_code` then returns 400 FAILED_PRECONDITION.
+
+That third one also explains why v7.3 and v7.4 are unreachable: no retained output, same precondition.
+
+`push_v76.py` now asserts on `invalidModelSources` and pins `machine_shape`, and the three failure
+modes are recorded here because each cost a push cycle and none of them raises.

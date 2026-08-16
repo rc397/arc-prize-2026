@@ -46,6 +46,13 @@ def main():
         "kernel_type": "notebook",
         "is_private": True,
         "enable_gpu": True,
+        # REQUIRED, and its absence is silent. Without it the kernel gets machine_shape "Gpu" and
+        # Kaggle may allocate a Tesla P100 (sm_60), on which this stack dies with "no kernel image is
+        # available for execution on the device" -- torch 2.8+cu128 supports sm_70 and up. The
+        # SCORING rerun uses L4s and would have been fine; it is the commit run that fails, and a
+        # kernel whose commit fails has no output and therefore cannot be submitted at all.
+        # v7-2-replicate carries NvidiaL4, which is where this string came from.
+        "machine_shape": "NvidiaL4",
         "enable_internet": False,
         "dataset_sources": [],
         "competition_sources": ["arc-prize-2026-arc-agi-2"],
