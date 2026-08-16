@@ -358,17 +358,27 @@ but it is a tail effect and not the explanation for 28.61. v7.3 can be submitted
 
 ### Open, ranked by cost
 
-**1. Replace the `[[0]]` empty-pool fallback with the test input.** Free, zero compute, strictly
-non-negative: it only fires where we currently submit a guaranteed-wrong 1x1 grid. 88% of a median
-output is a verbatim copy of its input, so the input is a real lottery ticket where `[[0]]` is none.
-About nine outputs a run are decided this way, which is the same nine that carry the score variance.
+**1. ~~Replace the `[[0]]` empty-pool fallback with the test input.~~ DEAD, gated in 30 seconds.**
+The argument was that 88% of a median output is a verbatim copy of its input, so the input should be
+a real lottery ticket where `[[0]]` is none. Measured: the test output equals the test input on
+**0 of 172** evaluation outputs, and "all train outputs identical and equal to the answer" is also 0.
+Copying the input is worth exactly what `[[0]]` is worth. The 88% figure is about how much of a grid
+is copied, not about whether the whole grid is, and I read it as the second thing.
+
+The only related quantity that survives: on 21.5% of outputs the train outputs share a single shape
+and it matches the answer's shape. Knowing the shape is not knowing the answer, so that does not
+rescue a constant fallback either. **Any useful fallback has to be a model prediction**, which is
+what makes the greedy fallback below the only live member of this family.
 
 **2. Submit v7.3 three times.** Its `ARC_GREEDY_FALLBACK` finds keys with no output and greedy-decodes
 them inside a 180-second budget, which is exactly the mechanism the throughput finding identified.
 Already built, and against the banked n=10 control three draws resolve 2.5 points.
 
-**3. attempt_2 for empty pools.** Greedy fill for attempt_1, input-copy for attempt_2. Two tickets
-where there are currently zero, and the second costs nothing.
+**3. attempt_2 where the pool has exactly one candidate.** Dead in its input-copy form for the reason
+above, but the underlying waste is real and wider than empty pools: `fill_submission` writes
+`v[:len(target_dict)]`, so an output with ONE candidate leaves attempt_2 at `[[0]]`. A second greedy
+decode under a different augmentation would be a real second ticket. That costs GPU rather than
+nothing, which moves it behind the free items.
 
 **4. Task ordering by predicted cost.** Decode cheap tasks first so more of them clear the per-task
 1800s cap before a slow session runs out. Pure scheduling, no behavioural change, and it attacks the
