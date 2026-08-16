@@ -347,3 +347,19 @@ modes are recorded here because each cost a push cycle and none of them raises.
 **Resolved.** With `machine_shape: NvidiaL4` pinned, the v7.6 commit run completed in 24 minutes
 and `rc7530/arc-agi-2-v7-6-greedy-fallback-only` is submittable. It is queued for the next slot as
 draw 1 of 3 against the banked n=10 control.
+
+## no-dead-AIF: arm complete, and it is a null
+
+Draw 3 came back **30.56**, so the pre-registered n=3 is 30.00, 29.03, 30.56, mean **29.86** against
+the banked control's 30.31 (n=10, sd 1.34). Difference **-0.44**, se 0.88, **t = -0.50**. The
+resolution at this sample size is 2.46 points, so the verdict is **not distinguishable**, with a
+point estimate slightly below the control.
+
+This is the first of the five single-score rejections to be re-tested properly, and it neither
+vindicates nor condemns the build. What it does settle is the methodological point: the original
+30.00 was called a regression, and three draws say the build sits inside the noise. The arm was
+completed rather than stopped at the two draws that already looked flat, so there is no
+optional-stopping caveat on it.
+
+Remaining re-testable: none directly. v7.3, v7.4 and cap1200 all fail the output precondition, which
+is why v7.6 was rebuilt from scratch.
