@@ -336,3 +336,44 @@ with a file-writing tool instead.
 | **rendering the data** | ~5 min | the no-op second stage; the inconsistent shape relation |
 | one rig night | ~8 h | pre-fitting, subset adapters, adapter transfer, three augmentations |
 | one submission | 1 day | the cap — and it landed inside noise anyway |
+
+---
+
+## Part 8: ideas from the throughput finding (16 Aug)
+
+The variance turned out to be made of empty pools becoming `[[0]]`, and that generated a batch of
+ideas the earlier lists could not have contained. Two closed themselves on a code read.
+
+**Closed free: a timed-out DFS does not waste its work.** `turbo_dfs` exits its
+`while time.time() - start_time < 540` loop and returns whatever suffixes it has, and completed
+batches are already pickled into `dir_outputs` before the outer timeout breaks. There is no discarded
+partial tree, so there is nothing to reclaim here.
+
+**Closed free: v7.3's loss cut is nearly inert, so v7.3 is close to a clean test of its greedy
+fallback.** `ARC_LOSS_CUT=0.05` skips the search entirely for a task whose final training loss
+exceeds the cut, which sounded actively dangerous given loss does not separate solved from missed.
+Measured across 12 tasks of deployed-style TTT: **0 exceed it**, max 0.026. Our slice is biased
+toward reachable tasks and the wider record reaches 0.09, so it must fire somewhere on the full 240,
+but it is a tail effect and not the explanation for 28.61. v7.3 can be submitted as built.
+
+### Open, ranked by cost
+
+**1. Replace the `[[0]]` empty-pool fallback with the test input.** Free, zero compute, strictly
+non-negative: it only fires where we currently submit a guaranteed-wrong 1x1 grid. 88% of a median
+output is a verbatim copy of its input, so the input is a real lottery ticket where `[[0]]` is none.
+About nine outputs a run are decided this way, which is the same nine that carry the score variance.
+
+**2. Submit v7.3 three times.** Its `ARC_GREEDY_FALLBACK` finds keys with no output and greedy-decodes
+them inside a 180-second budget, which is exactly the mechanism the throughput finding identified.
+Already built, and against the banked n=10 control three draws resolve 2.5 points.
+
+**3. attempt_2 for empty pools.** Greedy fill for attempt_1, input-copy for attempt_2. Two tickets
+where there are currently zero, and the second costs nothing.
+
+**4. Task ordering by predicted cost.** Decode cheap tasks first so more of them clear the per-task
+1800s cap before a slow session runs out. Pure scheduling, no behavioural change, and it attacks the
+mechanism directly rather than the symptom.
+
+**5. KL-anchored fine-tuning.** The principled version of corpus mixing: penalise divergence from the
+frozen base on ARC-distribution inputs instead of diluting the training stream. If anything lets full
+composed exposure coexist with a preserved ARC prior, it is this rather than a data ratio.

@@ -94,6 +94,9 @@ def main():
     ap.add_argument("--limit", type=int, default=0, help="cap train examples (0 = all); use for a pilot")
     ap.add_argument("--eval-every", type=int, default=2000)
     ap.add_argument("--seed", type=int, default=0)
+    ap.add_argument("--resume", action="store_true",
+                    help="continue from out/resume.json if present; a 41-hour run on a box "
+                         "Windows Update reboots without asking needs this")
     ap.add_argument("--pad-mult", type=int, default=256,
                     help="round every sequence up to a multiple of this so the CUDA "
                          "caching allocator sees repeating shapes; 0 disables")
@@ -124,13 +127,26 @@ def main():
 
     steps = max(1, int(len(train) * a.epochs))
     best = float("inf")
+    start_step = 0
+    # Resume is keyed on the SHUFFLED order, which is deterministic given --seed, so restarting
+    # replays exactly the sequence the killed run would have seen. Without that the resumed run
+    # trains on a different curriculum and the two halves are not one experiment.
+    rpath = os.path.join(a.out, "resume.json")
+    if a.resume and os.path.isfile(rpath):
+        st = json.load(open(rpath))
+        start_step, best = st["step"], st["best"]
+        from peft import set_peft_model_state_dict
+        import safetensors.torch as sft
+        sd = sft.load_file(os.path.join(a.out, "resume_adapter.safetensors"))
+        set_peft_model_state_dict(peft_model, sd)
+        print("resumed at step %d/%d, best valloss %.4f" % (start_step, steps, best), flush=True)
     t0 = time.time()
     run = 0.0
     peft_model.train()
     # Per-phase timing for the first few steps. The pilot ran at 11.7 s/step while an isolated
     # harness measured the identical configuration at 1.37, and no amount of reading the code found
     # the difference, so the loop reports where its own time goes.
-    for step in range(steps):
+    for step in range(start_step, steps):
         ts = time.time()
         ids, labels = train[step % len(train)]
         pi, pl, am = padded(ids, labels, a.pad_mult)
@@ -163,6 +179,17 @@ def main():
             if vl < best:
                 best = vl
                 peft_model.save_pretrained(best_dir)
+            # checkpoint for resume, written every eval whether or not val improved
+            try:
+                import safetensors.torch as sft
+                from peft import get_peft_model_state_dict
+                sft.save_file({k: v.contiguous() for k, v in
+                               get_peft_model_state_dict(peft_model).items()},
+                              os.path.join(a.out, "resume_adapter.safetensors"))
+                json.dump({"step": step + 1, "best": best},
+                          open(os.path.join(a.out, "resume.json"), "w"))
+            except Exception as e:
+                print("  [resume checkpoint failed: %s]" % e, flush=True)
     if not os.path.isdir(best_dir):       # fewer than eval_every steps: save the final adapter
         peft_model.save_pretrained(best_dir)
 
