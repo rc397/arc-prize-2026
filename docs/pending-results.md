@@ -363,3 +363,17 @@ optional-stopping caveat on it.
 
 Remaining re-testable: none directly. v7.3, v7.4 and cap1200 all fail the output precondition, which
 is why v7.6 was rebuilt from scratch.
+
+## Arm status against the banked control
+
+Control: `339772104` + `337769272`, **n=10, mean 30.31, sd 1.34**. Never spend another slot on it.
+
+| arm | draws | mean | t | verdict |
+|---|---|---|---|---|
+| no-dead-AIF | 3 (30.00, 29.03, 30.56) | 29.86 | -0.50 | **closed, not distinguishable** |
+| v7.6 greedy fallback | 1 of 3, sub 55572442 pending | | | in progress |
+| v7.3 / v7.4 / cap1200 | unreachable, no retained output | | | need rebuilding like v7.6 |
+
+Three draws resolve 2.46 points. Nothing this project has produced is that large, so the realistic
+outcome of each arm is "not distinguishable" and the value is in retiring the single-score verdict
+rather than in finding a winner.
