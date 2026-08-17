@@ -377,3 +377,31 @@ Control: `339772104` + `337769272`, **n=10, mean 30.31, sd 1.34**. Never spend a
 Three draws resolve 2.46 points. Nothing this project has produced is that large, so the realistic
 outcome of each arm is "not distinguishable" and the value is in retiring the single-score verdict
 rather than in finding a winner.
+
+## v7.6 scored 30.56, and the number it landed on is the result
+
+The greedy fallback **fired**: the commit log shows `[Rank 2] greedy fallback filled ...` twice and
+`GFB=1` in the config banner, so this is different code doing a different thing. It scored **30.56**.
+
+That value has now appeared **7 times from FIVE distinct builds** (336595817, 337769272, 339772104,
+340004463, 342748321). Across 21 post-v7 submissions with 13 distinct values, one third land on
+exactly 30.56, and 28.47 has come up 3 times from 3 distinct builds. Under a smooth normal with
+sd 1.34 the modal 0.4167-wide bin holds 12.4% of the mass, so P(7 or more of 21 in one bin) is
+**about 1%**. **The score distribution is not smooth; it has spikes.**
+
+That revises the mechanism twice over.
+
+**The 41-coin-flip model is wrong as stated.** It matched the sd and the 12.5% same-seed pool
+disagreement, but independent marginal outputs predict a spread histogram and we observe attractors.
+Something is making many perturbations return to the same total.
+
+**And it corrects my causal reading of the size-score correlation.** I argued that because output size
+correlates with score at r=+0.64, and empty pools become `[[0]]`, filling those pools should buy
+score. v7.6 filled them and bought nothing. The likelier reading is that both quantities depend on a
+third thing: a run that gets further through the search produces more content AND solves more tasks.
+Adding content artificially does not move the score, because a greedy guess on a task the full search
+could not solve is essentially never right.
+
+So v7.6 is an honest answer to the empty-pool idea rather than a null: the mechanism worked, and the
+outputs it filled were unsolvable rather than merely unattempted. Draws 2 and 3 will say whether
+30.56 was a coincidence, but the prior is now much weaker.
