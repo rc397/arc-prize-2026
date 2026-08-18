@@ -1108,13 +1108,31 @@ because the failure is silent and inverted: the symptom is an empty answer that 
 the cause is a budget landing mid-thought, and the fix moves cost by a factor of twenty in the
 direction that also fixes correctness.
 
+\textbf{Results.} Of the 1{,}000 training tasks, \textbf{110 (11.0\%) yielded a verified generator}
+and 109 of those also emitted a sampler, at a total cost of \$1.57 in off-peak API charges. The corpus
+is usable rather than nominal: of the first 95 verified programs, \textbf{93 (98\%) mint fresh valid
+instances}, 89 of them reliably, meaning at least 8 of 10 random seeds produce a novel grid the
+transform handles, averaging 9.5 usable draws per 10 seeds.
+
+\textbf{Execution against demonstrations is a 93\% precise proxy for capturing the rule.} The concern
+with a demonstrations-only proof is that a program can fit three worked examples while implementing a
+simpler rule than the task intends, and then mint unlimited data for the wrong transformation. The
+ARC-AGI-2 training split publishes held-out test pairs, so this is directly measurable: running each
+verified program on the test input it never saw, \textbf{93 of the first 100 reproduce it exactly},
+putting the true overfit rate at 7\%. This is the result that licenses the method. The free
+verification is a close substitute for the expensive property, and no model was needed to judge
+correctness at any point. It is measurable only because we built on the training split; on the
+evaluation split the same corpus would carry an error rate nobody could check.
+
 \textbf{Bimodality appears again, in a different model at a different task.}
 Section~\ref{sec:lessons} records that the 4B solver is bimodal, solving or missing with little partial
 credit, and that this is why refinement methods need an external partial-credit signal. The generating
-model is bimodal in the same way: of 27 failures in the calibration sample, \textbf{exactly one} matched
-even a single demonstration pair. A program either captures the rule or is unrelated to it. There is no
-near-miss tail to repair, which removes an obvious-looking lever, and it is suggestive that the property
-survives a change of model, scale, and task.
+model is bimodal in the same way, though less sharply than a 30-task pilot first suggested. That pilot
+showed 1 of 27 failures matching even one demonstration pair; at full scale the figure is \textbf{63 of
+483}, or 13\%. The direction survived and the magnitude did not, which is the same small-sample lesson
+this paper records elsewhere, arrived at once more by our own hand. A further 407 failures, 46\% of the
+total, are programs that raise rather than programs that answer wrongly, so the near-miss tail
+available for repair is thinner still than the clean-failure rate implies.
 
 \section{Discussion}
 \label{sec:disc}
