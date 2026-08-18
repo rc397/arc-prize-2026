@@ -405,3 +405,35 @@ could not solve is essentially never right.
 So v7.6 is an honest answer to the empty-pool idea rather than a null: the mechanism worked, and the
 outputs it filled were unsolvable rather than merely unattempted. Draws 2 and 3 will say whether
 30.56 was a coincidence, but the prior is now much weaker.
+
+## The compositional 2x2 is complete, and mixing does not save it at scale
+
+The 41-hour cell finished: 135,342 steps, 38.8 hours, best val loss 0.0414.
+
+| composed | protective | ARC tasks | ARC cands | composed tasks | composed cands |
+|---|---|---|---|---|---|
+| 8k | 0 | -1 | -29% | +1 | +13% |
+| 67.7k | 0 | **-2** | **-47%** | +3 | +200% |
+| 4k | 4k | 0 | 0% | +1 | +8% |
+| 8k | 8k | 0 | -6% | +1 | -15% |
+| **67.7k** | **67.7k** | **-3** | **+3%** | **+3** | **+223%** |
+
+Base is 5/20 on ARC and 3/8 on composed in every row.
+
+**At full scale, protection does not save ARC coverage.** The mixed full run is the WORST of the five
+on ARC, worse on 3 tasks of 12, while learning composition better than any of them at +223%
+candidates. And the failure mode has changed shape: ARC candidate GENERATION is preserved (+3%
+against -47% unprotected), so the model still produces plenty of candidates and fewer of them are
+right. Mixing protected the fluency and not the rule.
+
+So the direction closes properly. Every configuration of this corpus lands at or below the base on
+ARC, and the two that learn composition best are the two that hurt ARC most. **Composed ARC-1 rules
+are not a substitute for ARC-2 rules**, which is the premise the generation plan rests on and now the
+best argument for it.
+
+**What this does to Phase 0.** As designed it varies rule count WITHIN the composed corpus, and at
+8,000 examples both arms will likely sit at 0 on ARC coverage, which is the same underpowering the
+pilot suffered. It is still worth the nine hours because **candidate counts are the sensitive
+readout**, not coverage: the composed corpus moved ARC candidates by -29% at 8k and -47% at 67.7k, so
+a diversity effect should show there first. Read Phase 0 on candidates and treat flat coverage as
+uninformative rather than as a null.
