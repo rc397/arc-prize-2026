@@ -324,13 +324,68 @@ def wait_offpeak(enabled=True):
         time.sleep(min(left + 5, 600))
 
 
+# CNY per USD of list price, measured against a real balance delta rather than assumed: the pilot
+# billed 0.78 CNY for traffic listing at about $0.109. Used only to show the balance and the
+# projection in the same units, never to decide anything.
+CNY_PER_USD = 7.15
+
+
 def balance():
-    """Remaining balance as (amount, currency). Used as a hard floor, not for accounting."""
+    """Remaining balance as (amount, currency).
+
+    Picks the funded currency rather than balance_infos[0]. The array carries an entry per currency
+    and the ORDER IS NOT STABLE: a CNY-funded account returns a 0.00 USD entry too, and reading
+    index 0 got the empty one, which would have tripped the spend floor on the first check and
+    aborted a run that had plenty of money behind it.
+    """
     import httpx
     r = httpx.get(ENDPOINT.rstrip("/").rsplit("/v1", 1)[0] + "/user/balance",
                   headers={"Authorization": "Bearer " + api_key()}, timeout=60.0)
-    b = r.json()["balance_infos"][0]
+    infos = r.json()["balance_infos"]
+    funded = [b for b in infos if float(b["total_balance"]) > 0]
+    b = funded[0] if funded else infos[0]
     return float(b["total_balance"]), b["currency"]
+
+
+# Measured means from the 30-call pilot, thinking off. MEANS, not medians: the median program was
+# 991 output tokens but the mean was 1,586, because a handful ran past 12,000 characters. Cost
+# scales with the mean, and projecting from the median understated the bill by 58 percent.
+FALLBACK_CALIB = (256.0, 581.0, 1586.0)
+
+
+def calibration():
+    """Per-call token means, measured from real records where we have them.
+
+    Prefers whatever this mode has actually produced over any constant written into the file,
+    because the constant is only ever right for the run that produced it.
+    """
+    path = os.environ.get("ARC_GEN_CALIB", "")
+    cands = [path] if path else [OUT, os.path.join(os.path.dirname(OUT),
+                                                   "genrules_think.jsonl" if THINK
+                                                   else "genrules_nothink.jsonl")]
+    for c in cands:
+        if not c or not os.path.isfile(c):
+            continue
+        try:
+            rs = [json.loads(l) for l in open(c, encoding="utf-8") if l.strip()]
+        except ValueError:
+            continue
+        rs = [r for r in rs if r.get("tok_out")]
+        if len(rs) < 5:
+            continue
+        n = float(len(rs))
+        return (sum(r.get("tok_cache_hit") or 0 for r in rs) / n,
+                sum((r.get("tok_cache_miss") or r.get("tok_in") or 0) for r in rs) / n,
+                sum(r["tok_out"] for r in rs) / n,
+                len(rs))
+    return FALLBACK_CALIB + (0,)
+
+
+def usd_of(hit, miss, out):
+    """List-price USD for a token triple, at the rate for the model actually being called."""
+    rate = RATES.get(MODEL, RATES["deepseek-v4-flash"])
+    usd = (hit * rate["hit"] + miss * rate["miss"] + out * rate["out"]) / 1e6
+    return usd / 2.0 if not peak_ends_in() else usd
 
 
 def cmd_run(n_tasks, attempts):
@@ -403,13 +458,49 @@ def cmd_runc(n_tasks, attempts, workers, floor=2.0):
     todo = [k for k in keys if k not in solved]
 
     amt, cur = balance()
-    print("%d tasks (%d already verified), up to %d attempts, %d workers, model %s"
-          % (len(keys), len(keys) - len(todo), attempts, workers, MODEL), flush=True)
-    print("balance %.2f %s, floor %.2f %s" % (amt, cur, floor, cur), flush=True)
+    # Measured on the 30-task pilot, thinking off: 991 output tokens and 665 input at the median,
+    # of which 256 cache. Projecting from that beats projecting from a guess, which is how the
+    # first estimate came out 4x low.
+    # Price the projection at the rate that will ACTUALLY apply. usd_of() reads the clock, and the
+    # clock says peak right now, but the gate forces every call into the discount window unless
+    # ANYTIME overrides it. Quoting the peak rate for a gated run overstates the bill by exactly 2x.
+    hit_m, miss_m, out_m, src_n = calibration()
+    per_call = usd_of(hit_m, miss_m, out_m)
+    if not ANYTIME and peak_ends_in():
+        per_call /= 2.0
+    worst = per_call * len(todo) * attempts        # no early stop, every attempt paid for
+    # Early stop: a task that verifies makes no further calls. At the measured 10 percent per
+    # attempt, the expected number of calls per task is 1 + 0.9 + 0.81 + ... over the attempts.
+    likely = per_call * len(todo) * sum(0.90 ** i for i in range(attempts))
+    ceiling = float(os.environ.get("ARC_GEN_MAX_USD", "2.30"))
+
+    print("")
+    print("  %d tasks (%d already verified), up to %d attempts, %d workers, model %s, thinking %s"
+          % (len(keys), len(keys) - len(todo), attempts, workers, MODEL, "ON" if THINK else "off"))
+    print("  balance %.2f %s  (about $%.2f of list-price traffic)"
+          % (amt, cur, amt / CNY_PER_USD if cur == "CNY" else amt))
+    print("  pricing right now: %s%s"
+          % ("PEAK" if peak_ends_in() else "off-peak (half price)",
+             ", but the gate will hold every call for the discount" if peak_ends_in() and not ANYTIME
+             else ""))
+    print("  projected: $%.2f likely with early stop, $%.2f worst case  (%.1f / %.1f CNY)"
+          % (likely, worst, likely * CNY_PER_USD, worst * CNY_PER_USD))
+    print("  per call $%.5f, calibrated from %s"
+          % (per_call, ("%d real records" % src_n) if src_n else "the pilot's measured means"))
+    print("  hard ceiling: $%.2f, checked every call from measured tokens" % ceiling)
+    if ANYTIME:
+        print("  !! ARC_GEN_ANYTIME is set: the off-peak gate is DISABLED and this may pay DOUBLE")
+    if worst > ceiling:
+        print("  note: worst case exceeds the ceiling, the run will stop when the ceiling is hit")
+    if os.environ.get("ARC_GEN_CONFIRM") != "1":
+        print("")
+        print("  NOT STARTING. This spends real money. Re-run with ARC_GEN_CONFIRM=1 to proceed.")
+        return
+    print("  confirmed, starting", flush=True)
 
     lock = threading.Lock()
     stop = threading.Event()
-    state = {"calls": 0, "ok": 0}
+    state = {"calls": 0, "ok": 0, "hit": 0, "miss": 0, "out": 0, "usd": 0.0}
 
     # Warm the prefix cache with ONE call before the workers start. Otherwise the first `workers`
     # calls all race past an empty cache and every one of them pays the cache-miss rate.
@@ -449,10 +540,27 @@ def cmd_runc(n_tasks, attempts, workers, floor=2.0):
                     f.write(json.dumps(rec) + "\n")
                 state["calls"] += 1
                 state["ok"] += bool(ok)
+                # Spend is accounted from the tokens the API just reported, so the ceiling is
+                # enforced on every call with no extra request and no lag behind the meter.
+                h = rec["tok_cache_hit"] or 0
+                m = rec["tok_cache_miss"] or 0
+                if not h and not m:                    # provider did not break the input down
+                    m = rec["tok_in"] or 0
+                state["hit"] += h
+                state["miss"] += m
+                state["out"] += rec["tok_out"] or 0
+                state["usd"] = usd_of(state["hit"], state["miss"], state["out"])
                 n = state["calls"]
+                if state["usd"] >= ceiling:
+                    print("  -- SPEND CEILING $%.2f reached after %d calls, stopping"
+                          % (ceiling, n), flush=True)
+                    stop.set()
                 print("  [%4d/%d ok] %-10s a%d %s %d/%d%s %.0fs"
                       % (n, state["ok"], k, a, "VERIFIED" if ok else "failed  ", matched, total,
                          " +samp" if rec["sampler"] else "      ", rec["seconds"]), flush=True)
+                if n % 20 == 0:
+                    print("  -- spent $%.3f (%.2f CNY) over %d calls, %d verified"
+                          % (state["usd"], state["usd"] * CNY_PER_USD, n, state["ok"]), flush=True)
                 # A prepaid balance and open sockets do not mix without a floor. Checking every 25
                 # calls costs one request and bounds the worst case to a few calls of overrun.
                 if n % 25 == 0:
