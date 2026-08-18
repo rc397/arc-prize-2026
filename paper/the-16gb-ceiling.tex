@@ -1096,17 +1096,41 @@ program is correct if and only if \texttt{solve} reproduces every demonstration 
 execution, checked in a process-isolated worker with a hard kill timeout. That is a proof, it is free,
 and it is strictly stronger than asking any model whether the grids look right.
 
-\textbf{The trap. Reasoning models can spend their entire output budget without emitting an answer.}
-Our first runs returned nothing at all, every extracted program empty, which reads exactly like a model
-that cannot do the task. It was not. The backend is a reasoning model, and on ARC tasks it does not
-converge: at a 4{,}000-token cap it spent 4{,}000 tokens on reasoning and wrote no code; raised to
-32{,}000 it spent a mean of 31{,}999, hit the cap on all 12 tasks, and again wrote no code.
-\textbf{100\% of 383{,}997 output tokens were reasoning, for 0 verified programs.} Since reasoning
-bills at the output rate, that mode costs roughly $20\times$ per call and returns zero. Disabling
-reasoning yields a complete program in about 1{,}600 tokens at a 12\% verification rate. We report this
-because the failure is silent and inverted: the symptom is an empty answer that looks like incapacity,
-the cause is a budget landing mid-thought, and the fix moves cost by a factor of twenty in the
-direction that also fixes correctness.
+\textbf{The trap. A reasoning model can spend its entire output budget without emitting an answer,
+and the symptom is indistinguishable from incapacity.} Our first runs returned nothing at all, every
+extracted program empty, which reads exactly like a model that cannot do the task. It was not. The
+backend is a reasoning model and it needs far more budget on ARC than a generation task normally
+warrants. Raising the cap traces a clean dose-response, and the shape of it is the finding:
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+output cap & tasks & converged & verified \\
+\midrule
+4{,}000 & 4 & 0 & 0 \\
+32{,}000 & 12 & 0 & 0 \\
+64{,}000 & 5 & 3 & \textbf{3} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+At 4{,}000 and 32{,}000 tokens it produced no code whatsoever, spending a mean of 31{,}999 of 32{,}000
+on reasoning. At 64{,}000 three of five converged, at 43{,}488, 55{,}800 and 59{,}671 tokens, and
+\textbf{all three that converged verified}. The two that did not emitted \emph{zero} answer tokens and
+stopped exactly at the cap. Reasoning accounts for 97 to 98\% of output; the program itself is only
+735 to 1{,}555 tokens. So the failure mode is not a wrong program, it is an unfinished thought, and a
+cap set anywhere below roughly 45{,}000 tokens converts a capable model into an apparently useless one
+while still charging for every token.
+
+\textbf{This reframes our own headline number.} Disabling reasoning returns a complete program in
+about 1{,}600 tokens at an 11\% verification rate, which is what the 110-generator corpus was built
+on, and at \$0.0016 per task that was the only option a \$3 budget allowed. But on the same five
+tasks, non-reasoning repair fixed \textbf{1 of 5} where max effort fixed \textbf{3 of 5}. The 11\%
+is therefore a floor imposed by our budget rather than a ceiling of the model, and the honest
+statement of this contribution is that we measured what a few dollars buys, not what the method is
+worth. At \$0.038 per task, max effort over the remaining 890 failures would cost roughly \$34,
+an order of magnitude past what we spent and still trivial against a GPU-hour budget. We flag it as
+the most promising unexplored direction here rather than claiming a result we did not buy.
 
 \textbf{Results.} Of the 1{,}000 training tasks, \textbf{110 (11.0\%) yielded a verified generator}
 and 109 of those also emitted a sampler, at a total cost of \$1.57 in off-peak API charges. The corpus

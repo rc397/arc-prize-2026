@@ -74,3 +74,51 @@ def run_candidate(src, inputs, timeout=4.0):
         return q.get(timeout=1.0)
     except Exception:
         return None
+
+def _worker_diag(q, src, inputs):
+    """Same execution as _worker, but reports WHY it failed instead of discarding it.
+
+    run_candidate collapses every failure to None, which is the right contract for scoring: a
+    program either reproduces the pairs or it does not. Repairing one needs the opposite, the
+    traceback that scoring throws away, so this is additive rather than a change to that contract.
+    """
+    import traceback
+    try:
+        import os
+        import sys
+        devnull = open(os.devnull, "w")
+        sys.stdout = devnull
+        sys.stderr = devnull
+        ns = {}
+        for _alias, _mod in (("np", "numpy"), ("numpy", "numpy"), ("math", "math"),
+                             ("itertools", "itertools"), ("collections", "collections"),
+                             ("re", "re"), ("copy", "copy"), ("functools", "functools")):
+            try:
+                ns[_alias] = __import__(_mod)
+            except Exception:
+                pass
+        exec(src, ns)
+        f = ns["solve"]
+        outs = []
+        for I in inputs:
+            outs.append(_norm(f([list(r) for r in I])))
+        q.put(("ok", outs))
+    except Exception:
+        q.put(("err", traceback.format_exc(limit=4)[-700:]))
+
+
+def run_candidate_diag(src, inputs, timeout=4.0):
+    """Return (outputs_or_None, error_text). error_text is "" when the program ran."""
+    q = mp.Queue()
+    p = mp.Process(target=_worker_diag, args=(q, src, list(inputs)))
+    p.start()
+    p.join(timeout)
+    if p.is_alive():
+        p.terminate()
+        p.join(1.0)
+        return None, "TIMEOUT after %.1fs (probable infinite loop)" % timeout
+    try:
+        kind, payload = q.get(timeout=1.0)
+    except Exception:
+        return None, "worker produced no result"
+    return (payload, "") if kind == "ok" else (None, payload)

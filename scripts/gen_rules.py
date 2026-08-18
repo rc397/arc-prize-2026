@@ -43,6 +43,8 @@ for _p in (HERE, BASE):
         sys.path.insert(0, _p)
 
 OUT = os.environ.get("ARC_GENRULES_OUT", os.path.join(BASE, "experiments", "genrules.jsonl"))
+# The corpus the repair pass reads its failures FROM, which need not be where it writes.
+SRC_IN = os.environ.get("ARC_GENRULES_SRC", OUT)
 EXEC_TIMEOUT = 6.0
 
 # Both providers speak the same OpenAI-compatible protocol, so the only thing that changes is the
@@ -210,7 +212,11 @@ def generate(prompt):
                "max_tokens": MAX_OUT}
     if not THINK:
         payload["thinking"] = {"type": "disabled"}
-    j = _post("/chat/completions", payload)
+    # A non-thinking call answers in seconds; a thinking call can spend tens of thousands of tokens
+    # before the first character of the reply, and the default 180s would abort it as a network
+    # failure. That would look identical to the model failing, which is the same inverted symptom
+    # this pipeline already hit once.
+    j = _post("/chat/completions", payload, timeout=1800.0 if THINK else 180.0)
     return j["choices"][0]["message"]["content"], (j.get("usage") or {})
 
 
@@ -298,6 +304,7 @@ def cmd_plan():
 
 
 ANYTIME = os.environ.get("ARC_GEN_ANYTIME", "0") not in ("0", "", "off", "false")
+NOFEEDBACK = os.environ.get("ARC_GEN_NOFEEDBACK", "0") not in ("0", "", "off", "false")
 PEAK_UTC = ((1, 4), (6, 10))          # published peak windows; everything else is half price
 
 
@@ -581,6 +588,153 @@ def cmd_runc(n_tasks, attempts, workers, floor=2.0):
     cmd_report()
 
 
+REPAIR_INSTRUCTIONS = """You are repairing a Python program that implements an ARC-AGI grid transformation rule.
+
+A previous attempt at this task is shown below together with what went wrong. Diagnose the fault and
+rewrite the program so it reproduces every demonstration pair exactly.
+
+Return exactly two functions in one fenced python block, and nothing else:
+
+  def solve(I):
+      # I is a grid, a list of rows of ints 0-9. Return the transformed grid.
+
+  def gen_input(rng):
+      # rng is a random.Random. Return a NEW input grid the same rule applies to, from the same
+      # family as the demonstration inputs. Vary it. Do not return a demonstration input.
+
+Rules:
+- solve must reproduce EVERY demonstration pair. It is checked by execution.
+- If the previous attempt raised, fix the fault; do not simply reformat it.
+- If the previous attempt ran but produced wrong grids, the rule itself was misread. Reconsider what
+  the transformation actually is rather than patching the existing logic.
+- No I/O, no network. The standard library and numpy are available.
+- gen_input must not depend on anything defined outside these two functions.
+"""
+
+
+def repair_prompt(task, src, err, got, outs):
+    """Fixed block first so the prefix caches, task-specific material last."""
+    parts = [REPAIR_INSTRUCTIONS, "", "The previous attempt:", "", "```python", src.strip(), "```", ""]
+    if err:
+        parts += ["It raised:", "", err.strip(), ""]
+    else:
+        shown = grid_str(got[0]) if (got and got[0]) else "(nothing usable)"
+        parts += ["It ran without error but produced the wrong output. On demonstration pair 1 it "
+                  "returned:", "", shown, "", "where the correct output is:", "", grid_str(outs[0]), ""]
+    parts += ["Task demonstration pairs:", ""]
+    for i, p in enumerate(task["train"]):
+        parts += ["Example %d input:" % (i + 1), grid_str(p["input"]),
+                  "Example %d output:" % (i + 1), grid_str(p["output"]), ""]
+    return "\n".join(parts)
+
+
+def cmd_repair(n_tasks, workers):
+    """Second pass over failures, feeding each program its own error back.
+
+    46 percent of failures are programs that raise rather than programs that answer wrongly, and a
+    traceback is a far stronger signal than a blank retry: the model already had an approach and lost
+    it to a bug. Crashes are repaired first for that reason, near-misses next, and programs that
+    matched nothing last, which is also the order of decreasing expected value.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+    import threading
+    from pyexec import run_candidate_diag
+
+    ch = load_tasks()
+    src_recs = [json.loads(l) for l in open(SRC_IN, encoding="utf-8") if l.strip()]
+    solved = {r["task"] for r in src_recs if r["ok"]}
+    done = {r["task"] for r in load_records()}
+    cands = [r for r in src_recs
+             if not r["ok"] and r["task"] not in solved and r["task"] not in done and r.get("src")]
+    cands.sort(key=lambda r: (0 if r["note"] else 1, -r["matched"]))
+    if n_tasks:
+        cands = cands[:n_tasks]
+
+    amt, cur = balance()
+    hit_m, miss_m, out_m, src_n = calibration()
+    per_call = usd_of(256, miss_m + 1500, out_m)
+    if not ANYTIME and peak_ends_in():
+        per_call /= 2.0
+    ceiling = float(os.environ.get("ARC_GEN_MAX_USD", "0.50"))
+    print("")
+    print("  %s: %d candidates" % ("RETRY CONTROL" if NOFEEDBACK else "REPAIR", len(cands)))
+    print("  REPAIR: %d candidates (%d crashed, %d near-miss), %d workers"
+          % (len(cands), sum(1 for r in cands if r["note"]),
+             sum(1 for r in cands if not r["note"] and r["matched"] > 0), workers))
+    print("  balance %.2f %s, projected $%.2f (%.1f CNY), ceiling $%.2f (%.1f CNY)"
+          % (amt, cur, per_call * len(cands), per_call * len(cands) * CNY_PER_USD,
+             ceiling, ceiling * CNY_PER_USD))
+    if os.environ.get("ARC_GEN_CONFIRM") != "1":
+        print("  NOT STARTING. Re-run with ARC_GEN_CONFIRM=1 to proceed.")
+        return
+    print("  confirmed, starting", flush=True)
+
+    lock = threading.Lock()
+    stop = threading.Event()
+    st = {"n": 0, "ok": 0, "hit": 0, "miss": 0, "out": 0, "usd": 0.0}
+
+    def one(r):
+        if stop.is_set():
+            return
+        k = r["task"]
+        task = ch[k]
+        ins = [p["input"] for p in task["train"]]
+        outs = [[list(x) for x in p["output"]] for p in task["train"]]
+        got, err = run_candidate_diag(r["src"], ins, timeout=EXEC_TIMEOUT)
+        # The control arm. Repairing is only worth its higher price if the error feedback beats
+        # simply asking again on the same task, and these tasks are selected for difficulty, so a
+        # comparison against first-attempt yield on unselected tasks would flatter plain retry.
+        # Same candidates, same order, same harness; only the prompt differs.
+        prompt = task_prompt(task) if NOFEEDBACK else repair_prompt(task, r["src"], err, got, outs)
+        wait_offpeak(not ANYTIME)
+        t0 = time.time()
+        try:
+            text, usage = generate(prompt)
+        except Exception as e:
+            with lock:
+                print("  %-10s REPAIR CALL FAILED %s" % (k, str(e)[:80]), flush=True)
+            return
+        new_src = extract_code(text)
+        ok, matched, total, note = verify(new_src, task)
+        rec = {"task": k, "attempt": 90, "ok": bool(ok), "matched": matched, "pairs": total,
+               "sampler": has_sampler(new_src), "note": note, "chars": len(new_src),
+               "seconds": round(time.time() - t0, 1),
+               "was": {"matched": r["matched"], "crashed": bool(r["note"])},
+               "tok_in": usage.get("prompt_tokens"), "tok_out": usage.get("completion_tokens"),
+               "tok_cache_hit": usage.get("prompt_cache_hit_tokens"),
+               "tok_cache_miss": usage.get("prompt_cache_miss_tokens"),
+               "usage_raw": usage, "src": new_src}
+        with lock:
+            with open(OUT, "a", encoding="utf-8") as f:
+                f.write(json.dumps(rec) + "\n")
+            st["n"] += 1
+            st["ok"] += bool(ok)
+            h = rec["tok_cache_hit"] or 0
+            m = rec["tok_cache_miss"] or 0
+            if not h and not m:
+                m = rec["tok_in"] or 0
+            st["hit"] += h
+            st["miss"] += m
+            st["out"] += rec["tok_out"] or 0
+            st["usd"] = usd_of(st["hit"], st["miss"], st["out"])
+            print("  [%3d/%d ok] %-10s %s %d/%d  (was %s)  %.0fs"
+                  % (st["n"], st["ok"], k, "REPAIRED" if ok else "still bad", matched, total,
+                     "crash" if r["note"] else "%d/%d" % (r["matched"], r["pairs"]),
+                     rec["seconds"]), flush=True)
+            if st["n"] % 20 == 0:
+                print("  -- spent $%.3f (%.2f CNY), %d repaired of %d"
+                      % (st["usd"], st["usd"] * CNY_PER_USD, st["ok"], st["n"]), flush=True)
+            if st["usd"] >= ceiling:
+                print("  -- CEILING $%.2f reached, stopping" % ceiling, flush=True)
+                stop.set()
+
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        list(ex.map(one, cands))
+    print("")
+    print("  REPAIR DONE: %d attempted, %d repaired (%.1f%%), spent %.2f CNY"
+          % (st["n"], st["ok"], 100.0 * st["ok"] / max(1, st["n"]), st["usd"] * CNY_PER_USD))
+
+
 def cmd_report():
     recs = load_records()
     if not recs:
@@ -653,6 +807,9 @@ if __name__ == "__main__":
         cmd_runc(int(sys.argv[2]) if len(sys.argv) > 2 else 1000,
                  int(sys.argv[3]) if len(sys.argv) > 3 else 3,
                  int(sys.argv[4]) if len(sys.argv) > 4 else 6)
+    elif cmd == "repair":
+        cmd_repair(int(sys.argv[2]) if len(sys.argv) > 2 else 0,
+                   int(sys.argv[3]) if len(sys.argv) > 3 else 6)
     elif cmd == "report":
         cmd_report()
     else:
