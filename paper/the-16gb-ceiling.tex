@@ -1122,14 +1122,40 @@ stopped exactly at the cap. Reasoning accounts for 97 to 98\% of output; the pro
 cap set anywhere below roughly 45{,}000 tokens converts a capable model into an apparently useless one
 while still charging for every token.
 
-\textbf{This reframes our own headline number.} Disabling reasoning returns a complete program in
-about 1{,}600 tokens at an 11\% verification rate, which is what the 110-generator corpus was built
-on, and at \$0.0016 per task that was the only option a \$3 budget allowed. But on the same five
-tasks, non-reasoning repair fixed \textbf{1 of 5} where max effort fixed \textbf{3 of 5}. The 11\%
-is therefore a floor imposed by our budget rather than a ceiling of the model, and the honest
-statement of this contribution is that we measured what a few dollars buys, not what the method is
-worth. At \$0.038 per task, max effort over the remaining 890 failures would cost roughly \$34,
-an order of magnitude past what we spent and still trivial against a GPU-hour budget. We flag it as
+\textbf{This reframes our own headline number, and the effort dial is not monotone.} Disabling
+reasoning returns a complete program in about 1{,}600 tokens at an 11\% verification rate, which is
+what the 110-generator corpus was built on, and at \$0.0016 per task that was the only option a \$3
+budget allowed. Holding the tasks fixed and moving only the effort setting, on five tasks that the
+non-reasoning pass had already failed:
+
+\begin{center}
+\begin{tabular}{lccccc}
+\toprule
+effort & verified & mean output & CNY/call & CNY per program & seconds \\
+\midrule
+off (repair) & 1 of 5 & 1{,}600 & 0.015 & 0.60 & 12 \\
+\textbf{low} & \textbf{4 of 5} & 22{,}375 & 0.101 & \textbf{0.126} & 188 \\
+max & 3 of 5 & 57{,}391 & 0.259 & 0.433 & 534 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Low effort strictly dominates maximum effort here}: higher yield, 2.6 times cheaper and 3
+times faster. The mechanism is legible in the token counts. Two of the five maximum-effort calls
+stopped exactly at the 64{,}000 cap having emitted zero answer tokens, and one of them,
+\texttt{009d5c81}, is a task low effort solved in 20{,}238. On the single task both failed, low
+reached 3 of 4 demonstration pairs where max reached none. The additional reasoning is not buying
+accuracy; past some point the model fails to terminate and is billed for every token of it.
+
+We take two things from this. First, \textbf{the 11\% is a floor imposed by our budget rather than a
+ceiling of the model}, and the honest statement of this contribution is that we measured what three
+dollars buys, not what the method is worth. Second, \textbf{the cheapest marginal program is not the
+cheapest call}. Once the non-reasoning pass has swept all 1{,}000 tasks its 11\% is exhausted, and
+further programs must come from somewhere more expensive: a blind retry converts the remainder at
+5\% for 0.21 CNY per program, low effort at 80\% for 0.126, and max effort at 60\% for 0.433. The
+setting with the lowest per-call price is the most expensive per unit of corpus, and the setting with
+the highest is worse than the middle on every axis at once. These are five paired tasks and the
+intervals are correspondingly wide; the ordering is what we claim, not the rates.
 the most promising unexplored direction here rather than claiming a result we did not buy.
 
 \textbf{Results.} Of the 1{,}000 training tasks, \textbf{110 (11.0\%) yielded a verified generator}

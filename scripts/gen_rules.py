@@ -76,7 +76,13 @@ PROVIDERS = {
 # What that trades away is unmeasured, and it is the reason both arms get run: reasoning is
 # presumably what makes a model good at inferring an ARC rule, so the arm that matters is the one
 # with the better VERIFIED YIELD PER DOLLAR, not the one with the smaller token count.
-THINK = os.environ.get("ARC_GEN_THINK", "0") not in ("0", "", "off", "false")
+# The effort dial, which is the part of the space we never explored. The published leaderboard
+# reports three settings for this model and we only ever measured the two extremes, off and max.
+# Returns at the top are visibly sub-linear there, so the efficient point may well be in the middle.
+EFFORT = os.environ.get("ARC_GEN_EFFORT", "").strip().lower()
+if EFFORT in ("off", "none", "0", "disabled"):
+    EFFORT = ""
+THINK = (os.environ.get("ARC_GEN_THINK", "0") not in ("0", "", "off", "false")) or bool(EFFORT)
 
 # Non-thinking programs measured at ~600 tokens, so 4,000 is generous. Thinking needs a different
 # order of magnitude, and a cap that lands mid-thought wastes the entire call.
@@ -210,7 +216,9 @@ def generate(prompt):
                "messages": [{"role": "user", "content": prompt}],
                "temperature": 0.7,
                "max_tokens": MAX_OUT}
-    if not THINK:
+    if EFFORT:
+        payload["reasoning_effort"] = EFFORT
+    elif not THINK:
         payload["thinking"] = {"type": "disabled"}
     # A non-thinking call answers in seconds; a thinking call can spend tens of thousands of tokens
     # before the first character of the reply, and the default 180s would abort it as a network
@@ -657,7 +665,10 @@ def cmd_repair(n_tasks, workers):
         per_call /= 2.0
     ceiling = float(os.environ.get("ARC_GEN_MAX_USD", "0.50"))
     print("")
-    print("  %s: %d candidates" % ("RETRY CONTROL" if NOFEEDBACK else "REPAIR", len(cands)))
+    print("  %s%s: %d candidates"
+          % ("RETRY CONTROL" if NOFEEDBACK else "REPAIR",
+             (" effort=%s" % EFFORT) if EFFORT else (" thinking=max" if THINK else " thinking=off"),
+             len(cands)))
     print("  REPAIR: %d candidates (%d crashed, %d near-miss), %d workers"
           % (len(cands), sum(1 for r in cands if r["note"]),
              sum(1 for r in cands if not r["note"] and r["matched"] > 0), workers))
