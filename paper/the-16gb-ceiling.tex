@@ -1056,6 +1056,66 @@ predicting correctness, where full eight-way consensus is right far more often t
 \label{fig:votes}
 \end{figure}
 
+\subsection{Is the base limited by synthetic rule diversity?}
+\label{sec:rulediversity}
+Every result above changes the pipeline around a fixed base model, and every one of them returns to
+the same place. That pattern points at the base rather than the pipeline, and the base was trained on
+of order $10^6$ LLM-generated puzzles drawn from a finite set of rules. The natural hypothesis is that
+its ceiling is set by how many distinct transformation rules it has seen. We hold 802: the 400 RE-ARC
+verifiers and 402 pairwise compositions of them built for this work. Buying more is possible and costs
+money, so we pre-registered a gate before spending any.
+
+\textbf{The gate: rule count at fixed example count.} Two fine-tunes of the same base, each on 8{,}000
+examples under an identical recipe, differing only in how many distinct rules those examples were drawn
+from: 100 rules against all 402. If diversity does nothing at $4\times$, it will do nothing at $8\times$,
+and the direction closes for the price of two training runs.
+
+It did nothing. Both arms are \emph{identical} on both evaluations: better on 1 task, worse on 0, tied
+on 7 of 8 composed holdouts, and better on 0, worse on 0, \textbf{tied on 12 of 12} ARC-AGI-2 tasks.
+The only thing that moved is candidate count, which fell 33\% in the narrow arm and 25\% in the wide
+one without changing a single solve. Four times the rule diversity is not visible in the output.
+
+\textbf{The honest reading is weaker than it looks.} Twelve of twelve tied means the gate failed to
+detect an effect in either direction, which is not the same as establishing there is none. At this
+sample size only a multi-task swing would register, so the result bounds the effect rather than
+excluding it, and we record it as an inconclusive null rather than a refutation. A stop condition that
+fires on an underpowered tie was under-specified when we wrote it. The defensible claim is narrow:
+within composed RE-ARC rules, at 8{,}000 examples, quadrupling rule count buys nothing we can measure.
+
+\subsection{A generator corpus for ARC-AGI-2, and a trap worth reporting}
+\label{sec:gencorpus}
+The gate above tests \emph{composed ARC-1} diversity, which is not the same intervention as
+ARC-2-shaped data, so we built the second thing separately. RE-ARC implements ARC-1 rules and ships
+generators that mint unlimited fresh instances; no equivalent exists for ARC-2. The 1{,}000 public
+ARC-AGI-2 training tasks are published for training, which is what makes this legitimate where the
+evaluation split would not be, and each one is a rule specification with worked examples attached.
+
+We ask a model to write, for each task, a \texttt{solve} implementing the rule and a \texttt{gen\_input}
+sampling fresh inputs it applies to. \textbf{Verification needs no model and admits no judgement}: a
+program is correct if and only if \texttt{solve} reproduces every demonstration pair of that task under
+execution, checked in a process-isolated worker with a hard kill timeout. That is a proof, it is free,
+and it is strictly stronger than asking any model whether the grids look right.
+
+\textbf{The trap. Reasoning models can spend their entire output budget without emitting an answer.}
+Our first runs returned nothing at all, every extracted program empty, which reads exactly like a model
+that cannot do the task. It was not. The backend is a reasoning model, and on ARC tasks it does not
+converge: at a 4{,}000-token cap it spent 4{,}000 tokens on reasoning and wrote no code; raised to
+32{,}000 it spent a mean of 31{,}999, hit the cap on all 12 tasks, and again wrote no code.
+\textbf{100\% of 383{,}997 output tokens were reasoning, for 0 verified programs.} Since reasoning
+bills at the output rate, that mode costs roughly $20\times$ per call and returns zero. Disabling
+reasoning yields a complete program in about 1{,}600 tokens at a 12\% verification rate. We report this
+because the failure is silent and inverted: the symptom is an empty answer that looks like incapacity,
+the cause is a budget landing mid-thought, and the fix moves cost by a factor of twenty in the
+direction that also fixes correctness.
+
+\textbf{Bimodality appears again, in a different model at a different task.}
+Section~\ref{sec:lessons} records that the 4B solver is bimodal, solving or missing with little partial
+credit, and that this is why refinement methods need an external partial-credit signal. The generating
+model is bimodal in the same way: of 27 failures in the calibration sample, \textbf{exactly one} matched
+even a single demonstration pair. A program either captures the rule or is unrelated to it. There is no
+near-miss tail to repair, which removes an obvious-looking lever, and it is suggestive that the property
+survives a change of model, scale, and task.
+
 \section{Discussion}
 \label{sec:disc}
 
