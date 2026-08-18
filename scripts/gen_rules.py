@@ -324,10 +324,11 @@ def wait_offpeak(enabled=True):
         time.sleep(min(left + 5, 600))
 
 
-# CNY per USD of list price, measured against a real balance delta rather than assumed: the pilot
-# billed 0.78 CNY for traffic listing at about $0.109. Used only to show the balance and the
-# projection in the same units, never to decide anything.
-CNY_PER_USD = 7.15
+# CNY per USD of list price, measured against real balance deltas rather than assumed. The 12-call
+# thinking arm listed at $0.2551 and billed 1.74 CNY, which is 6.82, not the market 7.1 first
+# guessed. Used only to show the balance and the projection in the same units, never to decide
+# anything, so an error here misreports rather than misspends.
+CNY_PER_USD = 6.82
 
 
 def balance():
