@@ -72,3 +72,42 @@ Generate at scale, mint with `build_ft_corpus.py`, train ~1 day per 78k examples
 
 Phase 0 showing flat coverage across rule counts. That would say the base's ARC ability is not
 limited by the diversity of synthetic rules it has seen, and no amount of generation fixes it.
+
+## Revision after Ryan's point: batching, and a much better target
+
+**Batching saves less than it looks, and costs the thing we are buying.** Ten programs per call
+amortises the prompt from 1,800 tokens each to 180, which takes 10,000 programs from $16 to $11 on a
+cheap model, or $189 to $140 on a frontier one. That is a rounding error against a two-week project.
+And ten programs generated in one response are correlated with each other, while **diversity is
+precisely the commodity we are trying to buy**. Batching therefore trades the variable that matters
+for a cost that does not. Batch for throughput and round trips if you like, but vary the prompt per
+call, seed each with different few-shot verifiers and an explicit avoid-list, and do not batch to
+save tokens we do not need to save.
+
+**The stronger idea, and it changes the target.** A model that solves ARC-AGI-2 at ~90% can do
+something much more valuable than invent rules from nothing: it can **write a generator for each of
+the 1,000 public ARC-AGI-2 TRAINING tasks**. That is a RE-ARC for ARC-2, which does not exist.
+
+Why this is the right target:
+
+- **It fills the exact gap.** RE-ARC implements ARC-1 rules; our composition work stacks pairs of
+  them. Neither is ARC-2-shaped. The training set is, by construction.
+- **The gate is objective and free.** A generated program is correct if and only if it reproduces
+  that task's own demonstration pairs under execution. No heuristics, no judgement, no rendering
+  tasks by hand to catch a no-op. `pyexec.py` already does process-isolated execution with
+  kill-on-timeout.
+- **It is legitimate.** The ARC-AGI-2 training split is published for training. This is not the
+  public-eval contamination trap we diagnosed in another team's checkpoint, and the distinction
+  should be stated explicitly in the paper.
+- **It is cheap.** 1,000 tasks at 3 attempts each is 3,000 generations. The prompt carries the demo
+  pairs, so about 3,000 tokens in and 900 out: **$6 on a cheap model, $68 on a frontier one.**
+
+The hard half is not the transform, it is the **input sampler**. RE-ARC verifiers ship with
+generators that produce unlimited fresh inputs. A transform alone gives us only the task's own three
+or four pairs, which is no more data than we started with. Either the model writes a sampler too and
+we verify it produces inputs the transform handles, or we mint by applying verified transforms to
+inputs borrowed from other tasks and lean on the non-degeneracy filters. The first is better and
+harder; the second is a fallback that at least multiplies instances.
+
+**Phase 0 still gates all of it.** If training on 402 rules beats training on 100 rules by nothing,
+then a thousand ARC-2 rules will not help either, and none of this should be built.
