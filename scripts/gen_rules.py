@@ -26,7 +26,8 @@ prefix cache has something stable to hit.
 
 Usage:
   python gen_rules.py plan                 how many tasks, what it will cost
-  python gen_rules.py run [N] [ATTEMPTS]   generate and verify, resumable
+  python gen_rules.py run [N] [ATTEMPTS]   generate and verify, serial, resumable
+  python gen_rules.py runc [N] [ATT] [W]   the full run: concurrent, off-peak gated, balance floor
   python gen_rules.py report               yield so far, broken down by attempt
 """
 import json
@@ -55,12 +56,39 @@ EXEC_TIMEOUT = 6.0
 #             corpus is evaluation, not training, and nothing it emits enters the data.
 PROVIDERS = {
     "deepseek": {"url": "https://api.deepseek.com/v1",
-                 "model": "deepseek-chat",
+                 "model": "deepseek-v4-flash",   # confirmed from the live model listing, not guessed
                  "keyfiles": [os.path.join("~", ".deepseek", "api_key")]},
     "openai": {"url": "https://api.openai.com/v1",
                "model": "gpt-5.6",
                "keyfiles": [os.path.join("~", ".openai", "api_key")]},
 }
+# THINKING IS THE WHOLE BUDGET QUESTION, and it is off by default.
+#
+# deepseek-v4-flash is a reasoning model. Measured on a real task: it spent 8,000 output tokens on
+# reasoning_content and had still not emitted a single character of code (finish_reason "length",
+# content empty). Reasoning tokens bill at the OUTPUT rate, which is 92 percent of the bill, so a
+# thinking run costs roughly twenty times a non-thinking one and returns nothing at all if the cap
+# lands mid-thought. With thinking disabled the same task finishes in 608 tokens and 1,768
+# characters of program.
+#
+# What that trades away is unmeasured, and it is the reason both arms get run: reasoning is
+# presumably what makes a model good at inferring an ARC rule, so the arm that matters is the one
+# with the better VERIFIED YIELD PER DOLLAR, not the one with the smaller token count.
+THINK = os.environ.get("ARC_GEN_THINK", "0") not in ("0", "", "off", "false")
+
+# Non-thinking programs measured at ~600 tokens, so 4,000 is generous. Thinking needs a different
+# order of magnitude, and a cap that lands mid-thought wastes the entire call.
+MAX_OUT = int(os.environ.get("ARC_GEN_MAX_OUT", "32000" if THINK else "4000"))
+
+# USD per million tokens, PEAK rate, from api-docs.deepseek.com/quick_start/pricing. Off-peak is
+# exactly half of every line and runs 04:00-06:00 and 10:00-01:00 UTC. These replace a $0.10/$0.28
+# pair that was taken from a secondary source and was wrong by 4.7x on output, which is the line
+# that actually matters: at a 900-token program output is 94 percent of the bill.
+RATES = {
+    "deepseek-v4-flash": {"hit": 0.014, "miss": 0.44, "out": 1.32},
+    "deepseek-v4-pro":   {"hit": 0.044, "miss": 1.32, "out": 3.96},
+}
+
 PROVIDER = os.environ.get("ARC_GEN_PROVIDER", "deepseek")
 assert PROVIDER in PROVIDERS, "ARC_GEN_PROVIDER must be one of %s" % sorted(PROVIDERS)
 ENDPOINT = os.environ.get("ARC_GEN_BASE_URL", PROVIDERS[PROVIDER]["url"])
@@ -144,7 +172,10 @@ def api_key():
     for p in PROVIDERS[PROVIDER]["keyfiles"]:
         p = os.path.expanduser(p)
         if os.path.isfile(p):
-            v = open(p, encoding="utf-8").read().strip()
+            # utf-8-sig, because a key pasted into Notepad on Windows can arrive with a BOM, and a
+            # BOM survives .strip(). That would send a key differing from the real one by three
+            # invisible bytes and produce an authentication error nobody would think to debug.
+            v = open(p, encoding="utf-8-sig").read().strip()
             if v:
                 return v
     raise SystemExit(
@@ -168,12 +199,19 @@ def generate(prompt):
 
     Deliberately httpx rather than the openai package: httpx is already installed here, the endpoint
     is one POST, and this Python install has a history of punishing new dependencies.
+
+    Returns (text, usage). The usage dict is the point of the pilot: output tokens are 94 percent of
+    the bill at these rates, so the measured output length is what decides whether the full run is
+    affordable. Estimating it instead of measuring it is how the first cost table came out 7x wrong.
     """
-    j = _post("/chat/completions",
-              {"model": MODEL,
+    payload = {"model": MODEL,
                "messages": [{"role": "user", "content": prompt}],
-               "temperature": 0.7})
-    return j["choices"][0]["message"]["content"]
+               "temperature": 0.7,
+               "max_tokens": MAX_OUT}
+    if not THINK:
+        payload["thinking"] = {"type": "disabled"}
+    j = _post("/chat/completions", payload)
+    return j["choices"][0]["message"]["content"], (j.get("usage") or {})
 
 
 def cmd_check():
@@ -194,7 +232,7 @@ def cmd_check():
         print("model listing failed (%s), continuing anyway" % str(e)[:80])
     print("trying one tiny completion with model=%r ..." % MODEL)
     try:
-        out = generate("Reply with the single word: ready")
+        out, _ = generate("Reply with the single word: ready")
         print("OK, model replied: %r" % (out or "")[:60])
         print("")
         print("ready to run:  python gen_rules.py run 30 3")
@@ -212,9 +250,27 @@ def load_tasks():
 
 
 def load_records():
+    """Tolerate a truncated final line.
+
+    Records are appended one per call, so a power cut mid-append leaves a partial line. Parsing
+    strictly turns that into a crash on every subsequent run, which would strand a paid corpus
+    behind a resume path that cannot start. A cut can only damage the LAST line, so anything
+    unparseable earlier is a real problem and is worth saying out loud rather than swallowing.
+    """
     if not os.path.isfile(OUT):
         return []
-    return [json.loads(l) for l in open(OUT, encoding="utf-8")]
+    lines = [l for l in open(OUT, encoding="utf-8") if l.strip()]
+    out = []
+    for i, l in enumerate(lines):
+        try:
+            out.append(json.loads(l))
+        except ValueError:
+            if i == len(lines) - 1:
+                print("  (dropped a truncated final record, most likely an interrupted write)")
+            else:
+                print("  WARNING: record %d of %d is corrupt, not at the end of the file" %
+                      (i + 1, len(lines)))
+    return out
 
 
 def cmd_plan():
@@ -228,11 +284,53 @@ def cmd_plan():
     for att in (1, 3, 5):
         calls = n * att
         tin, tout = calls * med / 1e6, calls * 900 / 1e6
-        print("  up to %d attempt(s): %5d calls, %.1fM in + %.1fM out, about $%.2f at V4 Flash list"
-              % (att, calls, tin, tout, tin * 0.10 + tout * 0.28))
+        line = "  up to %d attempt(s): %5d calls, %.1fM in + %.1fM out" % (att, calls, tin, tout)
+        for m in ("deepseek-v4-flash", "deepseek-v4-pro"):
+            peak = tin * RATES[m]["miss"] + tout * RATES[m]["out"]
+            line += ",  %s $%.2f peak / $%.2f off-peak" % (m.split("-")[-1], peak, peak / 2)
+        print(line)
+    print("")
+    print("Assumes 900 output tokens per call and no cache hits, both pessimistic. Off-peak is half")
+    print("price and runs 04:00-06:00 and 10:00-01:00 UTC. Run the pilot before trusting any of it.")
     print("")
     print("Attempts stop early once a task verifies, so the real spend is well under these ceilings.")
     print("Verification is execution against each task's own demonstration pairs: free, and a proof.")
+
+
+ANYTIME = os.environ.get("ARC_GEN_ANYTIME", "0") not in ("0", "", "off", "false")
+PEAK_UTC = ((1, 4), (6, 10))          # published peak windows; everything else is half price
+
+
+def peak_ends_in():
+    """Seconds until peak pricing ends, or 0 if we are already off-peak."""
+    t = time.gmtime()
+    now = t.tm_hour * 3600 + t.tm_min * 60 + t.tm_sec
+    for a, b in PEAK_UTC:
+        if a * 3600 <= now < b * 3600:
+            return b * 3600 - now
+    return 0
+
+
+def wait_offpeak(enabled=True):
+    """Block until off-peak. Output is 92 percent of the bill and off-peak halves every line, so
+    waiting is worth more than any prompt tweak available to us."""
+    if not enabled:
+        return
+    while True:
+        left = peak_ends_in()
+        if not left:
+            return
+        print("  peak pricing, holding %d min for off-peak" % (left // 60 + 1), flush=True)
+        time.sleep(min(left + 5, 600))
+
+
+def balance():
+    """Remaining balance as (amount, currency). Used as a hard floor, not for accounting."""
+    import httpx
+    r = httpx.get(ENDPOINT.rstrip("/").rsplit("/v1", 1)[0] + "/user/balance",
+                  headers={"Authorization": "Bearer " + api_key()}, timeout=60.0)
+    b = r.json()["balance_infos"][0]
+    return float(b["total_balance"]), b["currency"]
 
 
 def cmd_run(n_tasks, attempts):
@@ -252,9 +350,10 @@ def cmd_run(n_tasks, attempts):
         for a in range(1, attempts + 1):
             if (k, a) in tried:
                 continue
+            wait_offpeak(not ANYTIME)
             t0 = time.time()
             try:
-                text = generate(task_prompt(task))
+                text, usage = generate(task_prompt(task))
             except Exception as e:
                 print("  %-10s a%d GENERATE FAILED %s" % (k, a, str(e)[:90]), flush=True)
                 continue
@@ -262,7 +361,13 @@ def cmd_run(n_tasks, attempts):
             ok, matched, total, note = verify(src, task)
             rec = {"task": k, "attempt": a, "ok": bool(ok), "matched": matched, "pairs": total,
                    "sampler": has_sampler(src), "note": note, "chars": len(src),
-                   "seconds": round(time.time() - t0, 1), "src": src}
+                   "seconds": round(time.time() - t0, 1),
+                   "tok_in": usage.get("prompt_tokens"),
+                   "tok_out": usage.get("completion_tokens"),
+                   "tok_cache_hit": usage.get("prompt_cache_hit_tokens"),
+                   "tok_cache_miss": usage.get("prompt_cache_miss_tokens"),
+                   "usage_raw": usage,
+                   "src": src}
             with open(OUT, "a", encoding="utf-8") as f:
                 f.write(json.dumps(rec) + "\n")
             print("  %-10s a%d %s %d/%d pairs%s  %.1fs"
@@ -270,6 +375,100 @@ def cmd_run(n_tasks, attempts):
                      " +sampler" if rec["sampler"] else "", rec["seconds"]), flush=True)
             if ok:
                 break
+    cmd_report()
+
+
+def cmd_runc(n_tasks, attempts, workers, floor=2.0):
+    """The full run: concurrent ACROSS tasks, serial WITHIN a task.
+
+    Concurrency buys nothing on price -- tokens cost the same however many sockets are open. It buys
+    the off-peak WINDOW. The long discount block is 10:00-01:00 UTC, fifteen hours; a serial run of
+    roughly 1,750 calls at 40 seconds each is nineteen, so serial spills into peak and pays double
+    for the overflow. Six workers bring it to about three hours and the whole run lands inside the
+    discount. That, and not the socket count, is the reason for the flag.
+
+    Serial WITHIN a task is not incidental: attempts stop the moment one verifies, and that early
+    stop removes far more calls than caching removes cost.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+    import threading
+
+    ch = load_tasks()
+    keys = sorted(ch)
+    if n_tasks:
+        keys = keys[:n_tasks]
+    recs = load_records()
+    solved = {r["task"] for r in recs if r["ok"]}
+    tried = {(r["task"], r["attempt"]) for r in recs}
+    todo = [k for k in keys if k not in solved]
+
+    amt, cur = balance()
+    print("%d tasks (%d already verified), up to %d attempts, %d workers, model %s"
+          % (len(keys), len(keys) - len(todo), attempts, workers, MODEL), flush=True)
+    print("balance %.2f %s, floor %.2f %s" % (amt, cur, floor, cur), flush=True)
+
+    lock = threading.Lock()
+    stop = threading.Event()
+    state = {"calls": 0, "ok": 0}
+
+    # Warm the prefix cache with ONE call before the workers start. Otherwise the first `workers`
+    # calls all race past an empty cache and every one of them pays the cache-miss rate.
+    wait_offpeak()
+    if not recs:
+        try:
+            generate(INSTRUCTIONS + " Reply with the single word: ready")
+            print("prefix cache warmed", flush=True)
+        except Exception as e:
+            print("warmup failed (%s), continuing" % str(e)[:80], flush=True)
+
+    def one_task(k):
+        task = ch[k]
+        for a in range(1, attempts + 1):
+            if stop.is_set() or (k, a) in tried:
+                continue
+            wait_offpeak()
+            t0 = time.time()
+            try:
+                text, usage = generate(task_prompt(task))
+            except Exception as e:
+                with lock:
+                    print("  %-10s a%d GENERATE FAILED %s" % (k, a, str(e)[:90]), flush=True)
+                continue
+            src = extract_code(text)
+            ok, matched, total, note = verify(src, task)
+            rec = {"task": k, "attempt": a, "ok": bool(ok), "matched": matched, "pairs": total,
+                   "sampler": has_sampler(src), "note": note, "chars": len(src),
+                   "seconds": round(time.time() - t0, 1),
+                   "tok_in": usage.get("prompt_tokens"),
+                   "tok_out": usage.get("completion_tokens"),
+                   "tok_cache_hit": usage.get("prompt_cache_hit_tokens"),
+                   "tok_cache_miss": usage.get("prompt_cache_miss_tokens"),
+                   "usage_raw": usage, "src": src}
+            with lock:
+                with open(OUT, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(rec) + "\n")
+                state["calls"] += 1
+                state["ok"] += bool(ok)
+                n = state["calls"]
+                print("  [%4d/%d ok] %-10s a%d %s %d/%d%s %.0fs"
+                      % (n, state["ok"], k, a, "VERIFIED" if ok else "failed  ", matched, total,
+                         " +samp" if rec["sampler"] else "      ", rec["seconds"]), flush=True)
+                # A prepaid balance and open sockets do not mix without a floor. Checking every 25
+                # calls costs one request and bounds the worst case to a few calls of overrun.
+                if n % 25 == 0:
+                    try:
+                        amt2, cur2 = balance()
+                        print("  -- balance %.2f %s after %d calls" % (amt2, cur2, n), flush=True)
+                        if amt2 < floor:
+                            print("  -- BELOW FLOOR, stopping", flush=True)
+                            stop.set()
+                    except Exception as e:
+                        print("  -- balance check failed %s" % str(e)[:60], flush=True)
+            if ok:
+                break
+
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        list(ex.map(one_task, todo))
     cmd_report()
 
 
@@ -290,6 +489,35 @@ def cmd_report():
             print("  attempt %d: %3d calls, %3d verified (%.0f%%)"
                   % (a, len(at), sum(r["ok"] for r in at),
                      100.0 * sum(r["ok"] for r in at) / len(at)))
+    used = [r for r in recs if r.get("tok_out")]
+    if used:
+        rate = RATES.get(MODEL, RATES["deepseek-v4-flash"])
+        hit = sum(r.get("tok_cache_hit") or 0 for r in used)
+        miss = sum(r.get("tok_cache_miss") or 0 for r in used)
+        out = sum(r["tok_out"] for r in used)
+        if not hit and not miss:                       # provider did not break the input down
+            miss = sum(r.get("tok_in") or 0 for r in used)
+        peak = (hit * rate["hit"] + miss * rate["miss"] + out * rate["out"]) / 1e6
+        reas = sum(((r.get("usage_raw") or {}).get("completion_tokens_details") or {})
+                   .get("reasoning_tokens") or 0 for r in used)
+        if reas:
+            print("")
+            print("  of %d output tokens, %d (%.0f%%) were REASONING, billed at the output rate"
+                  % (out, reas, 100.0 * reas / max(1, out)))
+        outs = sorted(r["tok_out"] for r in used)
+        med_out = outs[len(outs) // 2]
+        print("")
+        print("  MEASURED over %d calls: %d in (%d cached), %d out, median %d out per call"
+              % (len(used), hit + miss, hit, out, med_out))
+        print("  spent $%.4f at peak rates ($%.4f if run off-peak), $%.5f per call"
+              % (peak, peak / 2, peak / max(1, len(used))))
+        verified_n = len(verified)
+        if verified_n:
+            print("  $%.4f per VERIFIED program at peak, $%.4f off-peak"
+                  % (peak / verified_n, peak / 2 / verified_n))
+        full = peak / max(1, len(used)) * 1000 * 3       # 1000 tasks, 3 attempts, no early stop
+        print("  extrapolated FULL run (1000 tasks x3, no early stop): $%.2f peak, $%.2f off-peak"
+              % (full, full / 2))
     fails = [r for r in recs if not r["ok"] and r["pairs"]]
     if fails:
         near = sum(1 for r in fails if r["matched"] == r["pairs"] - 1)
@@ -312,6 +540,10 @@ if __name__ == "__main__":
     elif cmd == "run":
         cmd_run(int(sys.argv[2]) if len(sys.argv) > 2 else 30,
                 int(sys.argv[3]) if len(sys.argv) > 3 else 3)
+    elif cmd == "runc":
+        cmd_runc(int(sys.argv[2]) if len(sys.argv) > 2 else 1000,
+                 int(sys.argv[3]) if len(sys.argv) > 3 else 3,
+                 int(sys.argv[4]) if len(sys.argv) > 4 else 6)
     elif cmd == "report":
         cmd_report()
     else:

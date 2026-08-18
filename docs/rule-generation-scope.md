@@ -111,3 +111,45 @@ harder; the second is a fallback that at least multiplies instances.
 
 **Phase 0 still gates all of it.** If training on 402 rules beats training on 100 rules by nothing,
 then a thousand ARC-2 rules will not help either, and none of this should be built.
+
+## Measured, 18 Aug: the cost model above was wrong in both directions
+
+The pilot ran 30 ARC-2 training tasks through deepseek-v4-flash. Three assumptions in the table
+above did not survive it.
+
+**The prompt is a third the size assumed.** Median prompt is 536 tokens, not the ~1,800 guessed from
+"instructions plus three few-shot verifiers". The task's own demonstration pairs are the whole
+prompt and they are small.
+
+**V4 Flash is a REASONING model, and that nearly killed the direction.** On a real task it spent
+8,000 output tokens on `reasoning_content` and had still not emitted one character of code
+(`finish_reason: length`, `content` empty). Reasoning tokens bill at the output rate. The first
+pilot returned 0 of 4 with every program empty, which looked like model failure and was actually a
+cap landing mid-thought. Sending `thinking: {"type": "disabled"}` returns a complete program in
+about 600-1,000 tokens. The difference between those two modes is roughly twenty times the bill.
+
+**Yield is 10 percent, not the 20 percent guessed.** 3 verified of 30, one attempt, thinking off.
+The failure shape matters more than the rate: only 1 of 27 failures matched even one demonstration
+pair. The model either infers the rule or produces something unrelated, so there is no partial-credit
+tail to mine and no repair heuristic worth writing.
+
+| measured, thinking off | value |
+|---|---|
+| verified yield, 1 attempt | 10.0% |
+| output tokens per call | 991 median |
+| input cached | 31% (the 313-token prefix rounds to 256 in 64-token blocks) |
+| cost per call | $0.00118 off-peak |
+| **cost per VERIFIED program** | **$0.0118 off-peak** |
+| full 1000 tasks x3, off-peak | $3.53, or about $3.19 with early stop |
+
+**Caching is a rounding error here and the earlier emphasis on it was misplaced.** Output is 92
+percent of the bill, so the whole prefix-cache mechanism saves about 9 percent. Early stop, already
+implemented, removes four times as much by not making the call at all.
+
+**Concurrency is a cost lever, not a speed one.** Tokens cost the same however many sockets are
+open. What concurrency buys is landing inside the 15-hour off-peak block (10:00-01:00 UTC): serial,
+the full run is about 19 hours and spills into peak, paying double on the overflow. Six workers
+bring it to about three hours, entirely inside the discount.
+
+**Still open.** Whether thinking mode buys enough yield to justify roughly twenty times the cost per
+call is being measured on the same tasks. And Phase 0 still gates all of it.
