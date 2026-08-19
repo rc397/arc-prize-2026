@@ -89,18 +89,32 @@ def push(slug, message, version=0):
     # current_version_number as 0 for this kernel, so fall back to 1, which is the version every
     # replicate has been submitted from.
     ver = version or getattr(match[0], "current_version_number", 0) or 1
-    print("found %s, submitting version %d" % (slug, ver))
-    try:
-        out = api.competition_submit_code(file_name="submission.json", message=message,
-                                          competition=comp_slug(), kernel=slug,
-                                          kernel_version=ver)
-    except Exception as e:
-        resp = getattr(e, "response", None)
-        if resp is not None:
-            # the bare exception string hides the server's reason; print the body before giving up
+    # Version 1 is NOT a safe default. Kaggle retains submittable output only for recent versions,
+    # and this kernel reached version 3 while current_version_number still reported 0, so the old
+    # hardcoded 1 returned "Did not find provided Notebook Output File" and burned a day working out
+    # why. A rejected submission creates nothing and does not spend the daily slot, so walking
+    # upward until one is accepted is safe and costs only round trips.
+    out = None
+    tried = []
+    for cand in ([version] if version else [ver + i for i in range(0, 6)]):
+        print("trying version %d" % cand, flush=True)
+        try:
+            out = api.competition_submit_code(file_name="submission.json", message=message,
+                                              competition=comp_slug(), kernel=slug,
+                                              kernel_version=cand)
+            print("accepted at version %d" % cand)
+            break
+        except Exception as e:
+            resp = getattr(e, "response", None)
+            body = (resp.text if resp is not None else str(e)) or "(empty body)"
+            tried.append((cand, body[:120]))
+            if resp is not None and "Notebook Output File" in body:
+                continue          # this version has no retained output; the next one may
             raise SystemExit("submit failed HTTP %s: %s"
-                             % (resp.status_code, (resp.text or "(empty body)")[:600]))
-        raise
+                             % (getattr(resp, "status_code", "?"), body[:600]))
+    if out is None:
+        raise SystemExit("no version had retained output; tried %s"
+                         % ", ".join("v%d" % c for c, _ in tried))
     print(out)
     print("submitted; the score lands about nine hours later")
     return out
