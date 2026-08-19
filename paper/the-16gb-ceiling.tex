@@ -1174,6 +1174,34 @@ verification is a close substitute for the expensive property, and no model was 
 correctness at any point. It is measurable only because we built on the training split; on the
 evaluation split the same corpus would carry an error rate nobody could check.
 
+\textbf{The local alternative, and the ceiling reappearing where we did not expect it.} An API
+budget is a poor foundation for a corpus, so we tested whether generation could be moved onto the
+same 16~GB card the rest of this paper is about. Qwen3.8-27B (released 14 August 2026, Apache 2.0,
+so its outputs are training data without a licensing question) is the natural candidate. The largest
+quantisation that leaves room for a KV cache is Q3\_K\_M at 13.6~GiB, which loads entirely on the GPU
+and decodes at \textbf{47.7 tokens per second}, or about 4.4 minutes per task. On the same five
+paired tasks it verified \textbf{2 of 5}, against 4 of 5 for the hosted model at low effort. We
+cannot separate the model from the quantisation with this evidence, and program synthesis punishes
+quantisation asymmetrically, since one wrong index fails verification outright with no partial
+credit.
+
+Two results from that exercise are worth more than the comparison. First, \textbf{the
+non-termination failure reproduces in a second model family}. Left unconstrained, the local model
+spent its entire 20{,}000-token allowance without emitting a program, exactly as the hosted one did
+at 32{,}000 and 64{,}000. Imposing a 10{,}000-token thinking budget made it verify the same task it
+had just failed. The pathology is therefore not a quirk of one vendor's effort dial, and an
+independent report of the same model \emph{"defaulting to wildly overthinking things"} appeared
+within days of its release~\cite{willison2026qwen}.
+
+Second, and more pointedly for this paper, \textbf{the standard remedy for slow decoding is
+unavailable at 16~GB}. The distributed weights include multi-token-prediction layers, which
+llama.cpp can use for self-speculative decoding, and which the server otherwise loads and discards.
+Enabling them took throughput from 47.7 to \textbf{6.96 tokens per second}, a 6.3-fold \emph{loss},
+because with 13.6~GiB of weights resident there is only 258~MiB left and the draft context has
+nowhere to live. Speculative decoding trades memory for bandwidth, and at this capacity there is no
+memory left to trade. The constraint this paper is named for does not only cap how large a model can
+be; it removes the optimisation that would have compensated.
+
 \textbf{Bimodality appears again, in a different model at a different task.}
 Section~\ref{sec:lessons} records that the 4B solver is bimodal, solving or missing with little partial
 credit, and that this is why refinement methods need an external partial-credit signal. The generating
@@ -3285,6 +3313,8 @@ Autoencoders. NeurIPS 2022. arXiv:2209.07522.
 \bibitem{ttte2e} NVIDIA. Reimagining LLM Memory: Using Context as Training Data Unlocks Models That
 Learn at Test Time (TTT-E2E). NVIDIA Developer Blog, 2026.
 \url{https://developer.nvidia.com/blog/reimagining-llm-memory-using-context-as-training-data-unlocks-models-that-learn-at-test-time/}.
+\bibitem{willison2026qwen} S.~Willison. Qwen 3.8 27B is excellent, but it defaults to
+wildly overthinking things. 2026. \url{https://simonwillison.net/2026/Aug/16/qwen-38-27b/}.
 \end{thebibliography}
 
 \end{document}

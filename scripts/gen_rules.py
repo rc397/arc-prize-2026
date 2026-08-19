@@ -63,6 +63,12 @@ PROVIDERS = {
     "openai": {"url": "https://api.openai.com/v1",
                "model": "gpt-5.6",
                "keyfiles": [os.path.join("~", ".openai", "api_key")]},
+    # llama-server speaks the same OpenAI protocol, so a local model needs no new client, only a
+    # different base URL. Apache 2.0 weights, so the outputs are training data with no licence
+    # question, and the marginal cost of a call is electricity rather than money.
+    "local": {"url": "http://127.0.0.1:8080/v1",
+              "model": "local",
+              "keyfiles": [os.path.join("~", ".local_llm", "api_key")]},
 }
 # THINKING IS THE WHOLE BUDGET QUESTION, and it is off by default.
 #
@@ -169,6 +175,8 @@ def has_sampler(src):
 
 
 def api_key():
+    if PROVIDER == "local":
+        return "no-key-needed"          # llama-server ignores it; the header must still be present
     """Env var first, then a file the user creates. The value is never printed or logged.
 
     Same shape as the Kaggle token on this rig: it lives in a file under the home directory, gets
@@ -224,7 +232,11 @@ def generate(prompt):
     # before the first character of the reply, and the default 180s would abort it as a network
     # failure. That would look identical to the model failing, which is the same inverted symptom
     # this pipeline already hit once.
-    j = _post("/chat/completions", payload, timeout=1800.0 if THINK else 180.0)
+    # A local reasoning model thinks by default without any flag of ours being set, and at ~48
+    # tok/s a 20,000-token reply needs about seven minutes, so the 180s default aborts every call
+    # and reports it as a network timeout. Provider, not just the thinking flag, decides this.
+    slow = THINK or PROVIDER == "local"
+    j = _post("/chat/completions", payload, timeout=1800.0 if slow else 180.0)
     return j["choices"][0]["message"]["content"], (j.get("usage") or {})
 
 
@@ -347,13 +359,16 @@ CNY_PER_USD = 6.82
 
 
 def balance():
-    """Remaining balance as (amount, currency).
+    """Remaining balance as (amount, currency). A local model has no meter, so it reports as free
+    and every spend guard below it becomes a no-op rather than a spurious abort.
 
     Picks the funded currency rather than balance_infos[0]. The array carries an entry per currency
     and the ORDER IS NOT STABLE: a CNY-funded account returns a 0.00 USD entry too, and reading
     index 0 got the empty one, which would have tripped the spend floor on the first check and
     aborted a run that had plenty of money behind it.
     """
+    if PROVIDER == "local":
+        return float("inf"), "FREE"
     import httpx
     r = httpx.get(ENDPOINT.rstrip("/").rsplit("/v1", 1)[0] + "/user/balance",
                   headers={"Authorization": "Bearer " + api_key()}, timeout=60.0)
@@ -399,6 +414,8 @@ def calibration():
 
 def usd_of(hit, miss, out):
     """List-price USD for a token triple, at the rate for the model actually being called."""
+    if PROVIDER == "local":
+        return 0.0                      # electricity, not tokens; the ceiling must never fire
     rate = RATES.get(MODEL, RATES["deepseek-v4-flash"])
     usd = (hit * rate["hit"] + miss * rate["miss"] + out * rate["out"]) / 1e6
     return usd / 2.0 if not peak_ends_in() else usd
@@ -493,8 +510,11 @@ def cmd_runc(n_tasks, attempts, workers, floor=2.0):
     print("")
     print("  %d tasks (%d already verified), up to %d attempts, %d workers, model %s, thinking %s"
           % (len(keys), len(keys) - len(todo), attempts, workers, MODEL, "ON" if THINK else "off"))
-    print("  balance %.2f %s  (about $%.2f of list-price traffic)"
-          % (amt, cur, amt / CNY_PER_USD if cur == "CNY" else amt))
+    if cur == "FREE":
+        print("  balance: local model, no meter")
+    else:
+        print("  balance %.2f %s  (about $%.2f of list-price traffic)"
+              % (amt, cur, amt / CNY_PER_USD if cur == "CNY" else amt))
     print("  pricing right now: %s%s"
           % ("PEAK" if peak_ends_in() else "off-peak (half price)",
              ", but the gate will hold every call for the discount" if peak_ends_in() and not ANYTIME
@@ -672,9 +692,12 @@ def cmd_repair(n_tasks, workers):
     print("  REPAIR: %d candidates (%d crashed, %d near-miss), %d workers"
           % (len(cands), sum(1 for r in cands if r["note"]),
              sum(1 for r in cands if not r["note"] and r["matched"] > 0), workers))
-    print("  balance %.2f %s, projected $%.2f (%.1f CNY), ceiling $%.2f (%.1f CNY)"
-          % (amt, cur, per_call * len(cands), per_call * len(cands) * CNY_PER_USD,
-             ceiling, ceiling * CNY_PER_USD))
+    if cur == "FREE":
+        print("  local model: no cost, no ceiling")
+    else:
+        print("  balance %.2f %s, projected $%.2f (%.1f CNY), ceiling $%.2f (%.1f CNY)"
+              % (amt, cur, per_call * len(cands), per_call * len(cands) * CNY_PER_USD,
+                 ceiling, ceiling * CNY_PER_USD))
     if os.environ.get("ARC_GEN_CONFIRM") != "1":
         print("  NOT STARTING. Re-run with ARC_GEN_CONFIRM=1 to proceed.")
         return
