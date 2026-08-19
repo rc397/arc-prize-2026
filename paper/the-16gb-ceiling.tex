@@ -2199,6 +2199,21 @@ would most like a reader to take from this section: the theorem bounds the downs
 budget table says the upstream half is starved, and we spent most of a season optimising the bounded
 one.
 
+\paragraph{A confounded lever, isolated and closed.} One entry in that count deserves its own note,
+because for most of the season it was not really measured. The greedy fallback, which decodes tasks
+the solver left without an answer, was first submitted inside v7.3 alongside a loss cut and a
+1200-second per-task cap, scoring 28.61. Attributing that to any one of the three would have been
+guesswork, and the kernel then became unreachable, its output no longer held by the host, so the
+obvious re-test was not available either. It was rebuilt as v7.2's pipeline with the fallback as the
+only change and drawn three times: \textbf{30.56, 29.72, 29.44, mean 29.91}. Against the banked
+control (30.31, sd 1.34, $n=10$) that is $-0.40$, or 0.96 tasks, under the one-task noise floor;
+the difference has standard error 0.88 and $t=-0.45$. \textbf{The mechanism does nothing on its
+own.} All three draws did land below the control mean, which is $p=0.125$ under a coin flip and is
+recorded here as suggestive of a small penalty rather than claimed as one. The general point is
+about experimental hygiene rather than this knob: a lever bundled with two others and submitted once
+is not a measured lever, and the cost of finding that out was three days of a one-a-day submission
+quota spent re-establishing something a single clean run would have given us the first time.
+
 A second pattern is about cost rather than direction. \textbf{Eleven of the closures required no GPU
 at all}, and six of those eleven came from a single afternoon spent deliberately pricing ideas
 instead of building them. The selection bound is a proof. Sub-grid cropping was closed by measuring
