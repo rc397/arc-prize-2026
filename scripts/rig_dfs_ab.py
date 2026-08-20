@@ -108,10 +108,22 @@ def tf_nll(model, prompt_ids, answer_ids):
 
 
 @torch.inference_mode()
-def dfs_enumerate(model, prefix_ids, deadline):
-    """Enumerate completions whose running NLL stays below MAX_SCORE. Single beam, KV cache with a
-    clone at each real branch so siblings do not corrupt the parent state. Returns (list of
-    (nll, token_seq_without_eos), truncated)."""
+def dfs_enumerate(model, prefix_ids, deadline, mode="clone"):
+    """Enumerate completions whose running NLL stays below MAX_SCORE. Returns (list of
+    (nll, token_seq_without_eos), truncated).
+
+    `mode` selects how sibling branches share the KV cache, which is the whole point of the
+    cache A/B. All three explore the identical tree; they differ only in what each sibling sees.
+
+      clone   deepcopy the parent cache per sibling. Correct, and what this harness has always
+              done, but it copies the whole cache at every branch.
+      crop    truncate the shared cache back to `pos` before each sibling. Also correct, and
+              cheap, because it drops rows rather than copying them.
+      shared  pass the same cache with no truncation, which is what the DEPLOYED Kaggle solver
+              does. On transformers 5.12 DynamicCache appends rather than overwriting, so each
+              sibling attends over every branch explored before it and the cache grows for the
+              whole search. This arm exists to measure what that costs.
+    """
     out = model(input_ids=torch.tensor([prefix_ids], device=DEV), use_cache=True)
     root_logits = out.logits[0, -1]
     root_cache = out.past_key_values
@@ -137,7 +149,14 @@ def dfs_enumerate(model, prefix_ids, deadline):
             if nodes[0] >= DFS_NODE_CAP or time.time() > deadline:
                 trunc[0] = True
                 return
-            c = cache if idx == len(cont) - 1 else clone_cache(cache)
+            if mode == "clone":
+                c = cache if idx == len(cont) - 1 else clone_cache(cache)
+            elif mode == "crop":
+                c = cache
+                if hasattr(c, "crop"):
+                    c.crop(pos)            # restore the parent state, dropping any sibling subtree
+            else:
+                c = cache                  # shared: the deployed pattern, deliberately uncorrected
             o = model(input_ids=torch.tensor([[t]], device=DEV), past_key_values=c, use_cache=True,
                       position_ids=torch.tensor([[pos]], device=DEV),
                       cache_position=torch.tensor([pos], device=DEV))
@@ -184,7 +203,7 @@ def getter_probmul(beam, aug, baseline=3.0):
     return float(np.sum([baseline - b for b in beam])) + float(np.sum([baseline - s for s in aug]))
 
 
-def dfs_select(model, task, ti, deadline):
+def dfs_select(model, task, ti, deadline, mode="clone"):
     """Arm B. DFS-enumerate candidates over the 8 views, score each by augmentation product,
     return top-2 for both getters plus stats."""
     beams = {}
@@ -195,7 +214,7 @@ def dfs_select(model, task, ti, deadline):
             break
         at = apply_task(a, task)
         prefix = build_prompt_ids(at["train"], at["test"][ti]["input"])
-        res, tr = dfs_enumerate(model, prefix, deadline)
+        res, tr = dfs_enumerate(model, prefix, deadline, mode=mode)
         trunc_any = trunc_any or tr
         for nll, toks in res:
             g = invert_grid(a, ids_to_grid(toks))
