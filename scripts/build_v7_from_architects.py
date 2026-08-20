@@ -116,6 +116,21 @@ VARIANTS = {
                  "172 evaluation outputs, so a model prediction is the only thing left that can fill an "
                  "empty pool with something better than a guaranteed miss."),
     },
+    "v7.7": {
+        "file": "arc_submission_v7_7.ipynb",
+        "env": {"ARC_DFS_CROP": "1", "ARC_N_EVAL": "4"},
+        "note": ("v7.2 with ONE change: the DFS crops its KV cache back to the branch position "
+                 "before each sibling. Without it the same cache object is reused across siblings "
+                 "with no truncation, and on the transformers Kaggle runs it appends rather than "
+                 "overwrites, so every branch attends over the branches explored before it and the "
+                 "cache grows for the whole search. Measured locally on ten tasks with one adapter "
+                 "decoded three ways, cropping recovers 27 percent more candidates, 51 against 65, "
+                 "ahead on 8 of 10 tasks, and is identical to a full deepcopy of the cache on every "
+                 "task, so the cheap fix is exact. This ships as a CORRECTNESS fix. The solve "
+                 "difference was one task in ten, far under the roughly three points this instrument "
+                 "resolves, so one draw cannot confirm it and the claim is only that the search now "
+                 "explores the tree it was always meant to explore."),
+    },
     "v7.5b": {
         "file": "arc_submission_v7_5b.ipynb",
         "env": {"ARC_AIF": "off", "ARC_DFS_BATCH": "2", "ARC_TASK_TIMEOUT": "1800", "ARC_N_EVAL": "4"},
@@ -140,6 +155,9 @@ VARIANTS = {
 }
 # The search-width arms (old v7.2 at floor 0.1, v7.3 at floor 0.35) were measured dead, the DFS floor
 # changed the deployed output by nothing, so their notebooks are removed. The finding is in the DEVLOG.
+
+NL = chr(10)
+_CROP_FIRED = []
 
 VARIANT = sys.argv[1] if len(sys.argv) > 1 else "v7.1"
 assert VARIANT in VARIANTS, "unknown variant %r, expected one of %s" % (VARIANT, sorted(VARIANTS))
@@ -312,6 +330,32 @@ def rewire(text):
     text = text.replace(
         "    max_score = -np.log(0.2)\n",
         '    max_score = -np.log(float(os.environ.get("ARC_DFS_FLOOR", "0.2")))\n')
+    # DFS sibling-cache crop. turbo_dfs threads ONE cache object through the recursion and reuses it
+    # for every sibling in the while-loop, with position_ids pinned to the branch position and no
+    # crop anywhere. On transformers 4.55, which is what Kaggle runs, DynamicCache APPENDS rather
+    # than overwriting, so each sibling attends over every branch explored before it and the cache
+    # grows for the whole 540-second search. Our own local harness clones the cache at each branch
+    # and its docstring says why, so the decoder we validated and the decoder we ship differ here.
+    # Measured on 10 tasks with one adapter decoded three ways: cropping recovers 27 percent more
+    # candidates (51 to 65, ahead on 8 of 10 tasks) and is identical to the expensive deepcopy on
+    # every task. The solve difference was one task in ten, far under what the hidden set resolves,
+    # so this ships as a correctness fix and not as a scored lever.
+    _crop_from = ('        if num_alive_beams == 0:' + NL
+                  + '            break' + NL
+                  + '        outputs = model(')
+    _crop_to = ('        if num_alive_beams == 0:' + NL
+                + '            break' + NL
+                + '        if os.environ.get("ARC_DFS_CROP", "0") != "0" and hasattr(cache, "crop"):' + NL
+                + '            cache.crop(pos)' + NL
+                + '        outputs = model(')
+    # rewire() runs over EVERY cell and one of them is a commented-out reference copy of the solver,
+    # so the anchor legitimately misses there. Fire where it matches and verify globally below that
+    # it matched at least once, which is the check that actually matters: a replace that never
+    # fires while the config cell advertises the knob is exactly how ARC_TASK_TIMEOUT went unapplied
+    # through every v7 submission.
+    if _crop_from in text:
+        text = text.replace(_crop_from, _crop_to)
+        _CROP_FIRED.append(1)
     # per-task time cap as an env knob. The aimo edit raised sorokin's 1200 to 1800; the stripped
     # pipeline needs the tighter cap to fit 240 hidden tasks inside the 12h rerun.
     # The source writes this inline rather than through a spend_time local, and an earlier version of
@@ -628,6 +672,12 @@ nb["cells"].append(verify)
 assert "if not rerun_mode and N_EVAL > 0:" in "\n".join(
     "".join(c["source"]) for c in nb["cells"] if c["cell_type"] == "code"), \
     "commit-subset gate missing, every commit would run the full evaluation set"
+
+# A replace that silently never fires, while the config cell advertises the knob, is exactly how
+# ARC_TASK_TIMEOUT went unapplied through every v7 submission. Verify it fired when requested.
+if SPEC["env"].get("ARC_DFS_CROP", "0") != "0":
+    assert _CROP_FIRED, "ARC_DFS_CROP requested but the crop replace never fired"
+    print("DFS cache crop patch applied to %d cell(s)" % len(_CROP_FIRED))
 
 json.dump(nb, open(DST, "w", encoding="utf-8"), indent=1)
 print("wrote", DST)
