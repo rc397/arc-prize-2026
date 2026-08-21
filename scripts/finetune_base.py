@@ -93,6 +93,9 @@ def main():
     ap.add_argument("--max-len", type=int, default=2048, help="drop sequences longer than this (VRAM)")
     ap.add_argument("--limit", type=int, default=0, help="cap train examples (0 = all); use for a pilot")
     ap.add_argument("--eval-every", type=int, default=2000)
+    ap.add_argument("--save-every", type=int, default=0,
+                    help="write a step-indexed adapter every N steps (0 = off). Only needed for "
+                         "runs that get gated at several durations rather than once at the end.")
     ap.add_argument("--seed", type=int, default=0)
     ap.add_argument("--resume", action="store_true",
                     help="continue from out/resume.json if present; a 41-hour run on a box "
@@ -190,6 +193,17 @@ def main():
                           open(os.path.join(a.out, "resume.json"), "w"))
             except Exception as e:
                 print("  [resume checkpoint failed: %s]" % e, flush=True)
+        # Step-indexed ADAPTER checkpoints, so a long run can be gated at several durations rather
+        # than only at its end. Adapters and not merged models: merging needs a second base resident
+        # (about 8 GB) and would not fit alongside training on a 16 GB card. scripts/merge_ft_adapter.py
+        # turns each of these into a gate-able checkpoint afterwards, one at a time.
+        if a.save_every and (step + 1) % a.save_every == 0:
+            sdir = os.path.join(a.out, "adapter_step%d" % (step + 1))
+            try:
+                peft_model.save_pretrained(sdir)
+                print("  saved step checkpoint %s" % os.path.basename(sdir), flush=True)
+            except Exception as e:
+                print("  [step checkpoint failed: %s]" % e, flush=True)
     if not os.path.isdir(best_dir):       # fewer than eval_every steps: save the final adapter
         peft_model.save_pretrained(best_dir)
 
