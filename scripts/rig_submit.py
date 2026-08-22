@@ -143,10 +143,22 @@ if __name__ == "__main__":
     elif cmd == "api":
         api_surface()
     elif cmd == "push":
-        push(sys.argv[2], sys.argv[3] if len(sys.argv) > 3 else "replicate for the variance series")
+        push(sys.argv[2], " ".join(sys.argv[3:]) if len(sys.argv) > 3
+             else "replicate for the variance series")
     elif cmd == "wait-push":
+        # A submission message is a sentence, and any launcher that does not quote it perfectly
+        # delivers it as several argv entries. That is exactly what happened once: "replicate,"
+        # arrived where the version number belonged, int() raised, and the waiter died silently
+        # before printing a line, so a day's window passed with nothing submitted. Treat everything
+        # after the slug as the message, and accept a version only if the LAST argument is a bare
+        # integer, which a sentence never is.
+        rest = sys.argv[3:]
+        ver = 0
+        if rest and rest[-1].isdigit():
+            ver = int(rest[-1])
+            rest = rest[:-1]
         wait_push(sys.argv[2],
-                  sys.argv[3] if len(sys.argv) > 3 else "replicate for the variance series",
-                  int(sys.argv[4]) if len(sys.argv) > 4 else 0)
+                  " ".join(rest) if rest else "replicate for the variance series",
+                  ver)
     else:
         raise SystemExit(__doc__)
