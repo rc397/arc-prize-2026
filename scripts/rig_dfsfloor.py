@@ -37,8 +37,13 @@ BASE = os.environ.get("ARC_PROBE_BASE", r"D:\arc")
 for _p in (HERE, BASE):
     if _p not in sys.path:
         sys.path.insert(0, _p)
-OUT = os.path.join(BASE, "experiments", "dfsfloor.jsonl")
+OUT = os.environ.get("ARC_DFSFLOOR_OUT",
+                     os.path.join(BASE, "experiments", "dfsfloor.jsonl"))
 FLOORS = [float(x) for x in os.environ.get("ARC_FLOORS", "0.20,0.35,0.45").split(",")]
+# Decode is 69 percent of per-task time and hit its cap in every banked row, so it is
+# guillotined rather than converged. Sweeping the budget prices the guillotine. Empty
+# means use the single budget passed on the command line, which is the old behaviour.
+BUDGETS = [int(x) for x in os.environ.get("ARC_DECODE_BUDGETS", "").split(",") if x.strip()]
 
 
 def main(n_tasks, decode_s):
@@ -59,13 +64,15 @@ def main(n_tasks, decode_s):
 
     done = set()
     if os.path.isfile(OUT):
-        done = {(json.loads(l)["task"], json.loads(l)["floor"])
+        done = {(json.loads(l)["task"], json.loads(l)["floor"],
+                 json.loads(l).get("budget_s", 0))
                 for l in open(OUT, encoding="utf-8")}
     print("DFS floor sweep %s on %d tasks, decode %ds each, one adapter per task"
           % (FLOORS, len(keys), decode_s), flush=True)
 
+    budgets = BUDGETS or [decode_s]
     for task in keys:
-        if all((task, f) in done for f in FLOORS):
+        if all((task, f, b) in done for f in FLOORS for b in budgets):
             print("skip %s" % task, flush=True)
             continue
         try:
@@ -79,15 +86,15 @@ def main(n_tasks, decode_s):
             train_s = time.time() - t0
             print("%s trained %.0fs loss %.5f" % (task, train_s, tr["train_loss_final"]), flush=True)
 
-            for f in FLOORS:
-                if (task, f) in done:
+            for f, budget in [(f, b) for f in FLOORS for b in budgets]:
+                if (task, f, budget) in done:
                     continue
                 old = P.DFS_FLOOR
                 P.DFS_FLOOR = f
                 try:
                     t1 = time.time()
                     pool, trunc, over = P.decode_pool(m, tok, fmt, lifted, pz,
-                                                      time.time() + decode_s)
+                                                      time.time() + budget)
                 finally:
                     P.DFS_FLOOR = old
                 graded = P.grade(pool, labels, sorted(labels))
@@ -98,12 +105,13 @@ def main(n_tasks, decode_s):
                        "n_cands": sum(len(v) for v in pool.values()),
                        "truncated": bool(trunc), "overflow": bool(over),
                        "decode_s": round(time.time() - t1, 1),
+                       "budget_s": budget,
                        "final_loss": round(tr["train_loss_final"], 5),
                        "train_s": round(train_s, 1)}
                 with open(OUT, "a", encoding="utf-8") as fh:
                     fh.write(json.dumps(rec) + "\n")
-                print("  floor %.2f  in_pool %d/%d  sel %d  cands %d  %s  %.0fs"
-                      % (f, rec["in_pool"], rec["outputs"], rec["selected"], rec["n_cands"],
+                print("  floor %.2f budget %4ds  in_pool %d/%d  sel %d  cands %d  %s  %.0fs"
+                      % (f, budget, rec["in_pool"], rec["outputs"], rec["selected"], rec["n_cands"],
                          "TRUNCATED" if rec["truncated"] else "finished", rec["decode_s"]),
                       flush=True)
             del m

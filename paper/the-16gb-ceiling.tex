@@ -1056,6 +1056,70 @@ predicting correctness, where full eight-way consensus is right far more often t
 \label{fig:votes}
 \end{figure}
 
+\subsection{The search-throughput frontier, and a correct decoder that scores worse}
+\label{sec:frontier}
+Two experiments run a week apart move the decoder in opposite directions. Neither helps, and the
+pair is more informative than either, because together they locate the pipeline on a frontier rather
+than at an arbitrary point.
+
+\textbf{The budget that is actually binding.} Instrumenting per-task time on the rig gives 259
+seconds of test-time training against 600 seconds of decode, so decode is 69\% of the cost. It also
+never converges: across every banked row it stopped at 600, 600, 601 seconds, guillotined by its own
+wall. The whole pipeline wants about 859 seconds a task, and 240 tasks inside a twelve-hour budget
+allow far less, so tasks that run long starve the ones behind them. That matters because the score
+variance is largely throughput: submission size and score correlate at $r=+0.64$ across ten
+same-configuration draws, and the entire four-point observed range is accounted for by about a dozen
+tasks producing no answer at all.
+
+\textbf{Direction one: search more. It scored worse.} The deployed \texttt{turbo\_dfs} threads one KV
+cache through its recursion and reuses it for every sibling in the loop, position pinned to the
+branch, with no truncation anywhere. On the transformers version the competition image runs,
+\texttt{DynamicCache} appends rather than overwriting, so each sibling attends over every branch
+explored before it. Our own local harness clones the cache at each branch and its docstring says
+exactly why; the shipped decoder and the validated one had differed all along.
+
+Cropping the cache back to the branch position is correct, is bit-identical to a full deepcopy on
+every task we tested, and recovers \textbf{27\% more candidates} (51 against 65, ahead on 8 of 10
+tasks). It also takes about 7\% longer per task. Submitted three times it scored \textbf{29.72,
+27.36, 29.03, mean 28.70}, against a control of 30.21 at $n=12$, $\text{sd}=1.34$. That is
+$t=-1.75$, $p\approx0.10$, with all three draws below the control mean. Not significant, and we do
+not claim it as a regression; what we claim is that a decoder we can prove more correct did not
+score better, and the direction was consistently wrong.
+
+\textbf{Direction two: search less. It is an exact wash.} If decode always exhausts its wall, the
+natural question is what the wall costs. Holding the adapter fixed and decoding the same ten tasks at
+three budgets:
+
+\begin{center}
+\begin{tabular}{lcccc}
+\toprule
+budget & truth in pool & selected & candidates & s/task \\
+\midrule
+600\,s & 6 & 5 & 71 & 859 \\
+300\,s & 4 & 3 & 34 & 559 \\
+150\,s & 1 & 1 & 11 & 409 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Decode time is not being wasted; it is finding truth right up to the moment it is cut off. The
+throughput this buys back cancels almost exactly: at twelve hours, 600\,s allows 50.3 tasks at a 0.60
+truth rate and 300\,s allows 77.3 at 0.40, which is \textbf{30.2 expected truths against 30.9}, a
+difference of six events. Cutting to 150\,s is clearly worse.
+
+\textbf{What the pair means.} Moving the decoder in either direction is neutral to negative, so the
+540-second budget the pipeline inherited is not an arbitrary constant but sits near a local optimum
+of a real trade. It also revises an earlier reading of ours: the floor sweep found that searching
+less was neutral, and we had taken that as evidence that decode time was slack. It is not. Raising
+the floor prunes low-probability branches, which are cheap to lose; cutting the budget stops the
+search wherever it happens to be, including on branches about to pay. Those are different
+operations and only one of them is free.
+
+The uncomfortable observation is the first one. Under a binding wall clock, correctness and score are
+not the same objective, and a change that provably explores more of the intended search tree can lose
+on the leaderboard because it explores it more slowly. We report the crop as a defect found and fixed
+in the code, and separately as a change we did not ship.
+
 \subsection{Is the base limited by synthetic rule diversity?}
 \label{sec:rulediversity}
 Every result above changes the pipeline around a fixed base model, and every one of them returns to
@@ -1081,6 +1145,62 @@ sample size only a multi-task swing would register, so the result bounds the eff
 excluding it, and we record it as an inconclusive null rather than a refutation. A stop condition that
 fires on an underpowered tie was under-specified when we wrote it. The defensible claim is narrow:
 within composed RE-ARC rules, at 8{,}000 examples, quadrupling rule count buys nothing we can measure.
+
+\textbf{Rule KIND, holding count and budget fixed.} The gate above varies how many rules a fixed
+example budget is drawn from. It does not vary what kind of rule, and every rule we hold is ARC-1: a
+RE-ARC verifier, or a pair of them composed. The generator corpus of Section~\ref{sec:gencorpus} is
+ARC-2-shaped by construction, since each program was written against an ARC-AGI-2 training task and
+verified against that task's own demonstration pairs. Matching 100 ARC-2 rules against 100 composed
+ARC-1 rules at 7{,}840 examples each gives \textbf{0 better, 1 worse, 11 of 12 tied} on ARC-AGI-2.
+
+Matching them properly cost an extra training run and was worth it. Phase 0's narrow arm was already
+trained and free to reuse, but it was built at 160 pairs per pool while the ARC-2 samplers yield 12.8,
+so reusing it would have confounded rule kind with pool depth by a factor of twelve and a loss for the
+ARC-2 arm could not have been attributed to anything. Rebuilding the ARC-1 arm at matched depth also
+produced a finding of its own: cutting pool depth twelvefold changed the candidate counts
+substantially and changed \emph{no solves at all}.
+
+\textbf{Training DURATION, the one training-side variable never varied.} Both gates above stop at
+8{,}000 steps, and so does every other fine-tune in this paper. Since the largest single gain
+reported by the 200M LongT5 system is attributed to grokking~(+7.78), extended training past
+convergence is the obvious axis, and unlike more data it costs only card time. Training the same
+corpus for 96{,}000 steps and gating at four points:
+
+\begin{center}
+\begin{tabular}{lccc}
+\toprule
+steps & validation loss & ARC-AGI-2 & candidates \\
+\midrule
+8{,}000 & 0.0534 & tied 12/12 & 36 $\to$ 24 \\
+16{,}000 & \textbf{0.0491} & tied 12/12 & 36 $\to$ 38 \\
+48{,}000 & 0.0670 & worse 2, tied 10/12 & 36 $\to$ 40 \\
+96{,}000 & 0.0790 & tied 12/12 & 36 $\to$ 55 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Training loss fell to 0.0034, full memorisation of the corpus, while validation loss reached its
+minimum at 16{,}000 steps and then rose for sixty thousand more. There is no grokking signature:
+grokking is a plateau followed by a sharp drop, and this is ordinary overfitting. Not one task
+improved at any checkpoint. The 48{,}000-step dip is noise rather than trend, since 96{,}000 is
+deeper into the overfit regime and loses nothing.
+
+Two things follow. Candidate count grew 53\% while solves stayed flat, which is this paper's recurring
+observation that widening a pool the selector cannot rank buys nothing. And more usefully, \textbf{the
+validation optimum is near 16{,}000 steps while every other arm in this paper stopped at 8{,}000}. We
+had flagged that as a threat to the earlier nulls: perhaps rule count and rule kind measured nothing
+because both were measured undertrained. They were not. Gating at the optimum gives the same answer,
+which makes the earlier results stronger rather than suspect.
+
+\textbf{Three axes, one answer.} Rule count, rule kind and training duration were each varied while
+the other two were held fixed, each was pre-registered with a stated falsification, and each is null
+at its own optimum. We resist calling this three independent confirmations, because all three share
+the same twelve-task gate, which has now tied 12 of 12 three times and plainly cannot resolve a
+single-task effect. The correlation runs through the instrument, not the interventions. What the
+three do establish jointly is narrower and still useful: within the data and compute this budget
+allows, no training-side variable we can reach moves coverage, and the axis that the published
+results credit most, pretraining at the scale of $10^6$ puzzles, is the one a single 16~GB card
+structurally cannot pay for.
 
 \subsection{A generator corpus for ARC-AGI-2, and a trap worth reporting}
 \label{sec:gencorpus}

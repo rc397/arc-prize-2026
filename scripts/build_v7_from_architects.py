@@ -158,6 +158,7 @@ VARIANTS = {
 
 NL = chr(10)
 _CROP_FIRED = []
+_BUDGET_FIRED = []
 
 VARIANT = sys.argv[1] if len(sys.argv) > 1 else "v7.1"
 assert VARIANT in VARIANTS, "unknown variant %r, expected one of %s" % (VARIANT, sorted(VARIANTS))
@@ -356,6 +357,23 @@ def rewire(text):
     if _crop_from in text:
         text = text.replace(_crop_from, _crop_to)
         _CROP_FIRED.append(1)
+
+    # Per-DFS-call wall budget. Measured on the rig: decode is 69 percent of per-task time (600s
+    # against TTT's 272s) and it hit its cap in EVERY banked row, 600/600/601, so it is guillotined
+    # rather than converged. The pipeline wants 873s a task and 240 tasks against a 12-hour budget
+    # gives it far less, so tasks that run long starve the ones behind them, and the ledger says the
+    # entire four-point score range is about a dozen tasks producing no answer at all.
+    #
+    # This is the knob that trims the saturating component. It is NOT the per-task cap: cutting that
+    # to 1200 scored 29.31 against a 30.21 control, because it truncates TTT as well. The floor sweep
+    # separately found that searching LESS is neutral on coverage, worse on 1 task and better on 0
+    # across 8, so the guillotine looks cheap to move.
+    _budget_from = '        while time.time() - start_time < 540 and time.time() < end_time:'
+    _budget_to = ('        _dfs_budget = int(os.environ.get("ARC_DFS_TIME", "540"))' + NL
+                  + '        while time.time() - start_time < _dfs_budget and time.time() < end_time:')
+    if _budget_from in text:
+        text = text.replace(_budget_from, _budget_to)
+        _BUDGET_FIRED.append(1)
     # per-task time cap as an env knob. The aimo edit raised sorokin's 1200 to 1800; the stripped
     # pipeline needs the tighter cap to fit 240 hidden tasks inside the 12h rerun.
     # The source writes this inline rather than through a spend_time local, and an earlier version of
@@ -675,6 +693,9 @@ assert "if not rerun_mode and N_EVAL > 0:" in "\n".join(
 
 # A replace that silently never fires, while the config cell advertises the knob, is exactly how
 # ARC_TASK_TIMEOUT went unapplied through every v7 submission. Verify it fired when requested.
+if SPEC["env"].get("ARC_DFS_TIME"):
+    assert _BUDGET_FIRED, "ARC_DFS_TIME requested but the budget replace never fired"
+    print("DFS budget knob applied to %d cell(s)" % len(_BUDGET_FIRED))
 if SPEC["env"].get("ARC_DFS_CROP", "0") != "0":
     assert _CROP_FIRED, "ARC_DFS_CROP requested but the crop replace never fired"
     print("DFS cache crop patch applied to %d cell(s)" % len(_CROP_FIRED))
