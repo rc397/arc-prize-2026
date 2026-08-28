@@ -75,6 +75,8 @@ class QwenDataCollatorForCompletionOnlyLM(DataCollatorForLanguageModeling):
                     batch["labels"][i, start:end] = labels[start:end]
         return batch
 
+_ARC_FAIR = [0]   # set per batch by the caller when fair scheduling is on
+
 
 def turbo_dfs(model, logits, max_new_tokens, max_score, scores, pos, cache, start_time, end_time) -> dict:
     n = logits.size(0)
@@ -93,7 +95,8 @@ def turbo_dfs(model, logits, max_new_tokens, max_score, scores, pos, cache, star
     for i in range(n):
         candidates[i] = sorted(candidates[i], key=lambda x:x[0])
     
-    while time.time() - start_time < 540 and time.time() < end_time:
+    _dfs_budget = _ARC_FAIR[0] or int(os.environ.get("ARC_DFS_TIME", "540"))
+    while time.time() - start_time < _dfs_budget and time.time() < end_time:
         batch_tokens = []
         batch_scores = []
         num_alive_beams = 0
@@ -108,6 +111,8 @@ def turbo_dfs(model, logits, max_new_tokens, max_score, scores, pos, cache, star
                 num_alive_beams += 1
         if num_alive_beams == 0:
             break
+        if os.environ.get("ARC_DFS_CROP", "0") != "0" and hasattr(cache, "crop"):
+            cache.crop(pos)
         outputs = model(
             input_ids=torch.tensor(batch_tokens, device=model.device, dtype=torch.long).view(-1, 1),
             position_ids=torch.full((n, 1), pos, device=model.device),
@@ -399,7 +404,12 @@ def worker(rank, queue, end_time):
         expected_count = aif_result.get('expected_count', -1) if aif_result else -1
 
         with torch.inference_mode():
-            for subkeys in batches:
+            for _bi, subkeys in enumerate(batches):
+                if os.environ.get("ARC_DFS_FAIR", "0") != "0":
+                    _cap = int(os.environ.get("ARC_TASK_TIMEOUT", "1800"))
+                    _left = max(1, len(batches) - _bi)
+                    _rem = _cap - (time.time() - start_time)
+                    _ARC_FAIR[0] = max(60, int(_rem / _left))
                 if time.time() - start_time > int(os.environ.get("ARC_TASK_TIMEOUT", "1800")) or time.time() > end_time:
                     print(f"[Rank {rank}] timeout after {time.time()-start_time:.1f}s for {key}")
                     break

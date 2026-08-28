@@ -131,6 +131,23 @@ VARIANTS = {
                  "resolves, so one draw cannot confirm it and the claim is only that the search now "
                  "explores the tree it was always meant to explore."),
     },
+    "v7.7b": {
+        "file": "arc_submission_v7_7b.ipynb",
+        "env": {"ARC_DFS_FAIR": "1", "ARC_N_EVAL": "4"},
+        "note": ("Truncation-fair view scheduling, C1 in the ranked levers and never built "
+                 "until now. The 16 evaluation views decode in four batches and the per-task "
+                 "cap is checked only between them, while each DFS call may burn a flat 540 "
+                 "seconds. In the scoring rerun 240 tasks over 12 hours on four L4s is about "
+                 "720 seconds a task, TTT takes roughly 272, and the 450 left is less than one "
+                 "batch, so batch one consumes the budget and the other three contribute "
+                 "nothing to the multiplicity kgmon ranks on. This divides the remaining task "
+                 "time evenly over the batches still to run so every view decodes something. "
+                 "The lever asked to measure the skip rate first and we could not: the commit "
+                 "run has no time pressure and Kaggle does not expose the scoring run log, so "
+                 "the arithmetic is the evidence and the score is the test. It removes a "
+                 "hardcoded constant for adaptive allocation, the direction that has helped "
+                 "before, unlike the last two levers which both added work and both failed."),
+    },
     "v7.5b": {
         "file": "arc_submission_v7_5b.ipynb",
         "env": {"ARC_AIF": "off", "ARC_DFS_BATCH": "2", "ARC_TASK_TIMEOUT": "1800", "ARC_N_EVAL": "4"},
@@ -159,6 +176,8 @@ VARIANTS = {
 NL = chr(10)
 _CROP_FIRED = []
 _BUDGET_FIRED = []
+_FAIR_FIRED = []
+Q = chr(34)
 
 VARIANT = sys.argv[1] if len(sys.argv) > 1 else "v7.1"
 assert VARIANT in VARIANTS, "unknown variant %r, expected one of %s" % (VARIANT, sorted(VARIANTS))
@@ -368,12 +387,61 @@ def rewire(text):
     # to 1200 scored 29.31 against a 30.21 control, because it truncates TTT as well. The floor sweep
     # separately found that searching LESS is neutral on coverage, worse on 1 task and better on 0
     # across 8, so the guillotine looks cheap to move.
-    _budget_from = '        while time.time() - start_time < 540 and time.time() < end_time:'
-    _budget_to = ('        _dfs_budget = int(os.environ.get("ARC_DFS_TIME", "540"))' + NL
-                  + '        while time.time() - start_time < _dfs_budget and time.time() < end_time:')
+    _budget_from = '    while time.time() - start_time < 540 and time.time() < end_time:'
+    _budget_to = ('    _dfs_budget = int(os.environ.get("ARC_DFS_TIME", "540"))' + NL
+                  + '    while time.time() - start_time < _dfs_budget and time.time() < end_time:')
     if _budget_from in text:
         text = text.replace(_budget_from, _budget_to)
         _BUDGET_FIRED.append(1)
+
+    # Truncation-fair view scheduling (C1 in the ranked levers, never previously built).
+    #
+    # The 16 evaluation views decode in FOUR batches of four, and the per-task cap is checked only
+    # BETWEEN batches while each inference_turbo_dfs call may burn a flat 540 seconds. Three batches
+    # is already 1620s. In the 240-task scoring rerun the arithmetic is far tighter than that: 12
+    # hours over four L4s is about 720 seconds a task, TTT takes roughly 272 of them, and the ~450
+    # left is less than one batch. So batch one consumes the budget and batches two through four
+    # contribute nothing, which silently guts the multiplicity that kgmon ranks on.
+    #
+    # This divides the REMAINING task time evenly over the batches still to run, so every view
+    # decodes something. It removes a hardcoded constant in favour of adaptive allocation, which is
+    # the direction that has helped here before, unlike the last two levers which both added work.
+    #
+    # We could not measure the skip rate first, which is what the lever's own kill condition asked
+    # for: the commit run has no time pressure and Kaggle does not expose the scoring run's log.
+    # The arithmetic is the evidence and the score is the test.
+    _fair_from = ("    _dfs_budget = int(os.environ.get(" + Q + "ARC_DFS_TIME" + Q + ", "
+                  + Q + "540" + Q + "))")
+    _fair_to = ("    _dfs_budget = _ARC_FAIR[0] or int(os.environ.get(" + Q + "ARC_DFS_TIME" + Q
+                + ", " + Q + "540" + Q + "))")
+    if _fair_from in text:
+        text = text.replace(_fair_from, _fair_to)
+        _FAIR_FIRED.append("budget")
+
+    _decl_from = "def turbo_dfs(model, logits, max_new_tokens, max_score, scores, pos, cache, start_time, end_time)"
+    _decl_from = NL + _decl_from
+    _decl_to = ("_ARC_FAIR = [0]   # set per batch by the caller when fair scheduling is on" + NL + NL
+                + _decl_from)
+    if (NL + _decl_from) in text and "_ARC_FAIR = [0]" not in text:
+        text = text.replace(_decl_from, _decl_to, 1)
+        _FAIR_FIRED.append("decl")
+
+    _loop_from = ("        with torch.inference_mode():" + NL
+                  + "            for subkeys in batches:" + NL
+                  + "                if time.time() - start_time > 1800 or time.time() > end_time:")
+    _loop_to = ("        with torch.inference_mode():" + NL
+                + "            for _bi, subkeys in enumerate(batches):" + NL
+                + "                if os.environ.get(" + Q + "ARC_DFS_FAIR" + Q + ", " + Q + "0" + Q
+                + ") != " + Q + "0" + Q + ":" + NL
+                + "                    _cap = int(os.environ.get(" + Q + "ARC_TASK_TIMEOUT" + Q + ", "
+                + Q + "1800" + Q + "))" + NL
+                + "                    _left = max(1, len(batches) - _bi)" + NL
+                + "                    _rem = _cap - (time.time() - start_time)" + NL
+                + "                    _ARC_FAIR[0] = max(60, int(_rem / _left))" + NL
+                + "                if time.time() - start_time > 1800 or time.time() > end_time:")
+    if _loop_from in text:
+        text = text.replace(_loop_from, _loop_to)
+        _FAIR_FIRED.append("loop")
     # per-task time cap as an env knob. The aimo edit raised sorokin's 1200 to 1800; the stripped
     # pipeline needs the tighter cap to fit 240 hidden tasks inside the 12h rerun.
     # The source writes this inline rather than through a spend_time local, and an earlier version of
@@ -693,6 +761,10 @@ assert "if not rerun_mode and N_EVAL > 0:" in "\n".join(
 
 # A replace that silently never fires, while the config cell advertises the knob, is exactly how
 # ARC_TASK_TIMEOUT went unapplied through every v7 submission. Verify it fired when requested.
+if SPEC["env"].get("ARC_DFS_FAIR", "0") != "0":
+    assert set(_FAIR_FIRED) == {"budget", "decl", "loop"}, (
+        "ARC_DFS_FAIR requested but only these parts fired: %s" % sorted(set(_FAIR_FIRED)))
+    print("fair view scheduling applied: %s" % sorted(set(_FAIR_FIRED)))
 if SPEC["env"].get("ARC_DFS_TIME"):
     assert _BUDGET_FIRED, "ARC_DFS_TIME requested but the budget replace never fired"
     print("DFS budget knob applied to %d cell(s)" % len(_BUDGET_FIRED))
