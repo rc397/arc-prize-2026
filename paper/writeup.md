@@ -2,7 +2,7 @@
 
 ## Test-time training for ARC-AGI-2 on one consumer GPU, and what it takes to trust a number
 
-**Our best submission scored 32.64. That is the maximum of eleven runs of one immutable artifact whose mean is 29.99 and standard deviation 1.36. Most of this paper is about why we now report it that way.**
+**Our best submission scored 32.64, the maximum of eleven runs of one immutable artifact whose mean is 29.99 and standard deviation 1.36. Most of this paper is about why we now report it that way.**
 
 ### What we built
 
@@ -60,4 +60,4 @@ One positive result earns its space: masking the training loss on cells a rule l
 
 ### Artifacts
 
-The full paper is linked, every figure regenerable from committed scripts, and the attached notebook is the exact build behind our reported submission. It documents its mistakes in place, including explanations we retracted, because the corrections are the method.
+The full paper is linked, every figure regenerable from committed scripts, and the attached notebook is the exact build behind our reported submission. It documents its mistakes in place, because the corrections are the method.
