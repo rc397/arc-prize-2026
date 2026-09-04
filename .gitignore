@@ -17,6 +17,9 @@ __pycache__/
 # Secrets
 kaggle.json
 *.env
+*_key.txt
+api_key
+*.secret
 
 .claude/
 

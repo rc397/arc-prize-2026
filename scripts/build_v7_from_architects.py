@@ -387,8 +387,10 @@ def rewire(text):
     # to 1200 scored 29.31 against a 30.21 control, because it truncates TTT as well. The floor sweep
     # separately found that searching LESS is neutral on coverage, worse on 1 task and better on 0
     # across 8, so the guillotine looks cheap to move.
-    _budget_from = '    while time.time() - start_time < 540 and time.time() < end_time:'
-    _budget_to = ('    _dfs_budget = int(os.environ.get("ARC_DFS_TIME", "540"))' + NL
+    # anchored to a newline: the commented reference cell holds "#     while ...", which
+    # CONTAINS this pattern as a substring, and replacing there splits a comment in half.
+    _budget_from = NL + '    while time.time() - start_time < 540 and time.time() < end_time:'
+    _budget_to = (NL + '    _dfs_budget = int(os.environ.get("ARC_DFS_TIME", "540"))' + NL
                   + '    while time.time() - start_time < _dfs_budget and time.time() < end_time:')
     if _budget_from in text:
         text = text.replace(_budget_from, _budget_to)
@@ -410,9 +412,9 @@ def rewire(text):
     # We could not measure the skip rate first, which is what the lever's own kill condition asked
     # for: the commit run has no time pressure and Kaggle does not expose the scoring run's log.
     # The arithmetic is the evidence and the score is the test.
-    _fair_from = ("    _dfs_budget = int(os.environ.get(" + Q + "ARC_DFS_TIME" + Q + ", "
+    _fair_from = (NL + "    _dfs_budget = int(os.environ.get(" + Q + "ARC_DFS_TIME" + Q + ", "
                   + Q + "540" + Q + "))")
-    _fair_to = ("    _dfs_budget = _ARC_FAIR[0] or int(os.environ.get(" + Q + "ARC_DFS_TIME" + Q
+    _fair_to = (NL + "    _dfs_budget = _ARC_FAIR[0] or int(os.environ.get(" + Q + "ARC_DFS_TIME" + Q
                 + ", " + Q + "540" + Q + "))")
     if _fair_from in text:
         text = text.replace(_fair_from, _fair_to)
@@ -771,6 +773,23 @@ if SPEC["env"].get("ARC_DFS_TIME"):
 if SPEC["env"].get("ARC_DFS_CROP", "0") != "0":
     assert _CROP_FIRED, "ARC_DFS_CROP requested but the crop replace never fired"
     print("DFS cache crop patch applied to %d cell(s)" % len(_CROP_FIRED))
+
+# Every code cell must be valid Python before this notebook is written. A replace that fires
+# inside the commented reference copy of the solver splits one comment into a commented half and
+# an orphaned half, which parses fine as a FILE (the debug extract only takes the live cell) and
+# dies on Kaggle with IndentationError nine minutes into the commit run. That cost a day.
+import ast as _ast
+for _ci, _c in enumerate(nb['cells']):
+    if _c.get('cell_type') != 'code':
+        continue
+    _src = ''.join(_c['source'])
+    _body = NL.join('' if (l.startswith('%') or l.startswith('!')) else l
+                    for l in _src.split(NL))
+    try:
+        _ast.parse(_body)
+    except SyntaxError as _e:
+        raise SystemExit('cell %d is not valid python: %s at line %s' % (_ci, _e.msg, _e.lineno))
+print('all %d code cells parse' % sum(1 for c in nb['cells'] if c.get('cell_type') == 'code'))
 
 json.dump(nb, open(DST, "w", encoding="utf-8"), indent=1)
 print("wrote", DST)

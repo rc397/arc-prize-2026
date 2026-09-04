@@ -20,6 +20,11 @@ import os
 import sys
 
 COMP = "arc-prize-2026"
+# A KAGGLE_API_TOKEN variable appeared in the rig's environment in early September carrying a
+# different token from ~/.kaggle/access_token, and kaggle 2.x prefers the variable, so every call
+# here died with "Authentication required". The file is the credential this project manages.
+if os.path.isfile(os.path.join(os.path.expanduser("~"), ".kaggle", "access_token")):
+    os.environ.pop("KAGGLE_API_TOKEN", None)
 from kaggle.api.kaggle_api_extended import KaggleApi          # noqa: E402
 
 api = KaggleApi()
