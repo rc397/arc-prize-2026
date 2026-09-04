@@ -437,3 +437,31 @@ pilot suffered. It is still worth the nine hours because **candidate counts are 
 readout**, not coverage: the composed corpus moved ARC candidates by -29% at 8k and -47% at 67.7k, so
 a diversity effect should show there first. Read Phase 0 on candidates and treat flat coverage as
 uninformative rather than as a null.
+
+## 4 September: closing state, everything folded
+
+The submission record was pulled in full (45 rows, script versions verified) and every document was
+reconciled against it. Numbers below supersede everything above.
+
+| result | value | folded into |
+|---|---|---|
+| replicate series `339772104` | **twelve** draws: 30.56, 32.64, 28.47, 31.39, 30.56, 30.56, 28.89, 28.89, 30.56, 28.47, 28.89, 28.89. Mean **29.90**, sd **1.34**, range 4.17, CI on sd [0.95, 2.27], CI on mean [29.05, 30.75] | tex (abstract, results, tables, ledger, conclusion), writeup, fig_version_score, README, CONTEXT |
+| original artifact `337769272` | 30.97, 30.56, 28.47 (n=3, mean 30.00, sd 1.34); F against the replicate 1.01 | tex tab:twoartifacts |
+| fresh rebuild `346281718`, sub 55916584 | **31.39**. The build script is not a confound; the "drift" reading is dead | tex, writeup, versions table, CONTEXT |
+| pooled, three artifacts | n=16, mean 30.01, sd 1.30, CI on sd [0.96, 2.01] | tex tab:twoartifacts |
+| v7.6 greedy fallback alone | 30.56, 29.72, 29.44, mean 29.91, t=0.02 against the series | tex ledger row, versions table |
+| v7.7 DFS cache crop | 29.72, 27.36, 29.03, mean 28.70, t=-1.49, p=0.22 | tex frontier section, ledger row, writeup |
+| v7.7b fair view scheduling | 29.44, 27.78 (mean 28.61, t=-1.41); **draw 3 submitted 4 Sep as 56006884**, lands ~15:30 UTC | tex frontier "direction three", ledger row, versions table, writeup; update all four when the score lands |
+| no-dead-AIF | 30.00, 29.03, 30.56, mean 29.86 | versions table |
+| power at 3 per arm | **4.1 points** by exact two-sample t (Cohen d 3.07); the 3.4 quoted before was a normal approximation and understated it | tex (five places), writeup |
+| size-score correlation | recomputed over 15 draws of the two multi-run artifacts; see tex | tex, two places |
+| generator corpus | 110 verified from the no-reasoning pass ($1.57); +17 from low effort over 25 failures (68%, ~2.5 CNY); +1 retry control; **128 verified, 127 with samplers** | tex gencorpus results, writeup, CONTEXT |
+| ledger count | 33 rows plus 7 season-end arms (greedy fallback, cache crop, decode budget, fair scheduling, rule count, rule kind, duration) = **40**; 32 closed offline | tex ledger and every "thirty-three" |
+
+Provenance settled the same day: `notebooks/arc_submission_v7_2_replicate.ipynb` is the exact
+twelve-draw artifact (code hash d81f62ce), `arc_submission_v7_2_original.ipynb` the 30.97 build,
+`arc_submission_v7_2.ipynb` the fresh rebuild that scored 31.39, and the v7.6 / v7.7 / v7.7b files
+match the bytes pushed to Kaggle. Two spurious local rebuilds of v7.6 and v7.7 were reverted.
+
+Still owed: the v7.7b third draw; a public URL for the PDF before the writeup is filed; the cover
+image choice.

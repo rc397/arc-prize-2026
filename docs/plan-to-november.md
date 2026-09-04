@@ -174,8 +174,8 @@ resolution and would be the exact error this paper documents.
 ## Hard blockers, unchanged and still not research
 
 - [ ] **Repo is private.** Solutions must be open-sourced for prize eligibility. Decide by 1 Oct.
-- [ ] Paper must link to a Kaggle code submission. Currently `55261090` at 32.64.
-- [ ] Writeup capped at 1500 words, currently 1498.
+- [ ] Paper must link to a Kaggle code submission. `55261090` at 32.64, the maximum of the twelve-draw series; the fresh-build control `55916584` at 31.39 is the fallback.
+- [x] Writeup capped at 1500 words, held near 1,450 so any counter clears it (4 Sep).
 
 ## What I dropped from revision 1, and why
 

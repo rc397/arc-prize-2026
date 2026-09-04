@@ -1,12 +1,12 @@
 # Context: ARC Prize 2026, single-16GB-GPU entry
 
-Background on this project as of 2026-08-20. Everything is measured unless stated otherwise.
+Background on this project as of 2026-09-04. Everything is measured unless stated otherwise.
 
 ## The project
 
 Two linked entries in ARC Prize 2026. The **Paper Track** is the priority: rubric-judged, one
-submission, the writeup is the deliverable (`paper/the-16gb-ceiling.tex`, 77 pages, a living
-document that grows with each chapter of work). The **ARC-AGI-2 main track** is an offline Kaggle
+submission, the writeup is the deliverable (`paper/the-16gb-ceiling.tex`, 79 pages, a living
+document that grows with each chapter of work, plus the 1,500-word `paper/writeup.md` that Kaggle judges read first). The **ARC-AGI-2 main track** is an offline Kaggle
 notebook, required for eligibility. The repo goes public 1 October.
 
 The organising constraint is a single 16 GB GPU, which is the paper's subject rather than a caveat.
@@ -26,16 +26,19 @@ TTT dominates the cost.
 
 | | |
 |---|---|
-| peak hidden score | 32.64 |
-| defended build | v7.2 at 30.97 |
-| control | mean 30.31, sd 1.34, n=10 |
-| noise floor | 1 task = 0.4167 points |
-| levers measured | 33, none moved the hidden score |
+| peak hidden score | 32.64, the maximum of twelve draws of one artifact |
+| the control series | kernel version 339772104 run twelve times: mean 29.90, sd 1.34, range 28.47 to 32.64 |
+| fresh-build control | 31.39 (31 Aug), so the build script is not a confound |
+| best single-card build | 18.19 (v6.1) |
+| noise floor | 1 task = 0.4167 points; two draws of the same artifact differ by more than that 83% of the time |
+| levers measured | 40, none moved the hidden score |
 
-Nothing has beaten v7.2. Five distinct builds land on exactly 30.56. The evidence points at the base
-model rather than the pipeline: the remaining knobs are all smaller than the instrument can resolve.
-At sd 1.42 the leaderboard cannot separate anything below roughly 3.4 points without three runs an
-arm.
+Nothing has beaten the reproduction. The evidence points at the base model rather than the pipeline:
+the remaining knobs are all smaller than the instrument can resolve. At sd 1.34 the leaderboard cannot
+separate anything below roughly four points without three runs an arm (exact two-sample t, 80% power).
+The last arms, each three draws unless noted, against 29.90: greedy fallback alone 29.91; DFS cache
+crop 28.70; fair view scheduling 29.44 and 27.78 with a third draw submitted 4 Sep; no-dead-AIF 29.86.
+None is distinguishable from the control.
 
 ## The generator corpus
 
@@ -97,9 +100,24 @@ cache-miss input, $1.32 output per 1M tokens. Off-peak is exactly half and runs 
 - **Rule count (Phase 0)**: 100 composed ARC-1 rules against 402, equal 8,000-example budgets.
   Identical results, tied 12 of 12 on ARC-AGI-2. Recorded as an inconclusive null rather than a
   refutation, since twelve ties means the gate could not detect an effect in either direction.
-- **Greedy fallback**: 30.56 / 29.72 / 29.44, mean 29.91 against control 30.31. Under the noise
+- **Greedy fallback**: 30.56 / 29.72 / 29.44, mean 29.91 against control 29.90. Under the noise
   floor. Its earlier appearance was bundled with two other changes in one submission, so this was
   the first time the mechanism was measured alone.
+- **Rule kind (the shape gate)**: 100 ARC-2 generators against 100 ARC-1 rules at matched pool depth.
+  0 better, 1 worse, 11 of 12 tied. Rule count and rule kind are both null.
+- **Training duration**: 8k to 96k steps on the same corpus. Validation loss bottoms at 16k and rises
+  for sixty thousand more while training loss falls to 0.0034; tied 12/12 at every checkpoint, no
+  grokking signature. The three training-side gates share one twelve-task instrument, so they are one
+  null measured three ways rather than three confirmations.
+- **DFS cache crop (v7.7)**: the deployed decoder shares one KV cache across sibling branches without
+  truncation. Cropping is provably correct, bit-identical to a deepcopy, and finds 27% more candidates
+  offline. Submitted three times: 29.72, 27.36, 29.03, mean 28.70. Correctness costs wall clock.
+- **Decode budget**: 600/300/150 s on the same ten tasks puts the truth in the pool 6/4/1 times; the
+  throughput bought back cancels almost exactly, so the inherited 540 s sits near a local optimum.
+- **Fair view scheduling (v7.7b)**: divide the remaining task time evenly over the four view batches.
+  29.44, 27.78, third draw pending. Below the mean, unresolved at two draws.
+- **A fresh build of v7.2 (rebuild control)**: 31.39. Rules out the build script as the reason the
+  new arms landed below the mean.
 - **Local generation**: worse on accuracy and not fixable on speed. Qwen3.8-27B at Q3_K_M is fully
   GPU-resident at 47.7 tok/s, but enabling the model's own MTP layers for self-speculative decoding
   took it to 6.96 tok/s, a 6.3-fold loss, because 13.6 GiB of resident weights leave 258 MiB and the
@@ -108,18 +126,10 @@ cache-miss input, $1.32 output per 1M tokens. Off-peak is exactly half and runs 
 
 ## Open questions
 
-**The shape gate.** Phase 0 varied rule *count*. It never varied rule *shape*: every rule held here
-is ARC-1, and the new corpus is ARC-2-shaped by construction. `scripts/mint_genrules.py` builds pools
-by running each generator process-isolated, then reuses `build_ft_corpus.mint()` unchanged.
-
-There is a known confound. RE-ARC pools carry roughly 40 distinct pairs per rule; these samplers
-yield about 7. An earlier figure of "9.5 usable draws per 10 seeds" measured whether draws were
-valid, never whether they differed from one another, and largely they do not. So the arms are not
-matched on raw material, and a loss for the ARC-2 arm would not separate shape from pool poverty.
-Matching requires subsampling the ARC-1 pools and retraining both arms, roughly 9 h on an idle rig.
-
-The outcome gates about 101 CNY: at effort=low the remaining 865 failed tasks would yield roughly
-588 more generators, taking the corpus to about 715.
+**Buying more generators.** At effort=low the remaining failed tasks would yield roughly 588 more
+generators for about 101 CNY, taking the corpus to about 715. Not bought: the shape gate found rule
+kind does not move the base at this scale, so the corpus is a contribution in itself rather than a
+route to a better base.
 
 **FAAST** (arXiv 2605.04651) computes adaptation in closed form, `W* = K†V` by pseudoinverse, in one
 forward pass with no backprop, roughly 15x cheaper than gradient adaptation. It targets per-task TTT,
@@ -128,6 +138,14 @@ as the weak spot, which is ARC by definition; its language-modelling results are
 (15.35 against 13.60 perplexity) and only match with an extra readout component; and it learns only a
 linear map from frozen representations. Its precondition is testable without implementing it, by
 checking whether ARC transformations are linearly decodable from the base's hidden states.
+
+## Where things stand, 4 September
+
+The leaderboard work is finished; the paper is the deliverable. `paper/writeup.md` is under the
+1,500-word cap and `paper/the-16gb-ceiling.pdf` builds clean. Open items before the 9 November paper
+deadline: choose the cover image (candidates in `paper/`), host the PDF at a public URL (the repo is
+private until 1 October), confirm submission 55261090 (32.64) as the accuracy anchor, and fold in the
+v7.7b third draw when it lands.
 
 ## Environment notes
 
@@ -146,6 +164,12 @@ Facts that each cost a day:
 - `Get-Process python` returns nothing while jobs are healthy, because the process name is
   `python3.13`.
 - A power cut on 2026-08-18 killed every running job, so long runs checkpoint and resume from disk.
+- A `KAGGLE_API_TOKEN` environment variable appeared on the rig in early September holding a token
+  that differs from `~/.kaggle/access_token`; kaggle 2.x prefers the variable, so every submission
+  script failed with "Authentication required". `scripts/rig_submit.py` now drops the variable when
+  the file exists. The variable itself was left alone.
+- The rig's GPU has been fully occupied since 2 Sep by a job outside this project
+  (`C:\liliput\v3\train_scaleup.py`); check before launching anything.
 - On Kaggle, `machine_shape: "NvidiaL4"` is required and its absence is silent; `model_sources` must
   read `sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1` with a capital T, and wrong values
   land in `invalidModelSources` while the push still reports success; and submission needs a

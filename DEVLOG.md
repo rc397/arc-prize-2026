@@ -917,3 +917,78 @@ Standing state after this: every card-side and inference-side lever is now measu
 width 0, attempt split 0, selector kgmon is best, TRM 0 (frontier-confirmed), union +1 selection-artifact,
 verifier capped near 5 points and needs an instrumented re-run plus a new signal. The only remaining real
 lever is a more capable base model, the compute-and-data moat that is the paper's thesis.
+
+## 2026-09-04: the log catches up, six weeks in one entry, and the season's ledger closes at forty
+
+The DEVLOG stopped on 24 July while the work did not; the running notes went to `docs/pending-results.md`
+and straight into the paper. This entry restores the record from the Kaggle submission history (45 rows,
+each verified by `scriptVersionId`) and the rig logs, then records today's full review and cleanup.
+
+### What was measured, 25 July to 31 August
+
+**The variance series.** Resubmitting one immutable kernel version, `339772104`, twelve times between 3
+and 27 August scored 30.56, 32.64, 28.47, 31.39, 30.56, 30.56, 28.89, 28.89, 30.56, 28.47, 28.89 and
+28.89: mean 29.90, sd 1.34, range 4.17 points. A second build of the same configuration, `337769272`,
+scored 30.97, 30.56, 28.47 (sd 1.34, variance ratio 1.01 against the first). A third, a fresh build by the
+current build script with no option set, scored 31.39 on 31 August. Every regression this project ever
+recorded sits inside 1.5 sd of 29.90. The 32.64 we spent weeks treating as our best result is the maximum
+of twelve draws.
+
+**Arms, each pre-registered for three draws against that series.** Greedy fallback alone (v7.6): 30.56,
+29.72, 29.44, mean 29.91, t=0.02. DFS cache crop (v7.7): 29.72, 27.36, 29.03, mean 28.70, t=-1.49. The
+crop is provably correct, bit-identical to a deepcopy, finds 27% more candidates offline, and scored
+worse three times, because correctness costs wall clock. Truncation-fair view scheduling (v7.7b): 29.44,
+27.78 so far, third draw submitted today (56006884). No-dead-AIF completed at 30.00, 29.03, 30.56. The
+1200-second cap scored 29.31 once. Nothing is distinguishable from the control.
+
+**The decoder's frontier.** Decoding the same ten tasks at 600/300/150 s puts the truth in the pool 6/4/1
+times; the throughput bought back by cutting the budget cancels the loss almost exactly (30.2 against 30.9
+expected truths), so the inherited 540 s sits near a local optimum. Searching more (the crop) and searching
+less are both neutral to negative, and so is dividing the time differently.
+
+**Training-side gates, one instrument, three nulls.** Rule count (100 composed rules against 402, equal
+8,000-example budget): tied 12/12. Rule kind (100 ARC-2 generators against 100 ARC-1 rules at matched pool
+depth): 0 better, 1 worse, 11/12 tied. Training duration (8k to 96k steps): validation loss bottoms at
+16k and rises for sixty thousand more while training loss falls to 0.0034; tied 12/12 at every checkpoint,
+no grokking signature. All three share a twelve-task gate that cannot resolve a single-task effect.
+
+**The generator corpus.** Asking DeepSeek V4 Flash for a `solve` and a `gen_input` per public training task,
+verified by execution: 110 of 1,000 for $1.57 with reasoning off. Reasoning on at a 32k cap burned 383,997
+output tokens across twelve tasks and wrote no code, a cap landing mid-thought. Low effort over 25 of the
+failures verified 17 (68%); max effort was worse on yield, price and speed at once. A retry control added
+one. The corpus stands at 128 verified generators, 127 with samplers, and 93 of the first 100 reproduce the
+held-out test pair, so execution against demonstrations is a 93%-precise proxy for the rule. Local
+generation on the 5070 Ti (Qwen3.8-27B Q3_K_M, 47.7 tok/s) verified 2 of 5 and MTP speculative decoding
+cost a 6.3x slowdown for want of 258 MiB.
+
+**Things that cost slots.** A power cut on 18 August killed every rig job (resume from disk saved the
+results). An unquoted submission message split into argv and `int('replicate,')` killed a wait-push
+silently on 22 August; a slot passed unused. The first v7.7b push died nine minutes into its commit run
+with an IndentationError, because a builder pattern also matched inside the commented reference copy of
+the solver and split a comment in half; the 28 August slot was lost, the patterns are now newline-anchored
+and the builder refuses to write a notebook whose code cells do not parse.
+
+### Today: review and cleanup
+
+- **Kaggle auth on the rig was broken.** A `KAGGLE_API_TOKEN` environment variable appeared in early
+  September holding a token that differs from `~/.kaggle/access_token`, and kaggle 2.x prefers the
+  variable. Every `rig_submit.py` call failed with "Authentication required". The scripts now drop the
+  variable when the file exists; the variable itself is left alone. With that fixed, v7.7b draw 3 went
+  into today's slot.
+- **The rig's GPU is fully occupied** by a job outside this project (`C:\liliput\v3`), since 2 September.
+- **Provenance.** `notebooks/arc_submission_v7_2_replicate.ipynb` is the exact twelve-draw artifact
+  (code hash d81f62ce). `arc_submission_v7_2.ipynb` was the comment-split corruption in HEAD and is now
+  the fresh rebuild that scored 31.39; `arc_submission_v7_7b.ipynb` was the IndentationError build and is
+  now the bytes that scored. Two spurious local rebuilds of v7.6 and v7.7 were reverted to the bytes
+  pushed. The 30.97 build is added as `arc_submission_v7_2_original.ipynb`.
+- **Numbers.** The tex counted ten draws, the writeup eleven, the truth was twelve. Both now carry the
+  twelve-draw series, the rebuild control, v7.7b, the 128-generator count with its price split, and a
+  ledger of forty (the seven season-end arms had no rows while the text claimed one of them did).
+- **A correction of our own.** The "3.4 points at 80% power with three per arm" figure was a normal
+  approximation. The exact two-sample t at two degrees of freedom per arm needs 4.1 points (Cohen's d of
+  3.1). The paper says so in place.
+- **The writeup's "fourteen measured configurations"** had no source in the paper and was replaced with
+  the claim the paper does support: the full-rank, full-context configuration fits 16 GB only under a
+  late-found attention kernel and would still need forty hours against the twelve allowed.
+- README, CONTEXT.md, pending-results.md and the plan checklist refreshed. `fig_version_score` regenerated
+  with all twelve draws and the four arm means.
