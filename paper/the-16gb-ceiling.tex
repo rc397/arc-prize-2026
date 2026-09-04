@@ -78,24 +78,25 @@ card. That configuration turns out to fit the card's memory once the attention k
 deliberately, which corrects an earlier conclusion of our own, so the binding resource is time rather than
 capacity. We then measure the gap rather than assert it. Reproducing one such public pipeline on the
 contest's own four-L4 node, and repairing two defects the community port had introduced into it, scores
-\textbf{30.10\%} as the mean of ten runs of one immutable kernel version. That result is a
+\textbf{29.90\%} as the mean of twelve runs of one immutable kernel version. That result is a
 reproduction of named public work and is not a single-card result, and we report it as the measured
 price of the constraint, roughly twelve points against the best configuration we could serve inside
 the single-card budget.
 
-We quote a mean rather than a best because of what those ten runs turned out to be. A single
-Kaggle kernel version, resubmitted seven times across nine days with nothing changed and verified
+We quote a mean rather than a best because of what those twelve runs turned out to be. A single
+Kaggle kernel version, resubmitted twelve times across twenty-five days with nothing changed and verified
 byte-identical by script version rather than by description, scored \textbf{30.56, 32.64, 28.47,
-31.39, 30.56, 30.56} and \textbf{28.89}: a spread of \textbf{4.17 points}, ten task credits, and a
-standard deviation of \textbf{1.38} with a 95\% confidence interval of $[0.95, 2.52]$. Measured
+31.39, 30.56, 30.56, 28.89, 28.89, 30.56, 28.47, 28.89} and \textbf{28.89}: a spread of \textbf{4.17
+points}, ten task credits, and a standard deviation of \textbf{1.34} with a 95\% confidence interval of
+$[0.95, 2.27]$. Measured
 against it, \emph{every} build this project called a regression, and both public notebooks we ran as
 controls, fall inside two standard deviations. So does the 32.64 we spent weeks treating as our best
-result: it is the maximum of ten draws from a distribution centred on 30.10, an order statistic
-rather than a score, and we now report the pipeline as $30.4 \pm 1.4$. That is the paper's most
+result: it is the maximum of twelve draws from a distribution centred on 29.90, an order statistic
+rather than a score, and we now report the pipeline as $29.9 \pm 1.3$. That is the paper's most
 transferable result. At this operating point a single hidden-set score does not resolve the method
 differences the field routinely reports, our own included; separating two configurations at 80\%
-power would need roughly \textbf{3.4 points of separation and three runs per arm}, six submission
-days for one comparison. We only found this because we spent seven submissions re-running one
+power would need roughly \textbf{four points of separation and three runs per arm}, six submission
+days for one comparison. We only found this because we spent twelve submissions re-running one
 unchanged artifact.
 
 Past that point the work becomes an account of what it takes to trust a number at all in this setting,
@@ -152,7 +153,7 @@ H100 or GH200 GPUs, though the winning offline submission itself runs on four L4
 recipe under a constraint we think is widely shared, a single RTX~5070~Ti with 16~GB, on the
 Blackwell architecture, running native Windows. The aim on one card is not to top the leaderboard but to build a working, reproducible system, measure
 honest numbers, and map where the small model stops being enough. That map is the efficient floor of a
-larger climb. The ceiling in the title is the hardware, 16~GB of VRAM, not a score, and the number climbs beneath it as the method deepens, from 13.61 to 18.19 on the hidden set (Section~\ref{sec:results}). We also put a number on the ceiling itself. Reproducing a public pipeline that cannot fit one card, on the hardware the contest provides, averages 30.10\% over ten runs of one immutable artifact on the same hidden set, so the constraint is worth roughly twelve points rather than an unknown amount. We report the mean and not the 32.64 peak, because those ten runs differ from each other by 4.17 points with no code change at all, which makes the peak an order statistic. The same contest hands every entrant four L4 GPUs, 96~GB together, and the offline frontier
+larger climb. The ceiling in the title is the hardware, 16~GB of VRAM, not a score, and the number climbs beneath it as the method deepens, from 13.61 to 18.19 on the hidden set (Section~\ref{sec:results}). We also put a number on the ceiling itself. Reproducing a public pipeline that cannot fit one card, on the hardware the contest provides, averages 29.90\% over twelve runs of one immutable artifact on the same hidden set, so the constraint is worth roughly twelve points rather than an unknown amount. We report the mean and not the 32.64 peak, because those twelve runs differ from each other by 4.17 points with no code change at all, which makes the peak an order statistic. The same contest hands every entrant four L4 GPUs, 96~GB together, and the offline frontier
 on that hardware has already passed 50\% with refinement loops and program synthesis~\cite{arc2025}. We
 read the 16~GB walls not as the limit of the task but as the exact places scaling up has to break, and
 Section~\ref{sec:scale} lays out that path. Figure~\ref{fig:solve} shows a representative task our system
@@ -185,13 +186,13 @@ hits first, the decode ceiling, the VRAM limit on large-grid TTT, and adapter ov
 baseline halves from 12.79\% to 6.53\%, and across seven leaderboard submissions every candidate-side
 lever that lifted or tied the public evaluation regressed the hidden score when deployed
 (Section~\ref{sec:results}, \ref{sec:lessons}).
-\item \textbf{A measured error bar for the benchmark itself.} Seven submissions of one immutable
-Kaggle kernel version span 4.17 points on the hidden set with a standard deviation of \textbf{1.38},
-so a single score cannot resolve differences below roughly 3.4 points without three runs per arm. We
+\item \textbf{A measured error bar for the benchmark itself.} Twelve submissions of one immutable
+Kaggle kernel version span 4.17 points on the hidden set with a standard deviation of \textbf{1.34},
+so a single score cannot resolve differences below roughly four points without three runs per arm. We
 believe this is the first such measurement published for ARC-AGI-2, and it retires a class of claim
 rather than a single claim: every regression we recorded, both public-notebook controls, and our own
-best configuration all fall inside 1.8 standard deviations (Section~\ref{sec:results}).
-\item \textbf{A ledger of thirty-three measured levers, none of which moved the score}, organised by
+best configuration all fall inside 1.5 standard deviations (Section~\ref{sec:results}).
+\item \textbf{A ledger of forty measured levers, none of which moved the score}, organised by
 where each sits relative to the candidate pool, together with the observation that eleven of them
 were closed with no GPU at all by pricing the idea before building it (Section~\ref{sec:ledger}).
 \item A reading of why those walls are a property of a small model on one card rather than of the task,
@@ -498,7 +499,12 @@ v7.2r$''$ & \emph{the same kernel version again, a third execution} & \textbf{28
 v7.2r$'''$ & \emph{and a fourth} & 31.39 \\
 v7.2r$''''$ & \emph{and a fifth} & 30.56 \\
 cap & the replicate with one live literal, 1800 to 1200 & 29.31 \\
-noAIF & the replicate minus computation its own output discards & 30.00 \\
+noAIF & the replicate minus computation its own output discards; 30.00, 29.03, 30.56 & 29.86 mean \\
+v7.2r$\times$12 & the same kernel version, twelve executions in all (Table~\ref{tab:twoartifacts}) & 29.90 mean \\
+v7.6 & the replicate plus the greedy fallback alone; 30.56, 29.72, 29.44 & 29.91 mean \\
+v7.7 & the replicate with the DFS cache cropped to the branch; 29.72, 27.36, 29.03 & 28.70 mean \\
+v7.7b & the replicate with each task's remaining time divided evenly over its view batches; 29.44, 27.78 so far & 28.61 mean \\
+rebuild & a fresh build of the unmodified v7.2 configuration, a control on the build script & 31.39 \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -536,9 +542,9 @@ title, measured rather than argued, and it is the paper's central quantitative c
 \centering
 \includegraphics[width=\linewidth]{fig_version_score}
 \caption{Hidden score by submission version, with the measured same-configuration band. The band
-comes from ten runs of \emph{one immutable kernel version}, mean 30.10 and standard deviation 1.38;
+comes from twelve runs of \emph{one immutable kernel version}, mean 29.90 and standard deviation 1.34;
 the inner shading is $\pm1$ sd and the outer $\pm2$. Every score from v7.1 onward, including every
-build we called a regression, lies within 1.8 standard deviations of that mean. An earlier version of
+build we called a regression, lies within 1.5 standard deviations of that mean. An earlier version of
 this caption read that the spread was ``about one task credit'' and that every point below the band
 was ``a real regression rather than noise''; that was estimated from three runs and both halves of it
 were wrong. The two public-notebook controls are plotted separately in Figure~\ref{fig:phantom}.}
@@ -564,17 +570,17 @@ re-export, the same committed version identifier as the run that had scored 30.5
 \textbf{32.64}. Identical code, two executions, \textbf{2.08 points apart}, which is five task
 credits.
 
-We then kept submitting that same kernel version, once a day, for as long as the quota allowed. Seven
-executions of one immutable artifact scored \textbf{30.56, 32.64, 28.47, 31.39, 30.56, 30.56} and
-\textbf{28.89}: a range of \textbf{4.17 points}, ten task credits, on code that cannot have changed.
-This is the central measurement of the paper and we arrived at it by widening the same estimate four
-times, each time in the same direction.
+We then kept submitting that same kernel version, as often as the quota allowed, into late August.
+Twelve executions of one immutable artifact scored \textbf{30.56, 32.64, 28.47, 31.39, 30.56, 30.56,
+28.89, 28.89, 30.56, 28.47, 28.89} and \textbf{28.89}: a range of \textbf{4.17 points}, ten task
+credits, on code that cannot have changed. This is the central measurement of the paper and we arrived
+at it by widening the same estimate five times, each time in the same direction.
 
-Mean \textbf{30.10}, standard deviation \textbf{1.38}, with a 95\% interval on that standard
-deviation of $[0.91, 3.12]$ and on the mean of $[29.13, 31.75]$.
+Mean \textbf{29.90}, standard deviation \textbf{1.34}, with a 95\% interval on that standard
+deviation of $[0.95, 2.27]$ and on the mean of $[29.05, 30.75]$.
 
 Two methodological points about that series, both of which cost us something to learn. First, it is
-ten runs of one \emph{script version}, verified by the \texttt{scriptVersionId} recorded against
+twelve runs of one \emph{script version}, verified by the \texttt{scriptVersionId} recorded against
 each submission rather than by what its description said. One member carried the note ``unchanged
 except commit size'', which could easily have meant a rebuild and a different artifact; the audit
 confirmed it did not. Second, an earlier draft of this section pooled these runs with three
@@ -583,68 +589,73 @@ family is the wrong instrument, because its spread confounds the code change wit
 single-version series measures the environment alone, and it is the wider of the two.
 
 \paragraph{The obvious objection, and a second artifact that answers it.}
-Seven runs of one kernel version measure that kernel version. A reader is entitled to ask whether we
+Twelve runs of one kernel version measure that kernel version. A reader is entitled to ask whether we
 happened to hammer an unusually erratic artifact, and no amount of resubmitting the same one can
 answer that. So we spent three submissions on a \emph{different} build of the same configuration,
 \texttt{scriptVersionId} 337769272, which had scored 30.97 on its single previous run. It scored
-\textbf{30.56} and then \textbf{28.47}.
+\textbf{30.56} and then \textbf{28.47}. A third artifact came at the end of August and for a different
+reason. The build script had by then been edited repeatedly since the replicate kernel was pushed, and
+two new arms had landed below the mean, so before reading them we submitted a fresh build of the
+unmodified configuration as a control on the builder itself. It scored \textbf{31.39}, the second-highest
+score of the season, which rules out the build script as the explanation for anything below the mean.
 
 \begin{table}[H]
 \centering
-\caption{The same configuration, two independently built artifacts, thirteen runs. The spreads are
-indistinguishable, which is what licenses treating the standard deviation as a property of the
-pipeline rather than of one kernel.}
+\caption{The same configuration, three independently built artifacts, sixteen runs. The two spreads
+that can be compared are indistinguishable, which is what licenses treating the standard deviation as
+a property of the pipeline rather than of one kernel.}
 \label{tab:twoartifacts}
 \begin{tabular}{@{}lrrrr@{}}
 \toprule
 script version & runs & mean & sd & range \\
 \midrule
-339772104, the replicate & 10 & 30.10 & 1.38 & 4.17 \\
+339772104, the replicate & 12 & 29.90 & 1.34 & 4.17 \\
 337769272, the v7.2 build & 3 & 30.00 & 1.34 & 2.50 \\
+346281718, a fresh build of the same configuration & 1 & 31.39 & -- & -- \\
 \midrule
-pooled & 13 & 30.08 & \textbf{1.37} & 4.17 \\
+pooled & 16 & 30.01 & \textbf{1.30} & 4.17 \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The variance ratio between the two artifacts is $F = 1.12$, which at these sample sizes is as close
+The variance ratio between the two multi-run artifacts is $F = 1.01$, which at these sample sizes is as close
 to identical as the data can express. Two separately built copies of one configuration reproduce the
 same run-to-run spread to two significant figures. The 95\% interval on the pooled standard
-deviation is $[0.92, 2.44]$.
+deviation is $[0.96, 2.01]$.
 
 That also disposes of an intermediate reading we briefly held. After two runs the second artifact had
 scored 30.97 and 30.56, a gap of 0.41, and it was tempting to conclude the second build was quieter.
-It was not: two draws from a standard deviation of 1.38 differ by more than 0.41 about 83\% of the
+It was not: two draws from a standard deviation of 1.34 differ by more than 0.41 about 83\% of the
 time, and the third draw came in at 28.47. A pair of runs cannot measure a spread, which is the same
 lesson the three-run estimate taught earlier in this section, arriving a second time by a different
 route.
 
 The consequence is not a correction to one claim, it is the retirement of a whole class of claim.
 Measured against this series, \emph{every} deviation this project has recorded falls inside
-\emph{two} standard deviations, and after the seventh draw none of them reaches even 1.8:
+\emph{two} standard deviations, and after the twelfth draw none of them reaches even 1.5:
 
 \begin{table}[H]
 \centering
-\caption{Every build we called a regression, priced against ten runs of one immutable kernel
-version (mean 30.10, sd 1.38). The rightmost column is what we previously reported, using a standard
+\caption{Every build we called a regression, priced against twelve runs of one immutable kernel
+version (mean 29.90, sd 1.34). The rightmost column is what we previously reported, using a standard
 deviation estimated from three runs, then five, then six, then eight pooled members. \emph{Nothing}
-now reaches two standard deviations. The last row is not a regression at all: it is the configuration
-we called our best, and it sits a third of a standard deviation above the mean of the code it is
+now reaches 1.5 standard deviations. The last row is not a regression at all: it is the configuration
+we called our best, and it sits four fifths of a standard deviation above the mean of the code it is
 supposed to beat.}
 \label{tab:allnoise}
 \begin{tabular}{lrrrl}
 \toprule
 build & score & from mean & in sd & previously reported as \\
 \midrule
-v7.5a           & 27.92 & $-2.52$ & 1.78 & real at 11, then 3.0, 1.93, 2.14 sd \\
-ctrl (aimo)     & 28.06 & $-2.38$ & 1.68 & below our band \\
-LB33 control    & 28.47 & $-1.97$ & 1.39 & real, 8.8 then 2.4 sd \\
-v7.3            & 28.61 & $-1.83$ & 1.29 & real, 8.2 then 2.3 sd \\
-cap 1200        & 29.31 & $-1.13$ & 0.80 & prediction unsupported \\
-v7.4            & 29.44 & $-1.00$ & 0.70 & real, 4.7 then 1.5 sd \\
-no-dead-AIF     & 30.00 & $-0.44$ & 0.31 & already retracted \\
+v7.5a           & 27.92 & $-1.98$ & 1.48 & real at 11, then 3.0, 1.93, 2.14 sd \\
+ctrl (aimo)     & 28.06 & $-1.84$ & 1.38 & below our band \\
+LB33 control    & 28.47 & $-1.43$ & 1.07 & real, 8.8 then 2.4 sd \\
+v7.3            & 28.61 & $-1.29$ & 0.96 & real, 8.2 then 2.3 sd \\
+cap 1200        & 29.31 & $-0.59$ & 0.44 & prediction unsupported \\
+v7.4            & 29.44 & $-0.46$ & 0.34 & real, 4.7 then 1.5 sd \\
+no-dead-AIF     & 30.00 & $+0.10$ & 0.08 & already retracted \\
 \midrule
-v7.2, ``our best'' & 30.97 & $+0.53$ & 0.37 & the configuration everything was compared to \\
+v7.2, ``our best'' & 30.97 & $+1.07$ & 0.80 & the configuration everything was compared to \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -652,9 +663,11 @@ v7.2, ``our best'' & 30.97 & $+0.53$ & 0.37 & the configuration everything was c
 \paragraph{What the noise costs a research programme.}
 The standard deviation is not only a caveat on past claims, it is a budget constraint on future ones.
 Separating two configurations at 80\% power with a two-sample comparison at this standard deviation
-needs about \textbf{3.4 points of separation with three runs in each arm}. The contest allows one
+needs about \textbf{4.1 points of separation with three runs in each arm}, by an exact two-sample $t$
+computation; the normal approximation an earlier draft used gave 3.3 and understated it, because with
+two degrees of freedom per arm the standard deviation is itself poorly known. The contest allows one
 submission a day, so a single properly powered comparison costs six submission days. Nothing in our
-ledger of thirty-three measured levers is remotely 3.4 points; the largest coverage change any of
+ledger of forty measured levers is remotely four points; the largest coverage change any of
 them produced on a held-out slice is one output in fourteen. This reframes the ledger. It reads as a
 wall of null results, and the honest reading is not that nothing helps but that \emph{the leaderboard
 cannot see anything smaller than a third of our own score}, so a programme of single-submission
@@ -663,9 +676,9 @@ it claimed.
 
 \paragraph{What the variance is made of, from the one per-run quantity Kaggle exposes.}
 The submission record carries the byte size of each run's \texttt{submission.json}, and that turns
-out to be a usable instrument. Across the ten same-configuration draws, size and score correlate at
-$r = +0.64$, and the relationship holds independently inside each artifact ($+0.61$ on seven runs,
-$+0.80$ on three). The size spread is 25.5~kB on a 778~kB file, which at roughly 2.8~kB per output is
+out to be a usable instrument. Across the fifteen same-configuration draws of the two multi-run
+artifacts, size and score correlate at $r = +0.55$, and the relationship holds independently inside each
+artifact ($+0.53$ on twelve runs, $+0.80$ on three). The size spread is 25.5~kB on a 778~kB file, which at roughly 2.8~kB per output is
 about \textbf{nine outputs' worth of content} --- and nine outputs is 3.75 points against an observed
 range of 4.17.
 
@@ -708,7 +721,7 @@ Two qualifications keep this from becoming a general licence to doubt everything
 measurement is taken at the 30-point operating point, and the per-task binomial component of the
 variance is smaller at 13 points, so the early v2-to-v5 comparisons are not automatically covered by
 this number and would need their own. Second, and more importantly, \textbf{most of the ledger was
-never judged on a hidden score at all.} Twenty-eight of the thirty-three levers were closed by paired
+never judged on a hidden score at all.} Thirty-two of the forty levers were closed by paired
 offline measurement, where both arms see the same tasks under the same budget on the same afternoon,
 task difficulty cancels in the pairing, and the twelve-hour contest wall clock --- the mechanism that
 produces this variance --- is not in the loop. Those closures have a different weakness, which is
@@ -719,7 +732,7 @@ statistical power offline.
 The forward-looking cost is arithmetic. Re-testing one discarded lever properly, at three runs per
 arm, is six submission days. A season has of order ninety. So the entire remaining budget of a
 compute-poor entry, spent on nothing else, adjudicates about fifteen hypotheses --- and only those
-with effects above three points, which is larger than anything this project has produced.
+with effects above four points, which is larger than anything this project has produced.
 
 Two of those lines are worth stating plainly rather than leaving in a table. \textbf{The LB33 control
 scored 28.47, and so did our own unmodified pipeline.} The phantom-notebook section
@@ -907,7 +920,7 @@ our hardware and bought nothing that scores.
 \includegraphics[width=0.9\linewidth]{fig_phantom}
 \caption{Displayed against measured. Two public notebooks carrying 33.89-class numbers score 28.06 and
 28.47 when forked unmodified and submitted from our account. The band drawn for our own unchanged
-pipeline is from the three runs available when this figure was made; seven runs of that one kernel
+pipeline is from the three runs available when this figure was made; twelve runs of that one kernel
 version now span 28.47 to 32.64 and contain both controls, so the figure supports the claim that a
 displayed score does not bind to the published file, and no longer supports any comparison between
 the controls and our own.}
@@ -1058,16 +1071,17 @@ predicting correctness, where full eight-way consensus is right far more often t
 
 \subsection{The search-throughput frontier, and a correct decoder that scores worse}
 \label{sec:frontier}
-Two experiments run a week apart move the decoder in opposite directions. Neither helps, and the
-pair is more informative than either, because together they locate the pipeline on a frontier rather
-than at an arbitrary point.
+Three experiments run in consecutive weeks move the decoder's budget in different directions: more
+search, less search, and the same search divided differently among the views. None helps, and the set
+is more informative than any one of them, because together they locate the pipeline on a frontier
+rather than at an arbitrary point.
 
 \textbf{The budget that is actually binding.} Instrumenting per-task time on the rig gives 259
 seconds of test-time training against 600 seconds of decode, so decode is 69\% of the cost. It also
 never converges: across every banked row it stopped at 600, 600, 601 seconds, guillotined by its own
 wall. The whole pipeline wants about 859 seconds a task, and 240 tasks inside a twelve-hour budget
 allow far less, so tasks that run long starve the ones behind them. That matters because the score
-variance is largely throughput: submission size and score correlate at $r=+0.64$ across ten
+variance is largely throughput: submission size and score correlate at $r=+0.55$ across fifteen
 same-configuration draws, and the entire four-point observed range is accounted for by about a dozen
 tasks producing no answer at all.
 
@@ -1081,8 +1095,8 @@ exactly why; the shipped decoder and the validated one had differed all along.
 Cropping the cache back to the branch position is correct, is bit-identical to a full deepcopy on
 every task we tested, and recovers \textbf{27\% more candidates} (51 against 65, ahead on 8 of 10
 tasks). It also takes about 7\% longer per task. Submitted three times it scored \textbf{29.72,
-27.36, 29.03, mean 28.70}, against a control of 30.08 at $n=13$, $\text{sd}=1.37$. That is
-$t=-1.56$, $p\approx0.15$, with all three draws below the control mean. Not significant, and we do
+27.36, 29.03, mean 28.70}, against the twelve-draw same-version series at 29.90, $\text{sd}=1.34$.
+That is $t=-1.49$, $p\approx0.22$, with all three draws below the control mean. Not significant, and we do
 not claim it as a regression; what we claim is that a decoder we can prove more correct did not
 score better, and the direction was consistently wrong.
 
@@ -1107,9 +1121,19 @@ throughput this buys back cancels almost exactly: at twelve hours, 600\,s allows
 truth rate and 300\,s allows 77.3 at 0.40, which is \textbf{30.2 expected truths against 30.9}, a
 difference of six events. Cutting to 150\,s is clearly worse.
 
-\textbf{What the pair means.} Moving the decoder in either direction is neutral to negative, so the
-540-second budget the pipeline inherited is not an arbitrary constant but sits near a local optimum
-of a real trade. It also revises an earlier reading of ours: the floor sweep found that searching
+\textbf{Direction three: divide the wall fairly. Two draws, both below the mean.} The sixteen
+evaluation views decode in four batches, the per-task cap is checked only between batches, and each
+batch may run its full 540 seconds, so on the scoring node the first batch can consume a task's whole
+allowance and the remaining views contribute nothing. Dividing the time still left evenly over the
+batches still to run guarantees every view decodes something, at the price of cutting the first batch
+short. Pre-registered for three draws, two of which are in as we write, it scored \textbf{29.44 and
+27.78, mean 28.61}, against 29.90: $t=-1.41$, unresolved at this sample and pointing the same way as
+the crop. Both changes take time from the views that decode first, and the views that decode later
+did not give it back.
+
+\textbf{What the three mean.} Moving the decoder in either direction is neutral to negative, and so is
+redistributing its time, so the 540-second budget the pipeline inherited is not an arbitrary constant
+but sits near a local optimum of a real trade. It also revises an earlier reading of ours: the floor sweep found that searching
 less was neutral, and we had taken that as evidence that decode time was slack. It is not. Raising
 the floor prunes low-probability branches, which are cheap to lose; cutting the budget stops the
 search wherever it happens to be, including on branches about to pay. Those are different
@@ -1279,7 +1303,10 @@ intervals are correspondingly wide; the ordering is what we claim, not the rates
 the most promising unexplored direction here rather than claiming a result we did not buy.
 
 \textbf{Results.} Of the 1{,}000 training tasks, \textbf{110 (11.0\%) yielded a verified generator}
-and 109 of those also emitted a sampler, at a total cost of \$1.57 in off-peak API charges. The corpus
+and 109 of those also emitted a sampler, at a total cost of \$1.57 in off-peak API charges. The
+low-effort reasoning setting described above, run afterwards over 25 of the failures, verified 17 of
+them (68\%) for about 2.5~CNY, and a blind-retry control added one more, so the corpus stands at
+\textbf{128 verified generators, 127 with samplers}. The corpus
 is usable rather than nominal: of the first 95 verified programs, \textbf{93 (98\%) mint fresh valid
 instances}, 89 of them reliably, meaning at least 8 of 10 random seeds produce a novel grid the
 transform handles, averaging 9.5 usable draws per 10 seeds.
@@ -2029,7 +2056,7 @@ four workers and a wall. Capping does not only remove doomed tasks, it changes w
 which worker and where each worker's tail falls, and the same session-speed sensitivity that gives
 this pipeline a one-point standard deviation acts on that rearrangement too. A single submission
 cannot separate those. Settling it needs the paired design this section spent its length arguing
-for. At one submission per day and the measured $\sigma = 1.38$, detecting an effect of the size this
+for. At one submission per day and the measured $\sigma = 1.34$, detecting an effect of the size this
 proposal could plausibly have needs roughly six runs and therefore six days for a single comparison,
 and we record the cost rather than paying it. That arithmetic is the reason this appendix ends in a
 cost rather than a number, and it generalises: at this noise level the contest's own submission quota
@@ -2301,16 +2328,16 @@ This section exists because the scattered negatives above are more useful collec
 and because the most valuable thing a compute-poor entry can hand the next one is a map of where not
 to spend. Everything here is measured on this pipeline; none of it is argued.
 
-\paragraph{The headline count.} \textbf{Thirty-three levers were measured. None moved the hidden
+\paragraph{The headline count.} \textbf{Forty levers were measured. None moved the hidden
 score.} That is the finding, not an apology for one: a system whose remaining knobs are all worth
 less than its own measurement noise is at a ceiling, and the useful thing to publish is which knobs
-and why. The noise makes that statement sharper than it looks. At sd 1.38 the leaderboard cannot
-resolve anything below roughly 3.4 points without three runs per arm, and the largest coverage change
-any of these thirty-three produced on a held-out slice is one output in fourteen. So ``none moved the
+and why. The noise makes that statement sharper than it looks. At sd 1.34 the leaderboard cannot
+resolve anything below roughly four points without three runs per arm, and the largest coverage change
+any of these forty produced on a held-out slice is one output in fourteen. So ``none moved the
 hidden score'' is partly a claim about the levers and partly a claim about the instrument, and
 separating the two honestly is the point of this section.
 
-Two of the thirty-three produced a genuine positive on their own terms without moving coverage ---
+Two of the forty produced a genuine positive on their own terms without moving coverage ---
 task retrieval by demonstration embedding, and warm-starting an adapter from a same-rule neighbour
 --- and both sit \emph{upstream} of the candidate pool. Every lever that produced nothing at all sits
 downstream of it, on candidates the search has already generated or on how time is divided between
@@ -2325,11 +2352,10 @@ the solver left without an answer, was first submitted inside v7.3 alongside a l
 1200-second per-task cap, scoring 28.61. Attributing that to any one of the three would have been
 guesswork, and the kernel then became unreachable, its output no longer held by the host, so the
 obvious re-test was not available either. It was rebuilt as v7.2's pipeline with the fallback as the
-only change and drawn three times: \textbf{30.56, 29.72, 29.44, mean 29.91}. Against the banked
-control (30.08, sd 1.37, $n=13$) that is $-0.17$, or 0.41 tasks, under the one-task noise floor;
-the difference has standard error 0.88 and $t=-0.19$. \textbf{The mechanism does nothing on its
-own.} All three draws did land below the control mean, which is $p=0.125$ under a coin flip and is
-recorded here as suggestive of a small penalty rather than claimed as one. The general point is
+only change and drawn three times: \textbf{30.56, 29.72, 29.44, mean 29.91}. Against the
+twelve-draw same-version series (29.90, sd 1.34) that is $+0.01$, a hundredth of a task; the
+difference has standard error 0.88 and $t=0.02$. \textbf{The mechanism does nothing on its own}, and
+the three draws straddle the control mean. The general point is
 about experimental hygiene rather than this knob: a lever bundled with two others and submitted once
 is not a measured lever, and the cost of finding that out was three days of a one-a-day submission
 quota spent re-establishing something a single clean run would have given us the first time.
@@ -2360,8 +2386,8 @@ or never will.
 \centering
 \small
 \caption{Every lever this project measured and closed, with the evidence that closed it. Hidden-set
-numbers are quoted against the ten-run same-version series (mean 30.10, sd 1.38); no hidden-set
-delta we recorded clears \emph{1.8} standard deviations, which is why the offline column carries the
+numbers are quoted against the twelve-run same-version series (mean 29.90, sd 1.34); no hidden-set
+delta we recorded clears \emph{1.5} standard deviations, which is why the offline column carries the
 weight and why the offline evidence was collected in the first place.}
 \label{tab:ledger}
 \begin{tabular}{@{}p{0.30\linewidth}p{0.13\linewidth}p{0.50\linewidth}@{}}
@@ -2382,12 +2408,19 @@ invariant mining as a filter & offline & 0 recovered, kills 11 of 19 truths \\
 per-task cap at 1200s & hidden & 29.31, inside noise; prediction unsupported \\
 depth-decayed admission threshold & offline & backwards: truths emit deeper \emph{and} cheaper than wrongs \\
 raising the probability floor & offline & at fixed wall clock, 6 of 14 outputs falls to 5 \\
+greedy fallback for empty pools & hidden & isolated in v7.6: 30.56, 29.72, 29.44, mean 29.91 against 29.90 \\
+DFS cache crop & both & provably correct, 27\% more candidates offline; hidden 29.72, 27.36, 29.03, mean 28.70 \\
+decode budget, 600 to 300 to 150\,s & offline & truth in pool 6, 4, 1 of 10; the throughput bought back cancels it \\
+truncation-fair view scheduling & hidden & 29.44, 27.78 of a pre-registered three; below the mean, unresolved \\
 \midrule
 \multicolumn{3}{@{}l}{\itshape Adaptation} \\
 adapter rank and depth & offline & inverted U; the shipped configuration sits on its peak \\
 pre-fitting on the test input & offline & 7 / 7 / 6 across base, treated, control; nothing moved \\
 leave-one-demo subset adapters & offline & $+0$ coverage over 20 outputs \\
 continued fine-tuning of the base & offline & honest negative; bimodality unmoved \\
+synthetic rule count, 100 against 402 & offline & tied 12 of 12 at an equal example budget \\
+synthetic rule kind, ARC-1 against ARC-2 generators & offline & 0 better, 1 worse, 11 of 12 tied at matched pool depth \\
+training duration, 8{,}000 to 96{,}000 steps & offline & validation optimum at 16{,}000; tied 12 of 12 at every checkpoint \\
 refinement loops & offline & no partial-credit middle for a loop to grip \\
 unchanged-cell loss masking & offline & works and loses: see below, the most informative negative here \\
 \midrule
@@ -2641,17 +2674,17 @@ gains bounded by adapter overfitting and by a VRAM wall on large grids that late
 context-truncation artifact rather than a true limit. Against that single-card ceiling we set one
 measurement from above. A faithful reproduction of a public pipeline that one 16~GB card can hold but not
 serve in budget, run on the contest's own four-L4 node and repaired of two defects its community port had
-introduced, scores \textbf{30.10\%} on the same hidden set, the mean of ten runs of one immutable
+introduced, scores \textbf{29.90\%} on the same hidden set, the mean of twelve runs of one immutable
 artifact. That result is not ours and not single-card, and its value here is that it prices the
 constraint at roughly twelve points instead of leaving it an open question.
 
 The lessons that generalize are about measurement rather than about ARC, and the largest one is the
-error bar. Seven executions of a single unchanged Kaggle kernel version span 4.17 points with a
-standard deviation of 1.38, which is a twenty-second of the score itself. Every build we called a
+error bar. Twelve executions of a single unchanged Kaggle kernel version span 4.17 points with a
+standard deviation of 1.34, which is a twenty-second of the score itself. Every build we called a
 regression, both public notebooks we ran as controls, and the configuration we called our best all
-sit inside 1.8 standard deviations of that mean. Separating two configurations at 80\% power needs
-about 3.4 points and three runs each, so a contest allowing one submission a day permits perhaps
-eight properly powered comparisons in a season. We report a ledger of thirty-three measured levers
+sit inside 1.5 standard deviations of that mean. Separating two configurations at 80\% power needs
+about four points and three runs each, so a contest allowing one submission a day permits perhaps
+eight properly powered comparisons in a season. We report a ledger of forty measured levers
 that moved nothing, and the honest reading of it is not that nothing helps but that a programme of
 single-submission A/B tests --- which is what the field and this project both ran --- was never
 capable of the discrimination it claimed. Beyond that: public-eval gains must be re-validated in the
@@ -3207,7 +3240,7 @@ contamination is removed. We record this as a closure rather than an untested po
 The other named escape, executing task-side structure against the demonstrations, was run on the
 hidden set as v7.5a: the symbolic arm's object-count signal restored as a pure re-ranking prune,
 adding $0.5$ to a beam's score per unit of disagreement with the predicted component count. It
-scored \textbf{27.92}, which against seven runs of one immutable kernel version is 1.8 standard
+scored \textbf{27.92}, which against twelve runs of one immutable kernel version is 1.5 standard
 deviations below the mean and therefore \emph{not} a demonstration of harm on its own. That figure
 has moved three times as the variance series grew, always toward the null, which is itself the
 argument for not resting a conclusion on it. The

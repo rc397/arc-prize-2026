@@ -79,16 +79,34 @@ VERSIONS = [
          ttt=240, note="SAME version,\nsixth run"),
     dict(tag="v7.2r7", score=28.89, hours=None, time_est=True, accel="L4 x4",
          ttt=240, note="SAME version,\nseventh run"),
+    dict(tag="v7.6", score=29.91, hours=None, time_est=True, accel="L4 x4",
+         ttt=240, note="greedy fallback\nalone, mean of 3"),
+    dict(tag="v7.2r8", score=28.89, hours=None, time_est=True, accel="L4 x4",
+         ttt=240, note="SAME version,\neighth run"),
+    dict(tag="v7.7", score=28.70, hours=None, time_est=True, accel="L4 x4",
+         ttt=240, note="DFS cache crop,\nmean of 3"),
+    dict(tag="v7.2r9", score=30.56, hours=None, time_est=True, accel="L4 x4",
+         ttt=240, note="SAME version,\nninth run"),
+    dict(tag="v7.2r10", score=28.47, hours=None, time_est=True, accel="L4 x4",
+         ttt=240, note="SAME version,\ntenth run"),
+    dict(tag="v7.2r11", score=28.89, hours=None, time_est=True, accel="L4 x4",
+         ttt=240, note="SAME version,\neleventh run"),
+    dict(tag="v7.2r12", score=28.89, hours=None, time_est=True, accel="L4 x4",
+         ttt=240, note="SAME version,\ntwelfth run"),
+    dict(tag="v7.7b", score=28.61, hours=None, time_est=True, accel="L4 x4",
+         ttt=240, note="fair view budget,\nmean of 2"),
+    dict(tag="rebuild", score=31.39, hours=None, time_est=True, accel="L4 x4",
+         ttt=240, note="fresh build of v7.2,\nbuilder control"),
 ]
 
-# SEVEN runs of ONE immutable Kaggle kernel version, verified by scriptVersionId rather than by the
+# TWELVE runs of ONE immutable Kaggle kernel version, verified by scriptVersionId rather than by the
 # submission description. Nothing differs between them except the day Kaggle executed them, so the
 # whole 4.17-point spread carries no confound of any kind. Earlier versions of this figure drew the
 # band from three runs, then five, then an eight-member family that pooled in one-factor variants;
 # that last one was the wrong instrument, since its spread confounds the code change with the day,
 # and it was also the NARROWER of the two. The estimate has widened at every revision and always in
 # the same direction.
-FAMILY = [30.56, 32.64, 28.47, 31.39, 30.56, 30.56, 28.89]
+FAMILY = [30.56, 32.64, 28.47, 31.39, 30.56, 30.56, 28.89, 28.89, 30.56, 28.47, 28.89, 28.89]
 _MEAN = sum(FAMILY) / len(FAMILY)
 _SD = (sum((x - _MEAN) ** 2 for x in FAMILY) / (len(FAMILY) - 1)) ** 0.5
 NOISE_LO, NOISE_HI = _MEAN - _SD, _MEAN + _SD
@@ -120,18 +138,18 @@ def save(fig, name, dpi=200):
 
 
 def fig_version_score():
-    fig, ax = plt.subplots(figsize=(12.6, 5.4))
+    fig, ax = plt.subplots(figsize=(15.2, 5.6))
     xs = list(range(len(VERSIONS)))
 
-    # Measured noise: one immutable kernel version, seven executions. Both bands are drawn, because
+    # Measured noise: one immutable kernel version, twelve executions. Both bands are drawn, because
     # the paper's claim is about TWO standard deviations and an earlier version of this figure shaded
     # only one while asserting everything fell inside it. Six points sit below the inner band.
     ax.axhspan(_MEAN - 2 * _SD, _MEAN + 2 * _SD, color=BLUE, alpha=0.06, zorder=1)
     ax.axhspan(NOISE_LO, NOISE_HI, color=BLUE, alpha=0.12, zorder=1)
-    ax.text(0.1, 21.8,
-            "ONE kernel version run 7x: mean %.2f, sd %.2f, spanning 4.17 points.\n"
+    ax.text(9.6, 14.4,
+            "ONE kernel version run 12x: mean %.2f, sd %.2f, spanning 4.17 points.\n"
             "Bands are $\\pm1$ and $\\pm2$ sd. Every score from v7.1 onward, including\n"
-            "every build we called a regression, lies within $1.8$ sd of that mean."
+            "every build we called a regression, lies within $1.5$ sd of that mean."
             % (_MEAN, _SD),
             fontsize=9.2, color=BLUE, va="top")
 
@@ -158,7 +176,7 @@ def fig_version_score():
                         ha="center", fontsize=10, color=BLUE, fontweight="bold")
 
     ax.set_xticks(xs)
-    # Twenty-five two-line labels do not fit horizontally; rotating is the only thing that keeps the
+    # Thirty-four two-line labels do not fit horizontally; rotating is the only thing that keeps the
     # note readable, and the note is where the "SAME version" repeats do their work.
     ax.set_xticklabels([f"{v['tag']}: {v['note']}".replace("\n", " ") for v in VERSIONS],
                        fontsize=7.6, rotation=42, ha="right", rotation_mode="anchor")
