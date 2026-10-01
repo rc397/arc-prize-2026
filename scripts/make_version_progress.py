@@ -94,7 +94,7 @@ VERSIONS = [
     dict(tag="v7.2r12", score=28.89, hours=None, time_est=True, accel="L4 x4",
          ttt=240, note="SAME version,\ntwelfth run"),
     dict(tag="v7.7b", score=28.61, hours=None, time_est=True, accel="L4 x4",
-         ttt=240, note="fair view budget,\nmean of 2"),
+         ttt=240, note="fair view budget,\nmean of 3"),
     dict(tag="rebuild", score=31.39, hours=None, time_est=True, accel="L4 x4",
          ttt=240, note="fresh build of v7.2,\nbuilder control"),
 ]

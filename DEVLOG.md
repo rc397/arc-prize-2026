@@ -992,3 +992,31 @@ and the builder refuses to write a notebook whose code cells do not parse.
   late-found attention kernel and would still need forty hours against the twelve allowed.
 - README, CONTEXT.md, pending-results.md and the plan checklist refreshed. `fig_version_score` regenerated
   with all twelve draws and the four arm means.
+
+## 2026-10-02: the last arm closes, the board moves, and nothing else ran
+
+Four weeks with no ARC work: no commits, no rig jobs under `D:/arc`, no submissions after 4 September.
+
+**v7.7b closes.** Its third draw scored 28.61, so the pre-registered fair-view-scheduling arm ends at
+29.44, 27.78 and 28.61: mean 28.61, t=-2.09, p=0.09 against the twelve-draw control. Every draw sits
+below the control mean, and so does every draw of the cache-crop arm, six of six from the two arms that
+move decode time. A fair coin does that one time in sixty-four, but the pooling was chosen after seeing
+the data, so the paper reports it as a pattern and not as a test. Neither arm is significant on its own.
+The writeup's "made the score worse" became the factual "all six sit below the control", and a sentence
+of mine claiming both arms took time "from the views that decode first" was wrong for the crop, which
+costs time per branch rather than moving it between views; it now says both move decode time away from
+where the inherited schedule put it.
+
+**The board.** On 1 October the public leaderboard read Tufa Labs 83.06, rabbithole 79.72, nvbanana
+75.42, Yi-Chia Chen 55.14, then a pack from 38.89 down (10th 36.25, 25th 33.06). We sit 61st of 2,310 at
+32.64, inside a block of entries on exactly that score; we were 43rd on 6 August. In late July the leader
+was near 65.8 and second near 38.6, so the front moved seventeen points while the pack barely moved. The
+paper said "the offline frontier now leads near 66%" in the abstract, the contributions and the
+conclusion, said the leader was the NVIDIA lineage, and measured a "twenty-seven-point gap to second
+place". All of that now quotes the 1 October board, with nvbanana named as third. The same pass caught one
+more stale number: the scaling section still said our reproduction "reached 30.97", which is one draw of
+the configuration whose mean is 29.90.
+
+**Still open.** The GitHub repo is private and the local branch has not been pushed since 5 August, past
+the 1 October date the plan set for the open-source decision. The PDF needs a public URL before the
+writeup is filed and the cover image is unchosen. Kaggle submissions close 2 November, papers 8 November.

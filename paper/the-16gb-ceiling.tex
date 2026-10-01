@@ -115,7 +115,7 @@ never place the correct grid in the candidate pool under any of sixteen views wh
 the compute. We give an honest accounting of
 what the recipe costs and where the effort should go for anyone working with one consumer GPU rather
 than the winner's hardware. The contest itself provides four L4 GPUs, 96~GB together, where the
-offline frontier now leads near 66\% on the strength of large-scale synthetic-data pretraining, so we read the 16~GB
+public leaderboard was led at 83\% on 1 October 2026, so we read the 16~GB
 result as the efficient floor of a larger climb, and the ceiling in our title is the 16~GB card itself, the hardware wall that shapes every choice here and not a limit on the task. All code, the
 conversion recipe, and a development log of every measurement are open source under MIT-0.
 \end{abstract}
@@ -153,8 +153,8 @@ H100 or GH200 GPUs, though the winning offline submission itself runs on four L4
 recipe under a constraint we think is widely shared, a single RTX~5070~Ti with 16~GB, on the
 Blackwell architecture, running native Windows. The aim on one card is not to top the leaderboard but to build a working, reproducible system, measure
 honest numbers, and map where the small model stops being enough. That map is the efficient floor of a
-larger climb. The ceiling in the title is the hardware, 16~GB of VRAM, not a score, and the number climbs beneath it as the method deepens, from 13.61 to 18.19 on the hidden set (Section~\ref{sec:results}). We also put a number on the ceiling itself. Reproducing a public pipeline that cannot fit one card, on the hardware the contest provides, averages 29.90\% over twelve runs of one immutable artifact on the same hidden set, so the constraint is worth roughly twelve points rather than an unknown amount. We report the mean and not the 32.64 peak, because those twelve runs differ from each other by 4.17 points with no code change at all, which makes the peak an order statistic. The same contest hands every entrant four L4 GPUs, 96~GB together, and the offline frontier
-on that hardware has already passed 50\% with refinement loops and program synthesis~\cite{arc2025}. We
+larger climb. The ceiling in the title is the hardware, 16~GB of VRAM, not a score, and the number climbs beneath it as the method deepens, from 13.61 to 18.19 on the hidden set (Section~\ref{sec:results}). We also put a number on the ceiling itself. Reproducing a public pipeline that cannot fit one card, on the hardware the contest provides, averages 29.90\% over twelve runs of one immutable artifact on the same hidden set, so the constraint is worth roughly twelve points rather than an unknown amount. We report the mean and not the 32.64 peak, because those twelve runs differ from each other by 4.17 points with no code change at all, which makes the peak an order statistic. The same contest hands every entrant four L4 GPUs, 96~GB together, and on that hardware
+the public leaderboard was led at 83\% on 1 October 2026. We
 read the 16~GB walls not as the limit of the task but as the exact places scaling up has to break, and
 Section~\ref{sec:scale} lays out that path. Figure~\ref{fig:solve} shows a representative task our system
 solves end to end.
@@ -197,7 +197,7 @@ where each sits relative to the candidate pool, together with the observation th
 were closed with no GPU at all by pricing the idea before building it (Section~\ref{sec:ledger}).
 \item A reading of why those walls are a property of a small model on one card rather than of the task,
 and a concrete path that scales the same verifier, TTT, and selection onto the full 96~GB the contest
-provides, where the offline frontier now leads near 66\% (Section~\ref{sec:scale}).
+provides, where the public leaderboard was led at 83\% on 1 October 2026 (Section~\ref{sec:scale}).
 \item A complete open-source release, the conversion patches, the pipeline, the TTT harness, and a
 development log of every measurement and dead end behind these numbers (Appendix~\ref{app:log}).
 \end{enumerate}
@@ -503,7 +503,7 @@ noAIF & the replicate minus computation its own output discards; 30.00, 29.03, 3
 v7.2r$\times$12 & the same kernel version, twelve executions in all (Table~\ref{tab:twoartifacts}) & 29.90 mean \\
 v7.6 & the replicate plus the greedy fallback alone; 30.56, 29.72, 29.44 & 29.91 mean \\
 v7.7 & the replicate with the DFS cache cropped to the branch; 29.72, 27.36, 29.03 & 28.70 mean \\
-v7.7b & the replicate with each task's remaining time divided evenly over its view batches; 29.44, 27.78 so far & 28.61 mean \\
+v7.7b & the replicate with each task's remaining time divided evenly over its view batches; 29.44, 27.78, 28.61 & 28.61 mean \\
 rebuild & a fresh build of the unmodified v7.2 configuration, a control on the build script & 31.39 \\
 \bottomrule
 \end{tabular}
@@ -1121,15 +1121,18 @@ throughput this buys back cancels almost exactly: at twelve hours, 600\,s allows
 truth rate and 300\,s allows 77.3 at 0.40, which is \textbf{30.2 expected truths against 30.9}, a
 difference of six events. Cutting to 150\,s is clearly worse.
 
-\textbf{Direction three: divide the wall fairly. Two draws, both below the mean.} The sixteen
+\textbf{Direction three: divide the wall fairly. Three draws, all below the mean.} The sixteen
 evaluation views decode in four batches, the per-task cap is checked only between batches, and each
 batch may run its full 540 seconds, so on the scoring node the first batch can consume a task's whole
 allowance and the remaining views contribute nothing. Dividing the time still left evenly over the
 batches still to run guarantees every view decodes something, at the price of cutting the first batch
-short. Pre-registered for three draws, two of which are in as we write, it scored \textbf{29.44 and
-27.78, mean 28.61}, against 29.90: $t=-1.41$, unresolved at this sample and pointing the same way as
-the crop. Both changes take time from the views that decode first, and the views that decode later
-did not give it back.
+short. Pre-registered for three draws, it scored \textbf{29.44, 27.78 and 28.61, mean 28.61}, against
+29.90: $t=-2.09$, $p\approx0.09$, with all three draws below the control mean. That is the strongest
+signal any hidden-set arm in this paper produced, and it is still short of significance. Together with
+the crop, six draws of six from the two arms landed below the control mean, which a fair coin does one
+time in sixty-four; that pooling was chosen after seeing the data, so we report it as a pattern rather
+than as a test. Both changes move decode time away from where the inherited schedule put it, and in
+neither case did the new placement pay for itself.
 
 \textbf{What the three mean.} Moving the decoder in either direction is neutral to negative, and so is
 redistributing its time, so the 540-second budget the pipeline inherited is not an arbitrary constant
@@ -1534,23 +1537,25 @@ measurement.
 \subsection{Scaling to the full contest hardware}
 \label{sec:scale}
 Everything above holds a single 16~GB card fixed, but the offline contest gives four L4 GPUs, 96~GB
-together, and that hardware is where the real climb happens. As of late July 2026 the live public
-leaderboard is led by one entry near 65.8\%, with second place near 38.6\% and a chasing pack in the mid
-thirties, and every one of those runs uses the same offline no-internet sandbox our system does. On the
-available evidence the leader is the same NVIDIA Kaggle Grandmasters lineage that won the 2025 offline
+together, and that hardware is where the real climb happens. As of 1 October 2026 the public
+leaderboard is led by three entries at 83.1, 79.7 and 75.4\%, with a fourth at 55.1\% and then a chasing
+pack in the mid-to-high thirties, and every one of those runs uses the same offline no-internet sandbox
+our system does. In late July the same board had one entry near 65.8\% and second place near 38.6\%, so
+the front moved seventeen points in about two months while the pack barely moved. On the available
+evidence the third of those leaders, nvbanana, is the same NVIDIA Kaggle Grandmasters lineage that won the 2025 offline
 track and whose grid model our system reproduces, and their stated recipe is to move all complex reasoning
 offline into a large synthetic-data pipeline and train a small model that runs fast at evaluation~\cite{arc2025}.
-That framing matters for where the twenty-seven-point gap to second place actually lives. The contest's
+That framing matters for where the gap of more than thirty-five points between the three leaders and the pack actually lives. The contest's
 own 2025 technical report attributes the distance between the offline field and the higher application-track
 numbers to knowledge coverage and verifier-guided optimization rather than to any fundamental scientific
 breakthrough~\cite{arc2025}, which is to say the remaining lever is training-data scale and a working
 refinement or verification loop, not a decoding or selection trick of the kind we exhausted here. The
-higher numbers often quoted for ARC-AGI-2, a 54\% Gemini refinement harness and frontier scores above 70\%,
+numbers often quoted for ARC-AGI-2 from outside this contest, a 54\% Gemini refinement harness and frontier scores above 70\%,
 come from a separate public track that allows internet and external compute, so they are not the bar we
 measure against~\cite{arc2025}. The offline bar is the leaderboard above. The field runs test-time
 adaptation, heavy synthetic-data pretraining, and program search on the full 96~GB, and our best single-card
 score of 18.19\% sits below it. Our faithful reproduction of the winning lineage's own pipeline, run on the
-four-L4 node it was built for, reached 30.97\% and still sits far below the leader, which locates the gap
+four-L4 node it was built for, averages 29.90\% over twelve runs and still sits far below the leaders, which locates the gap
 in the base model and its training data rather than in the inference-time machinery we can run. None of our negative
 results argues against that climb, but none of them tests it either, so we state the scaling case as a
 falsifiable hypothesis for future work rather than as a claim.
@@ -2411,7 +2416,7 @@ raising the probability floor & offline & at fixed wall clock, 6 of 14 outputs f
 greedy fallback for empty pools & hidden & isolated in v7.6: 30.56, 29.72, 29.44, mean 29.91 against 29.90 \\
 DFS cache crop & both & provably correct, 27\% more candidates offline; hidden 29.72, 27.36, 29.03, mean 28.70 \\
 decode budget, 600 to 300 to 150\,s & offline & truth in pool 6, 4, 1 of 10; the throughput bought back cancels it \\
-truncation-fair view scheduling & hidden & 29.44, 27.78 of a pre-registered three; below the mean, unresolved \\
+truncation-fair view scheduling & hidden & 29.44, 27.78, 28.61, mean 28.61; $t=-2.09$, all three below the mean \\
 \midrule
 \multicolumn{3}{@{}l}{\itshape Adaptation} \\
 adapter rank and depth & offline & inverted U; the shipped configuration sits on its peak \\
@@ -2708,7 +2713,7 @@ on the compositional corpus this paper constructs --- runs at 11.7 seconds per o
 16~GB card, putting the full corpus at roughly eleven days of continuous training. Everything cheap is
 worth less than the noise, and the one thing that is not cheap is what the memory constraint prices
 out. That is the sharpest form of this paper's claim, and it is not an accuracy comparison. Those bounds belong to one small card, not to
-the task. The contest gives four L4 GPUs and 96~GB, where the offline frontier now leads near 66\%, and
+the task. The contest gives four L4 GPUs and 96~GB, where the public leaderboard was led at 83\% on 1 October 2026, and
 the verifier, the TTT bridge, and the selection rule we built are the pieces we would carry onto that
 hardware, with the scaling case stated as a falsifiable hypothesis rather than a promise
 (Section~\ref{sec:scale}). The 16~GB card is where the climb starts, not where it ends, and the number beneath it keeps moving. The full system is open source, the GGUF conversion recipe for the custom-vocabulary

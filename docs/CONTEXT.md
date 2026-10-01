@@ -1,6 +1,6 @@
 # Context: ARC Prize 2026, single-16GB-GPU entry
 
-Background on this project as of 2026-09-04. Everything is measured unless stated otherwise.
+Background on this project as of 2026-10-02. Everything is measured unless stated otherwise.
 
 ## The project
 
@@ -37,8 +37,9 @@ Nothing has beaten the reproduction. The evidence points at the base model rathe
 the remaining knobs are all smaller than the instrument can resolve. At sd 1.34 the leaderboard cannot
 separate anything below roughly four points without three runs an arm (exact two-sample t, 80% power).
 The last arms, each three draws unless noted, against 29.90: greedy fallback alone 29.91; DFS cache
-crop 28.70; fair view scheduling 29.44 and 27.78 with a third draw submitted 4 Sep; no-dead-AIF 29.86.
-None is distinguishable from the control.
+crop 28.70; fair view scheduling 28.61 (29.44, 27.78, 28.61; t=-2.09, p=0.09); no-dead-AIF 29.86.
+None is distinguishable from the control on its own, though all six draws of the two arms that move
+decode time sit below it (a pattern noticed after the fact, not a pre-registered test).
 
 ## The generator corpus
 
@@ -115,7 +116,8 @@ cache-miss input, $1.32 output per 1M tokens. Off-peak is exactly half and runs 
 - **Decode budget**: 600/300/150 s on the same ten tasks puts the truth in the pool 6/4/1 times; the
   throughput bought back cancels almost exactly, so the inherited 540 s sits near a local optimum.
 - **Fair view scheduling (v7.7b)**: divide the remaining task time evenly over the four view batches.
-  29.44, 27.78, third draw pending. Below the mean, unresolved at two draws.
+  29.44, 27.78, 28.61, mean 28.61, t=-2.09, p=0.09. All three below the mean; with the crop, six of
+  six draws below, reported as a pattern rather than a test.
 - **A fresh build of v7.2 (rebuild control)**: 31.39. Rules out the build script as the reason the
   new arms landed below the mean.
 - **Local generation**: worse on accuracy and not fixable on speed. Qwen3.8-27B at Q3_K_M is fully
@@ -139,13 +141,18 @@ as the weak spot, which is ARC by definition; its language-modelling results are
 linear map from frozen representations. Its precondition is testable without implementing it, by
 checking whether ARC transformations are linearly decodable from the base's hidden states.
 
-## Where things stand, 4 September
+## Where things stand, 2 October
 
-The leaderboard work is finished; the paper is the deliverable. `paper/writeup.md` is under the
-1,500-word cap and `paper/the-16gb-ceiling.pdf` builds clean. Open items before the 9 November paper
-deadline: choose the cover image (candidates in `paper/`), host the PDF at a public URL (the repo is
-private until 1 October), confirm submission 55261090 (32.64) as the accuracy anchor, and fold in the
-v7.7b third draw when it lands.
+Nothing ARC-related has run since 4 September: no commits, no rig jobs, no submissions. The paper and
+the 1,500-word writeup are current and build clean. On the public leaderboard of 1 October we sit
+61st of 2,310 at 32.64; the board is led by Tufa Labs at 83.06, rabbithole at 79.72 and nvbanana at
+75.42, then a fourth entry at 55.14 and a pack from 38.89 down (10th is 36.25).
+
+Open before the deadlines (Kaggle submissions 2 November, papers 8 November): the GitHub repo is
+still private and the local branch has not been pushed since 5 August, which is past the 1 October
+date the plan set for the open-source decision; the PDF needs a public URL before the writeup is
+filed; the cover image is unchosen (candidates in `paper/`); and 55261090 (32.64) should be
+confirmed as the accuracy anchor in the Kaggle UI.
 
 ## Environment notes
 
@@ -168,8 +175,8 @@ Facts that each cost a day:
   that differs from `~/.kaggle/access_token`; kaggle 2.x prefers the variable, so every submission
   script failed with "Authentication required". `scripts/rig_submit.py` now drops the variable when
   the file exists. The variable itself was left alone.
-- The rig's GPU has been fully occupied since 2 Sep by a job outside this project
-  (`C:\liliput\v3\train_scaleup.py`); check before launching anything.
+- The rig's GPU is usually occupied by Ryan's other projects, outside this repo. Do not touch them;
+  check the process list before launching anything and wait if the card is busy.
 - On Kaggle, `machine_shape: "NvidiaL4"` is required and its absence is silent; `model_sources` must
   read `sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1` with a capital T, and wrong values
   land in `invalidModelSources` while the push still reports success; and submission needs a
