@@ -143,18 +143,22 @@ as the weak spot, which is ARC by definition; its language-modelling results are
 linear map from frozen representations. Its precondition is testable without implementing it, by
 checking whether ARC transformations are linearly decodable from the base's hidden states.
 
-## Where things stand, 2 October
+## Where things stand, 4 October
 
-Nothing ARC-related has run since 4 September: no commits, no rig jobs, no submissions. The paper and
-the 1,500-word writeup are current and build clean. On the public leaderboard of 1 October we sit
-61st of 2,310 at 32.64; the board is led by Tufa Labs at 83.06, rabbithole at 79.72 and nvbanana at
-75.42, then a fourth entry at 55.14 and a pack from 38.89 down (10th is 36.25).
+The paper, the 1,500-word writeup and both covers are current and build clean. On the public
+leaderboard of 1 October we sit 61st of 2,310 at 32.64; the board is led by Tufa Labs at 83.06,
+rabbithole at 79.72 and nvbanana at 75.42. The 128 generators are released in `corpus/`.
 
-Open before the deadlines (Kaggle submissions 2 November, papers 8 November): the GitHub repo is
-still private and the local branch has not been pushed since 5 August, which is past the 1 October
-date the plan set for the open-source decision; the PDF needs a public URL before the writeup is
-filed; the cover image is unchosen (candidates in `paper/`); and 55261090 (32.64) should be
-confirmed as the accuracy anchor in the Kaggle UI.
+Every commit's email was rewritten locally from the personal address to
+`198507061+rc397@users.noreply.github.com`, and this repository's `user.email` is now that address.
+GitHub still holds the old history until Ryan force-pushes; do not `git pull` before then, or the
+old commits merge back in. Daily replicate resubmissions (`scripts/rig_daily_replicate.py`) are not
+running: this environment's safety check refuses background processes on the rig and force pushes,
+so both need Ryan.
+
+Open before the deadlines (Kaggle submissions 2 November, papers 8 November): the force push, then
+making the repo public; a public URL for the PDF; filing the Kaggle writeup with the triptych as
+the cover; and choosing the two final submissions (55261090 at 32.64 and a 31.39).
 
 ## Environment notes
 

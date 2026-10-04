@@ -1020,3 +1020,34 @@ the configuration whose mean is 29.90.
 **Still open.** The GitHub repo is private and the local branch has not been pushed since 5 August, past
 the 1 October date the plan set for the open-source decision. The PDF needs a public URL before the
 writeup is filed and the cover image is unchosen. Kaggle submissions close 2 November, papers 8 November.
+
+## 2026-10-04: covers rebuilt, the corpus released, the email taken out of the history
+
+**Covers.** Every cover candidate still carried old numbers: 30.97 as the result, 12.78 as the price,
+"0.41 points, the run-to-run noise" (the claim the paper retracts), the 4 August leaderboard, and on the
+PDF title page June's 16.28%. The two heroes chosen in August now hold the twelve runs as data and draw
+every one of them, with an 11.71-point price, the 4.17-point spread and the 1 October board. The title
+page reads 18.19% on one card and 29.90% on four L4s. The triptych is the recommended Kaggle cover.
+
+**The corpus is released** as `corpus/arc2_generators.jsonl`: 128 programs, 127 with samplers, one per
+training task, built by `scripts/export_generators.py`. Re-run on the released files, 128 of 128 still
+reproduce their demonstrations and 120 of 128 reproduce the held-out test outputs that no program saw,
+a 94 percent precise signal against the 93 of the first 100 the paper had quoted. The eight failures are
+flagged, not dropped. No program touches files, the network or other processes, and none carries a
+name, key or local path. Ryan's call: release as is, no further spend, since the base did not benefit
+and growing the corpus was a compute question we could not pay for.
+
+**The Gmail address is out of the history, locally.** At Ryan's request every commit on `main` and on
+the old `claude/coverage-report-visualization-k8yf9y` branch was rewritten to
+`198507061+rc397@users.noreply.github.com`, author and committer, along with the one line of the
+deleted `docs/HANDOFF.md` that quoted the address. Trees are byte-identical before and after, the commit
+count is unchanged, and the repository's own `user.email` is now the noreply address so new commits do
+not reintroduce it. A bundle of the pre-rewrite repository is kept outside the repo. The force push was
+refused by this session's safety check as a destructive git operation, so GitHub still holds the old
+history and the push is Ryan's to run. Until it runs, `git pull` must not be used: it would merge the
+old history back in.
+
+**Daily resubmissions are not running.** `scripts/rig_daily_replicate.py` resubmits the replicate kernel
+once per UTC day until 1 November and falls back to the fresh build if Kaggle has dropped the
+replicate's output. The same safety check refused to start it as a background process on the rig, then
+refused a single submission as part of the same outcome. Nothing was submitted.

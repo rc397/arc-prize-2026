@@ -472,3 +472,12 @@ repo, unpushed since 5 August, and the decision to make it public.
 |---|---|---|
 | public leaderboard, 1 Oct | Tufa Labs 83.06, rabbithole 79.72, nvbanana 75.42, Yi-Chia Chen 55.14, then 38.89 down; 10th 36.25, 25th 33.06; we are 61st of 2,310 at 32.64 (43rd on 6 Aug) | tex abstract, introduction, contributions, scaling section, conclusion; HTML snapshot; CONTEXT |
 | scaling section's "reached 30.97" | one draw, not the result; now the 29.90 mean over twelve runs | tex, HTML snapshot |
+
+## 4 October: release and history
+
+| result | value | folded into |
+|---|---|---|
+| generator corpus, full re-check | 128/128 demonstrations, 120/128 held-out test outputs (94%), 127 samplers | corpus/README, tex gencorpus, writeup, README, CONTEXT |
+| covers | triptych and field rebuilt on the twelve runs and the 1 October board; title page 18.19 / 29.90 | paper/, scripts/make_hero_final.py, scripts/make_cover_hero.py |
+| history | all commits rewritten to the GitHub noreply address, locally; force push pending Ryan | DEVLOG, CONTEXT |
+| daily replicate series | script written, not running; needs Ryan | DEVLOG, CONTEXT |
