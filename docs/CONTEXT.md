@@ -169,7 +169,7 @@ linearly decodable from the base's hidden states.
 
 The paper, the writeup and both covers are current and build clean. On 5 October the paper's prose was
 brought back to the standard of the June sweep, with no colons, semicolons or dashes in the body and
-no sentences built on if and then. The HTML copy of the paper is still an August snapshot with its
+every conditional recast as a plain statement. The HTML copy of the paper is still an August snapshot with its
 headline numbers updated. Regenerating it from the source with make4ht stalled in testing, so it is
 either rebuilt properly or retired, and that is Ryan's call.
 
