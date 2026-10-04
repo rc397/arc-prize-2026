@@ -1,0 +1,12 @@
+{
+ "generators": 128,
+ "with_sampler": 127,
+ "demos_reproduced_on_recheck": 128,
+ "test_outputs_reproduced": 120,
+ "by_setting": {
+  "reasoning off": 110,
+  "reasoning effort low": 17,
+  "reasoning off, blind retry": 1
+ },
+ "training_tasks_in_split": 1000
+}

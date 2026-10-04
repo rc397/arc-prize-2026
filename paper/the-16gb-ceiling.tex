@@ -1314,15 +1314,17 @@ is usable rather than nominal: of the first 95 verified programs, \textbf{93 (98
 instances}, 89 of them reliably, meaning at least 8 of 10 random seeds produce a novel grid the
 transform handles, averaging 9.5 usable draws per 10 seeds.
 
-\textbf{Execution against demonstrations is a 93\% precise proxy for capturing the rule.} The concern
+\textbf{Execution against demonstrations is a 94\% precise proxy for capturing the rule.} The concern
 with a demonstrations-only proof is that a program can fit three worked examples while implementing a
 simpler rule than the task intends, and then mint unlimited data for the wrong transformation. The
 ARC-AGI-2 training split publishes held-out test pairs, so this is directly measurable: running each
-verified program on the test input it never saw, \textbf{93 of the first 100 reproduce it exactly},
-putting the true overfit rate at 7\%. This is the result that licenses the method. The free
+verified program on the test inputs it never saw, \textbf{120 of all 128 reproduce them exactly},
+putting the true overfit rate near 6\%; the first 100, checked before the corpus was complete, gave 93. This is the result that licenses the method. The free
 verification is a close substitute for the expensive property, and no model was needed to judge
 correctness at any point. It is measurable only because we built on the training split; on the
-evaluation split the same corpus would carry an error rate nobody could check.
+evaluation split the same corpus would carry an error rate nobody could check. The corpus is
+released with this paper's code as \texttt{corpus/arc2\_generators.jsonl}, one record per task with
+its program and both verification results, the eight test failures flagged rather than removed.
 
 \textbf{The local alternative, and the ceiling reappearing where we did not expect it.} An API
 budget is a poor foundation for a corpus, so we tested whether generation could be moved onto the

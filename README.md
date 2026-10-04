@@ -23,7 +23,7 @@ build this project called a regression, plus both public notebooks run as contro
 standard deviations of the series mean. Forty levers were measured on top of the reproduction and none
 moved the hidden score; the paper's ledger section records what closed each one. Three training-side gates
 (rule count, rule kind, training duration) are null at their own optimum, and a corpus of 128
-execution-verified ARC-AGI-2 generators was built for under three dollars along the way.
+execution-verified ARC-AGI-2 generators was built for under three dollars along the way; it is released in `corpus/`.
 
 Every measurement and dead end is recorded in `DEVLOG.md` and `docs/pending-results.md`.
 
@@ -31,8 +31,8 @@ Every measurement and dead end is recorded in `DEVLOG.md` and `docs/pending-resu
 
 Development happens on a Windows laptop with an RTX 3070 8 GB, which holds the git repository and runs the
 unit tests. Training and inference run on the rig, a Windows box with an RTX 5070 Ti 16 GB on the Blackwell
-architecture and a torch 2.10 cu128 stack, reached over SSH. Datasets, model weights and the generator
-corpus live only on the rig. The Kaggle submissions run on the contest box, four L4 GPUs offline.
+architecture and a torch 2.10 cu128 stack, reached over SSH. Datasets, model weights and the raw
+generation logs live only on the rig. The Kaggle submissions run on the contest box, four L4 GPUs offline.
 
 ## Layout
 
@@ -43,8 +43,8 @@ and ID-level ChatML prompt assembly, top-2 selection, and per-task test-time tra
 runnable entry points, the Kaggle notebook builder (`build_v7_from_architects.py`), the rig experiment
 drivers, and the figure builders. `notebooks/` holds every submitted Kaggle notebook by version;
 `arc_submission_v7_2_replicate.ipynb` is the exact artifact behind the twelve-run series (kernel version
-339772104) and `arc_submission_v7_2_original.ipynb` the build that scored 30.97 (337769272). `docs/`
-holds the working notes, `archive/` keeps superseded experiments and drafts out of the way, and `tests/`
+339772104) and `arc_submission_v7_2_original.ipynb` the build that scored 30.97 (337769272). `corpus/`
+holds the released ARC-AGI-2 generators and their verification results. `docs/` holds the working notes, `archive/` keeps superseded experiments and drafts out of the way, and `tests/`
 holds the model-independent unit tests.
 
 ## License

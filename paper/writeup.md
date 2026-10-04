@@ -40,7 +40,7 @@ The duration result retires the objection that the other two, stopped at 8,000 s
 
 ### A generator corpus, and a decoder that got correct and scored worse
 
-Asking a model to write a `solve` and a `gen_input` for each of the 1,000 public ARC-AGI-2 training tasks, verified by execution against that task's own demonstrations, yields **110 verified generators for $1.57**; a low-effort reasoning pass over 25 of the failures adds 17 more for thirty-five cents, 128 in all, and 98 percent of their samplers mint fresh valid instances. Verification is a proof, and it can be priced: on held-out test pairs those programs never saw, **93 of the first 100 reproduce the answer exactly**, so the free check is a 93 percent precise proxy for the real rule.
+Asking a model to write a `solve` and a `gen_input` for each of the 1,000 public ARC-AGI-2 training tasks, verified by execution against that task's own demonstrations, yields **110 verified generators for $1.57**; a low-effort reasoning pass over 25 of the failures adds 17 more for thirty-five cents, 128 in all, and 98 percent of the samplers we tested mint fresh valid instances. Verification is a proof, and it can be priced: on held-out test pairs those programs never saw, **120 of the 128 reproduce the answer exactly**, so the free check is a 94 percent precise proxy for the real rule. All 128 are released with the code.
 
 Reasoning models can spend an entire output budget without emitting an answer: ours burned 100 percent of 383,997 output tokens on reasoning across twelve tasks and wrote no code, which reads as incapacity and is a cap landing mid-thought. And the effort dial is **not monotone**: low effort beat maximum on yield, price and speed at once, because maximum effort fails by not terminating.
 

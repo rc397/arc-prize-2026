@@ -53,8 +53,10 @@ contamination trap documented in `docs/contamination-audit.md`. The result is a 
 which does not otherwise exist: RE-ARC covers ARC-1 rules, and the 402 compositions built earlier
 here are pairs of those.
 
-Current state: **128 verified generators, 127 with samplers**, in `experiments/genrules_*.jsonl`
-where each line carries the full program under `src`. Total spend about 13 CNY.
+Current state: **128 verified generators, 127 with samplers**, released on 4 October as
+`corpus/arc2_generators.jsonl` with both verification results per program, built by
+`scripts/export_generators.py` from the raw `experiments/genrules_*.jsonl` on the rig. Total spend
+about 13 CNY.
 
 Driver is `scripts/gen_rules.py` (`check` / `plan` / `run` / `runc` / `repair` / `report`), an
 OpenAI-compatible client with `deepseek`, `openai` and `local` providers.
@@ -77,8 +79,8 @@ All arms below are paired on the same tasks.
   produced a verified program; two of five max-effort calls stopped exactly on the cap having
   emitted zero answer tokens. The same pattern appears in a second model family (Qwen at 20k), and
   was independently reported for that model within days of its release.
-- **Execution against demonstrations is a 93% precise proxy** for capturing the real rule: 93 of the
-  first 100 verified programs reproduce the held-out test pair they never saw. That is what licenses
+- **Execution against demonstrations is a 94% precise proxy** for capturing the real rule: 120 of all
+  128 verified programs reproduce the held-out test outputs they never saw (93 of the first 100). That is what licenses
   a demonstrations-only proof.
 - Failures are **bimodal**: 63 of 483 clean failures matched even one demonstration pair, so there is
   no near-miss tail to repair. The same property holds for the 4B solver, at a different scale and
