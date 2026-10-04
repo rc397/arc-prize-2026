@@ -8,10 +8,12 @@
 \usepackage{amsmath,amssymb}
 \usepackage{graphicx}
 \usepackage{booktabs}
+\usepackage{longtable}
 \usepackage{caption}
 \usepackage{float}
 \usepackage{enumitem}
 \usepackage[hidelinks]{hyperref}
+\expandafter\def\expandafter\UrlBreaks\expandafter{\UrlBreaks\do\-}
 \usepackage{microtype}             % tighter, less cramped justification
 
 \hypersetup{
@@ -86,29 +88,29 @@ the single-card budget.
 We quote a mean rather than a best because of what those twelve runs turned out to be. A single
 Kaggle kernel version, resubmitted twelve times across twenty-five days with nothing changed and verified
 byte-identical by script version rather than by description, scored \textbf{30.56, 32.64, 28.47,
-31.39, 30.56, 30.56, 28.89, 28.89, 30.56, 28.47, 28.89} and \textbf{28.89}: a spread of \textbf{4.17
+31.39, 30.56, 30.56, 28.89, 28.89, 30.56, 28.47, 28.89} and \textbf{28.89}, a spread of \textbf{4.17
 points}, ten task credits, and a standard deviation of \textbf{1.34} with a 95\% confidence interval of
 $[0.95, 2.27]$. Measured
 against it, \emph{every} build this project called a regression, and both public notebooks we ran as
 controls, fall inside two standard deviations. So does the 32.64 we spent weeks treating as our best
-result: it is the maximum of twelve draws from a distribution centred on 29.90, an order statistic
+result. It is the maximum of twelve draws from a distribution centred on 29.90, an order statistic
 rather than a score, and we now report the pipeline as $29.9 \pm 1.3$. That is the paper's most
 transferable result. At this operating point a single hidden-set score does not resolve the method
-differences the field routinely reports, our own included; separating two configurations at 80\%
+differences the field routinely reports, our own included. Separating two configurations at 80\%
 power would need roughly \textbf{four points of separation and three runs per arm}, six submission
 days for one comparison. We only found this because we spent twelve submissions re-running one
 unchanged artifact.
 
 Past that point the work becomes an account of what it takes to trust a number at all in this setting,
 and four results carry more than the accuracies do. A public notebook \emph{displaying} 33.89 scored
-\textbf{28.06} when we forked it unmodified and submitted it ourselves, which is below our own build;
-we had spent a week producing three quantified explanations of a gap that did not exist, and we report
+\textbf{28.06} when we forked it unmodified and submitted it ourselves, which is below our own build.
+We had spent a week producing three quantified explanations of a gap that did not exist, and we report
 them in the order we believed them. The selection ceiling turns out to be closeable by proof rather
-than by sweep: on a dumped candidate pool, the correct grid is dominated in every recorded statistic
+than by sweep. On a dumped candidate pool, the correct grid is dominated in every recorded statistic
 for most of the outputs that leak, so no monotone rule over those statistics can recover them and the
 family of sixteen reweightings we were about to test was refuted before it ran. A scheduling
 hypothesis that the reclaimed time budget could fund restarts measured a 4.4-point gain and was
-\textbf{nothing}: rerunning the same seed disagrees with itself as often as different seeds disagree
+\textbf{nothing}, because rerunning the same seed disagrees with itself as often as different seeds disagree
 with each other, so the apparent effect was the decoder's own arithmetic, and only a same-seed
 replicate arm separated the two. And the residual is capability rather than budget, since 62\% of tasks
 never place the correct grid in the candidate pool under any of sixteen views while consuming 69\% of
@@ -190,7 +192,7 @@ lever that lifted or tied the public evaluation regressed the hidden score when 
 Kaggle kernel version span 4.17 points on the hidden set with a standard deviation of \textbf{1.34},
 so a single score cannot resolve differences below roughly four points without three runs per arm. We
 believe this is the first such measurement published for ARC-AGI-2, and it retires a class of claim
-rather than a single claim: every regression we recorded, both public-notebook controls, and our own
+rather than a single claim. Every regression we recorded, both public-notebook controls, and our own
 best configuration all fall inside 1.5 standard deviations (Section~\ref{sec:results}).
 \item \textbf{A ledger of forty measured levers, none of which moved the score}, organised by
 where each sits relative to the candidate pool, together with the observation that eleven of them
@@ -219,7 +221,7 @@ recipe fixed and ask what survives a single consumer GPU.
 \textbf{Two different things are called test-time training.} The name collides, and the collision
 matters for reading anything in this paper against the wider literature. In the ARC line, TTT means
 \emph{supervised} fine-tuning on a task's demonstration pairs, which are labelled data the task
-supplies; this is the sense used throughout here and the sense the ARC Prize 2024 report
+supplies. This is the sense used throughout here and the sense the ARC Prize 2024 report
 fixes~\cite{arc2024}. In the older line beginning with Sun et al.~\cite{sun2020}, TTT means
 \emph{self-supervised} adaptation on the unlabeled test instance itself, with descendants using
 entropy minimisation or masked autoencoding~\cite{ttmae}. Akyurek et al.~\cite{akyurek2024}
@@ -230,14 +232,14 @@ A third sense has since arrived and is worth separating explicitly, because it i
 is most likely to encounter now. NVIDIA's TTT-E2E~\cite{ttte2e} compresses a long context
 \emph{into the weights} by continued next-token prediction at inference, on top of a meta-learned
 initialization, achieving inference latency constant in context length where attention is quadratic.
-It is an architecture rather than a procedure: the meta-learned pre-training is what makes the
+It is an architecture rather than a procedure. The meta-learned pre-training is what makes the
 test-time descent work, so it cannot be retrofitted onto an existing transformer's weights. It is
 also lossy by design, keeping what is predictive and discarding detail. Neither property fits the
 setting here. Our prompts are about 2{,}000 tokens against an 8{,}192 cap that we measure to be
-non-binding, so the complexity it optimises is slack for us; and ARC is scored on exact grid
+non-binding, so the complexity it optimises is slack for us. ARC is also scored on exact grid
 equality, where 88\% of a median output is a verbatim copy of its input, so discarding detail
-discards the answer. We name it because the acronym now covers three distinct things --- per-task
-supervised fine-tuning, self-supervised instance adaptation, and context compression into weights ---
+discards the answer. We name it because the acronym now covers three distinct things, which are per-task
+supervised fine-tuning, self-supervised instance adaptation, and context compression into weights,
 and papers in this area are increasingly ambiguous about which they mean. The one idea that does
 transfer is the meta-learned initialization, which is a different object from the cross-task warm
 start we close in Section~\ref{sec:ledger}: that transfers a neighbour's adapter, whereas
@@ -295,7 +297,7 @@ compiling the decode step, is unavailable on this platform. \texttt{torch.compil
 Triton has no native-Windows backend (Appendix~\ref{app:log}).
 
 The fix is to change engines. We convert the model to GGUF and serve it with llama.cpp. The custom
-vocabulary needs two small, documented converter patches (Appendix~\ref{app:repro}): the unknown
+vocabulary needs two small, documented converter patches (Appendix~\ref{app:repro}). The unknown
 tokenizer hash is mapped to the \texttt{qwen2} pre-tokenizer it actually uses, and two throwaway
 byte-pair merges are added to satisfy a loader that requires a non-empty merge list (they never fire
 on grid text). The prebuilt CUDA~12.4 binary runs on the Blackwell card through PTX just-in-time
@@ -310,13 +312,13 @@ generation, so we disable it and run a single supervised stream.
 \centering
 \includegraphics[width=0.84\linewidth]{fig_roofline}
 \caption{Decode throughput versus the memory-bandwidth roofline of Eq.~\eqref{eq:roofline} (the
-ceiling is a first-order model, bytes/token $\approx$ weight bytes). Bars are \emph{measured} tok/s;
+ceiling is a first-order model, bytes/token $\approx$ weight bytes). Bars are \emph{measured} tok/s, and
 the shaded gap to each cap is framework overhead, not the card. The eager path fills only $\approx
 10\%$ of its roof, and moving decode to llama.cpp at Q8\_0 recovers the $13\times$.}
 \label{fig:roofline}
 \end{figure}
 
-\subsection{AIRV: augment, infer, reverse, vote}
+\subsection{Augment, infer, reverse, vote (AIRV)}
 \label{sec:airv}
 Let $f$ be the served model and $\mathcal{G}$ the eight dihedral (D4) symmetries of the grid. For a
 test input $x$ we generate one prediction per symmetry, invert it back to the original frame, and
@@ -337,7 +339,7 @@ in Figure~\ref{fig:pipeline}.
 \begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{fig_pipeline}
-\caption{The offline system. The PyTorch trainer and the llama.cpp server never share VRAM; per-task
+\caption{The offline system. The PyTorch trainer and the llama.cpp server never share VRAM, and per-task
 adapters cross the bridge as GGUF and are hot-swapped on the fast engine per request.}
 \label{fig:pipeline}
 \end{figure}
@@ -345,7 +347,7 @@ adapters cross the bridge as GGUF and are hot-swapped on the fast engine per req
 \subsection{Per-task test-time training}
 \label{sec:ttt}
 For TTT we fit a per-task LoRA adapter $\Delta W = s\,BA$ of rank $r$ and scale $s$ on the task's own
-train pairs $T$, with a leave-one-out target and the loss masked to the answer tokens:
+train pairs $T$, with a leave-one-out target and the loss masked to the answer tokens, which gives
 \begin{equation}
 \mathcal{L}(\theta) \;=\; -\!\!\sum_{(u,v)\in T}\ \sum_{t}
 \log p_{\theta}\big(v_t \mid v_{<t},\, \mathrm{ctx}_{\,T\setminus\{(u,v)\}},\, u\big),
@@ -357,7 +359,7 @@ expensive part.
 
 The harder problem is \emph{serving} the trained adapter. TTT must run in PyTorch, where decoding is
 the slow 13 tok/s and intermittently becomes quadratic after a step. The fast engine does not train.
-We bridge them (Figure~\ref{fig:pipeline}): train in PyTorch, save each adapter, convert it to a GGUF
+We bridge them (Figure~\ref{fig:pipeline}). We train in PyTorch, save each adapter, convert it to a GGUF
 adapter, and hot-swap it on llama.cpp through its \texttt{/lora-adapters} endpoint, where decode
 holds $\approx 115$ tok/s with no stalls. We run three phases (train all, convert all from a clean
 process, then serve and generate all) so the two frameworks never share VRAM
@@ -463,14 +465,14 @@ evaluation, a clean single-stream run completing in $\approx 78$ minutes, and \t
 hidden set, a halving we return to in Sections~\ref{sec:lessons} and~\ref{sec:limits}. Adding per-task
 TTT roughly doubles the hidden score. Table~\ref{tab:versions} gives the full progression.
 
-\begin{table}[H]
+\begin{table}[tbp]
 \centering
 \caption{Leaderboard submissions, scored on the hidden 240-task set on the four-L4 node. Entries
 through v6.1 are the single-card recipe sharded for throughput. The v7 entries reproduce a public
 pipeline whose per-task training cannot be served in budget on one 16~GB card and are not single-card
 results.}
 \label{tab:versions}
-\begin{tabular}{llc}
+\begin{tabular}{@{}lp{0.68\linewidth}c@{}}
 \toprule
 version & configuration & hidden score (\%) \\
 \midrule
@@ -499,11 +501,11 @@ v7.2r$''$ & \emph{the same kernel version again, a third execution} & \textbf{28
 v7.2r$'''$ & \emph{and a fourth} & 31.39 \\
 v7.2r$''''$ & \emph{and a fifth} & 30.56 \\
 cap & the replicate with one live literal, 1800 to 1200 & 29.31 \\
-noAIF & the replicate minus computation its own output discards; 30.00, 29.03, 30.56 & 29.86 mean \\
+noAIF & the replicate minus computation its own output discards (30.00, 29.03, 30.56) & 29.86 mean \\
 v7.2r$\times$12 & the same kernel version, twelve executions in all (Table~\ref{tab:twoartifacts}) & 29.90 mean \\
-v7.6 & the replicate plus the greedy fallback alone; 30.56, 29.72, 29.44 & 29.91 mean \\
-v7.7 & the replicate with the DFS cache cropped to the branch; 29.72, 27.36, 29.03 & 28.70 mean \\
-v7.7b & the replicate with each task's remaining time divided evenly over its view batches; 29.44, 27.78, 28.61 & 28.61 mean \\
+v7.6 & the replicate plus the greedy fallback alone (30.56, 29.72, 29.44) & 29.91 mean \\
+v7.7 & the replicate with the DFS cache cropped to the branch (29.72, 27.36, 29.03) & 28.70 mean \\
+v7.7b & the replicate with each task's remaining time divided evenly over its view batches (29.44, 27.78, 28.61) & 28.61 mean \\
 rebuild & a fresh build of the unmodified v7.2 configuration, a control on the build script & 31.39 \\
 \bottomrule
 \end{tabular}
@@ -525,28 +527,28 @@ is the paper's thesis made concrete, the candidate and voting side is saturated 
 side is where the hidden number moves. For reference the 2025 winner reached 24.0\% with TTT~\cite{arc2025} on the same Qwen3-4B base lineage
 with a more developed recipe.
 
-The two v7 entries then measure the constraint itself. Reproducing the public pipeline of
+The v7 entries then measure the constraint itself. Reproducing the public pipeline of
 Section~\ref{sec:architects} on the four-L4 node scored 16.81\% as the community port shipped it, and
-\textbf{30.56\%} once two defects introduced by that port were repaired, and \textbf{30.97\%} when the
-same repaired pipeline ran at the upstream per-task cap. The last of those is the highest this project has
-posted and it is not a single-card result, since its per-task training cannot be served on one card inside
-the contest's twelve hours. Read against v6.1, the best configuration we ran
-within that budget,
-the pair gives the cleanest figure in this work. The same author, the same base model, the same hidden
-set and the same twelve-hour budget yield \textbf{18.19\%} under 16~GB and \textbf{30.97\%} on the
-contest's 96~GB, so roughly twelve points separate what one consumer card reaches from what the
-provided hardware reaches on a method built for it. That gap is the honest size of the ceiling in the
-title, measured rather than argued, and it is the paper's central quantitative claim.
+\textbf{30.56\%} once two defects introduced by that port were repaired. A second run of the same
+repaired build scored \textbf{30.97\%}, and twelve later executions of one immutable build of it averaged
+\textbf{29.90\%} with a spread of 4.17 points (Table~\ref{tab:twoartifacts}). That configuration is not a
+single-card result, since its per-task training cannot be served on one card inside the contest's twelve
+hours. Read against v6.1, the best configuration we ran within that budget, the pair gives the cleanest
+figure in this work. The same author, the same base model, the same hidden set and the same twelve-hour
+budget yield \textbf{18.19\%} under 16~GB and \textbf{29.90\%} on average on the contest's 96~GB, so
+roughly twelve points separate what one consumer card reaches from what the provided hardware reaches on
+a method built for it. That gap is the honest size of the ceiling in the title, measured rather than
+argued, and it is the paper's central quantitative claim.
 
 \begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{fig_version_score}
 \caption{Hidden score by submission version, with the measured same-configuration band. The band
-comes from twelve runs of \emph{one immutable kernel version}, mean 29.90 and standard deviation 1.34;
-the inner shading is $\pm1$ sd and the outer $\pm2$. Every score from v7.1 onward, including every
+comes from twelve runs of \emph{one immutable kernel version}, mean 29.90 and standard deviation 1.34.
+The inner shading is $\pm1$ sd and the outer $\pm2$. Every score from v7.1 onward, including every
 build we called a regression, lies within 1.5 standard deviations of that mean. An earlier version of
 this caption read that the spread was ``about one task credit'' and that every point below the band
-was ``a real regression rather than noise''; that was estimated from three runs and both halves of it
+was ``a real regression rather than noise''. That was estimated from three runs and both halves of it
 were wrong. The two public-notebook controls are plotted separately in Figure~\ref{fig:phantom}.}
 \label{fig:version-score}
 \end{figure}
@@ -565,14 +567,14 @@ completely.
 The fourth run deleted the solver's dead symbolic-arm computation, work whose output the scoring
 v7.2 provably discards on the next line, a change with no path to the computed answers except
 timing. It scored \textbf{30.00}. The fifth was the decisive one. We resubmitted the replicate
-kernel, and resubmitting a Kaggle kernel version re-runs an immutable artifact: not a rebuild, not a
-re-export, the same committed version identifier as the run that had scored 30.56. It scored
+kernel, and resubmitting a Kaggle kernel version re-runs an immutable artifact. It is not a rebuild or a
+re-export but the same committed version identifier as the run that had scored 30.56. It scored
 \textbf{32.64}. Identical code, two executions, \textbf{2.08 points apart}, which is five task
 credits.
 
 We then kept submitting that same kernel version, as often as the quota allowed, into late August.
 Twelve executions of one immutable artifact scored \textbf{30.56, 32.64, 28.47, 31.39, 30.56, 30.56,
-28.89, 28.89, 30.56, 28.47, 28.89} and \textbf{28.89}: a range of \textbf{4.17 points}, ten task
+28.89, 28.89, 30.56, 28.47, 28.89} and \textbf{28.89}, a range of \textbf{4.17 points}, ten task
 credits, on code that cannot have changed. This is the central measurement of the paper and we arrived
 at it by widening the same estimate five times, each time in the same direction.
 
@@ -582,7 +584,7 @@ deviation of $[0.95, 2.27]$ and on the mean of $[29.05, 30.75]$.
 Two methodological points about that series, both of which cost us something to learn. First, it is
 twelve runs of one \emph{script version}, verified by the \texttt{scriptVersionId} recorded against
 each submission rather than by what its description said. One member carried the note ``unchanged
-except commit size'', which could easily have meant a rebuild and a different artifact; the audit
+except commit size'', which could easily have meant a rebuild and a different artifact. The audit
 confirmed it did not. Second, an earlier draft of this section pooled these runs with three
 one-factor variants into an eight-member ``same-method family'' at mean 30.64 and sd 1.18. That
 family is the wrong instrument, because its spread confounds the code change with the day. Only the
@@ -611,7 +613,7 @@ script version & runs & mean & sd & range \\
 \midrule
 339772104, the replicate & 12 & 29.90 & 1.34 & 4.17 \\
 337769272, the v7.2 build & 3 & 30.00 & 1.34 & 2.50 \\
-346281718, a fresh build of the same configuration & 1 & 31.39 & -- & -- \\
+346281718, a fresh build of the same configuration & 1 & 31.39 & n/a & n/a \\
 \midrule
 pooled & 16 & 30.01 & \textbf{1.30} & 4.17 \\
 \bottomrule
@@ -625,21 +627,21 @@ deviation is $[0.96, 2.01]$.
 
 That also disposes of an intermediate reading we briefly held. After two runs the second artifact had
 scored 30.97 and 30.56, a gap of 0.41, and it was tempting to conclude the second build was quieter.
-It was not: two draws from a standard deviation of 1.34 differ by more than 0.41 about 83\% of the
+It was not. Two draws from a standard deviation of 1.34 differ by more than 0.41 about 83\% of the
 time, and the third draw came in at 28.47. A pair of runs cannot measure a spread, which is the same
 lesson the three-run estimate taught earlier in this section, arriving a second time by a different
 route.
 
 The consequence is not a correction to one claim, it is the retirement of a whole class of claim.
 Measured against this series, \emph{every} deviation this project has recorded falls inside
-\emph{two} standard deviations, and after the twelfth draw none of them reaches even 1.5:
+\emph{two} standard deviations, and after the twelfth draw none of them reaches even 1.5.
 
 \begin{table}[H]
 \centering
 \caption{Every build we called a regression, priced against twelve runs of one immutable kernel
 version (mean 29.90, sd 1.34). The rightmost column is what we previously reported, using a standard
 deviation estimated from three runs, then five, then six, then eight pooled members. \emph{Nothing}
-now reaches 1.5 standard deviations. The last row is not a regression at all: it is the configuration
+now reaches 1.5 standard deviations. The last row is not a regression at all. It is the configuration
 we called our best, and it sits four fifths of a standard deviation above the mean of the code it is
 supposed to beat.}
 \label{tab:allnoise}
@@ -667,7 +669,7 @@ needs about \textbf{4.1 points of separation with three runs in each arm}, by an
 computation. The normal approximation an earlier draft used gave 3.3 and understated it, because with
 two degrees of freedom per arm the standard deviation is itself poorly known. The contest allows one
 submission a day, so a single properly powered comparison costs six submission days. Nothing in our
-ledger of forty measured levers is remotely four points; the largest coverage change any of
+ledger of forty measured levers is remotely four points, and the largest coverage change any of
 them produced on a held-out slice is one output in fourteen. This reframes the ledger. It reads as a
 wall of null results, and the honest reading is not that nothing helps but that \emph{the leaderboard
 cannot see anything smaller than a third of our own score}, so a programme of single-submission
@@ -679,7 +681,7 @@ The submission record carries the byte size of each run's \texttt{submission.jso
 out to be a usable instrument. Across the fifteen same-configuration draws of the two multi-run
 artifacts, size and score correlate at $r = +0.55$, and the relationship holds independently inside each
 artifact ($+0.53$ on twelve runs, $+0.80$ on three). The size spread is 25.5~kB on a 778~kB file, which at roughly 2.8~kB per output is
-about \textbf{nine outputs' worth of content} --- and nine outputs is 3.75 points against an observed
+about \textbf{nine outputs' worth of content}, and nine outputs is 3.75 points against an observed
 range of 4.17.
 
 The mechanism that fits is not exotic. A task whose pool comes back empty is written out as the
@@ -697,7 +699,7 @@ out of room.
 It also revises a hypothesis we held earlier in this section. The observed standard deviation is
 consistent with about 41 outputs behaving as coin flips, which matches the independently measured
 12.5\% same-seed pool disagreement almost exactly, and that remains a real effect. But the size
-correlation says a substantial share of the variance is the coarser thing: not \emph{which} answer a
+correlation says a substantial share of the variance is the coarser thing, not \emph{which} answer a
 task produced, but \emph{whether it produced one}. The two are not exclusive and we cannot yet
 apportion them, since Kaggle exposes no per-submission log through its API.
 
@@ -708,14 +710,14 @@ gain from a tighter threshold at a fixed decode budget, but that measured a rig 
 task and not a contest worker at 1800 with a variable machine underneath it.
 
 \paragraph{The uncomfortable direction of that argument.}
-It is easy to read the preceding as a defence: our regressions were not real, so we did not break
-anything. The symmetric reading is the one that costs us something. If a single submission cannot
-resolve a two-point effect, then a lever that genuinely \emph{worked} by one or two points would have
+It is easy to read the preceding as a defence, which says our regressions were not real and so we did not break
+anything. The symmetric reading is the one that costs us something. A single submission cannot
+resolve a two-point effect, so a lever that genuinely \emph{worked} by one or two points would have
 produced a score indistinguishable from a bad draw, and we would have killed it. We must therefore
 allow that some of what this project discarded was working, and we cannot say which. Five builds were
-rejected on a hidden score alone --- v7.3, v7.4, v7.5a, the 1200-second cap, and the no-dead-AIF
-variant --- and every one of them is a candidate for that error. We are not claiming any of them
-worked; we are recording that our procedure could not have told us.
+rejected on a hidden score alone (v7.3, v7.4, v7.5a, the 1200-second cap, and the no-dead-AIF
+variant), and every one of them is a candidate for that error. We are not claiming any of them
+worked. We are recording that our procedure could not have told us.
 
 Two qualifications keep this from becoming a general licence to doubt everything. First, the
 measurement is taken at the 30-point operating point, and the per-task binomial component of the
@@ -723,15 +725,15 @@ variance is smaller at 13 points, so the early v2-to-v5 comparisons are not auto
 this number and would need their own. Second, and more importantly, \textbf{most of the ledger was
 never judged on a hidden score at all.} Thirty-two of the forty levers were closed by paired
 offline measurement, where both arms see the same tasks under the same budget on the same afternoon,
-task difficulty cancels in the pairing, and the twelve-hour contest wall clock --- the mechanism that
-produces this variance --- is not in the loop. Those closures have a different weakness, which is
+task difficulty cancels in the pairing, and the twelve-hour contest wall clock, the mechanism that
+produces this variance, is not in the loop. Those closures have a different weakness, which is
 small samples and sign tests at $p = 0.25$ to $0.50$, and it is not this one. Conflating the two
 would let a real result about submission noise excuse a separate and equally real problem with
 statistical power offline.
 
 The forward-looking cost is arithmetic. Re-testing one discarded lever properly, at three runs per
 arm, is six submission days. A season has of order ninety. So the entire remaining budget of a
-compute-poor entry, spent on nothing else, adjudicates about fifteen hypotheses --- and only those
+compute-poor entry, spent on nothing else, adjudicates about fifteen hypotheses, and only those
 with effects above four points, which is larger than anything this project has produced.
 
 Two of those lines are worth stating plainly rather than leaving in a table. \textbf{The LB33 control
@@ -739,7 +741,7 @@ scored 28.47, and so did our own unmodified pipeline.} The phantom-notebook sect
 (Section~\ref{sec:phantom}) concluded that two public artifacts ``both land near 28 when executed,
 below our own unchanged pipeline's band''. Our own unchanged pipeline reaches exactly that number.
 The conclusion that survives is the one that never depended on the gap, that a displayed score does
-not bind to the published file; the comparison we drew underneath it does not survive. And
+not bind to the published file. The comparison we drew underneath it does not survive. And
 \textbf{v7.5a, the symbolic prune we treated as the theorem's escape route measured and refuted,
 has now been reported at 11, 3.0, 1.93, 2.14 and 2.30 standard deviations as the sample grew from
 three runs to eight, without its own score ever changing.} Its verdict crossed the two-sigma line in
@@ -778,7 +780,7 @@ The more useful statement is about \emph{where} the constraint acts, and by the 
 make it precisely rather than as a point count. It does not act at inference. The offline track fixes
 that for everyone at four L4 GPUs and twelve hours, our submissions run inside that budget, and the cap
 is in fact why the field runs a 4B model at all. It acts at pretraining, which is unconstrained, and the
-resource is nameable from the winning entry's own published configuration: a full-parameter supervised
+resource is nameable from the winning entry's own published configuration, a full-parameter supervised
 fine-tune under tensor-parallel training across eight GPUs, over a corpus whose synthetic component is
 of order $10^6$ puzzles produced by an LLM pipeline that summarizes and recombines task concepts, writes
 transformation programs and executes them. We estimate that generation alone at six to eight months of
@@ -787,7 +789,7 @@ ceiling wearing an inference costume, and the twelve points measure the distance
 can fine-tune and a base one card cannot build.
 
 Three consequences follow, and each is a measurement rather than an inference. The published artifacts do
-not close the gap: our base \emph{is} that model, and our own earlier continued fine-tune regressed
+not close the gap. Our base \emph{is} that model, and our own earlier continued fine-tune regressed
 because two of the datasets we added were already inside its training corpus
 (Section~\ref{sec:limits}). Nor can the gap be closed by generating replacement data, because the tasks
 this model misses are not separable from the ones it reaches on any structural axis we can measure,
@@ -796,7 +798,7 @@ which is the only kind of property a generator can be instructed to produce
 by a dominance argument on the candidate pool (Section~\ref{sec:selection}) and the scheduling lever
 turned out to be numerical noise once a same-seed control was run. Four independent levers, four
 independent closures, all pointing at the same unpurchasable resource. That is a sharper claim than
-twelve points, and unlike twelve points it is falsifiable: a stronger base model reached on comparable
+twelve points, and unlike twelve points it is falsifiable. A stronger base model reached on comparable
 hardware would refute it.
 
 A third submission of the reproduction, identical to the second except that it leaves the per-task search
@@ -855,7 +857,7 @@ environment at 3.33 points and reframed the sixty-entry cluster at 30.97 as a po
 running a degraded one. Rebasing onto that environment scored \textbf{28.61}. Second to the per-task cap,
 after an audit found the cap knob had never reached the solver, on the argument that a looser cap lets
 slow tasks eat the wall until the queue tail is dropped unstarted. That rested on the belief that the
-public build ran a tighter 1200-second cap; it forks a source that hardcodes 1800, as did every
+public build ran a tighter 1200-second cap. It forks a source that hardcodes 1800, as did every
 submission of ours through the wiring fault, so the two sides had agreed on the cap all along. The build
 sent to test it scored \textbf{29.44} and moved a second factor besides. Third to two changes of our own
 in the solver, deleting the port's symbolic arm and regrouping its two-view search batches into fours,
@@ -875,21 +877,21 @@ respects, both of which govern how much search fits inside the budget. It comput
 per-node score on the GPU over the twelve grid tokens rather than as a full-vocabulary softmax moved to
 the CPU, which is algebraically the same quantity and so cannot change what an unbounded search finds,
 but the search is bounded and the cheaper form covers more of the tree per second. And it caps each task
-at 1200 seconds rather than 1800. Every other difference we had agonized over is absent: it removes the
+at 1200 seconds rather than 1800. Every other difference we had agonized over is absent. It removes the
 symbolic arm and uses the four-view batching, both of which we had arrived at independently.
 
 So the correct account is neither the one we started with nor the one we replaced it with. The number
 was real. A public artifact producing it was available for the whole period. We measured a different
 artifact, concluded the effect was illusory, and wrote that up with more confidence than testing one
 file supports. The 28.06 measurement stands and is worth keeping, since that notebook demonstrably does
-not produce the number attached to it in our reading of the board; what does not stand is the inference
+not produce the number attached to it in our reading of the board. What does not stand is the inference
 from one such test to the claim that nothing produces it.
 
 The exact size stays uncertain and we decline to sharpen it beyond what the design supports. The control
 carries the public author's own attachments, so against our 30.97 it moves both the code and the
-environment and reads $+2.91$; against our 28.61, which shares its environment and cap, it reads $+0.55$
+environment and reads $+2.91$. Against our 28.61, which shares its environment and cap, it reads $+0.55$
 but that build carried two scheduler additions of its own. Both comparisons favour the restoration and
-neither isolates it. One reading does invert cleanly: our own environment now looks better than the one
+neither isolates it. One reading does invert cleanly. Our own environment now looks better than the one
 we had priced at $+3.33$, since every build we ran on the public author's mounts scored below every build
 we ran on ours. We state that as a direction, not a number, having just been taught what happens when a
 single uncontrolled comparison is promoted to a price.
@@ -906,7 +908,7 @@ band'', and used that gap to refute the environment hypothesis outright. Our own
 subsequently scored \textbf{28.47} on a later execution of an immutable kernel version
 (Section~\ref{sec:results}), which is the control's number exactly. So the gap does not exist and no
 comparison of single runs at this separation can be made. What survives is the part that never
-depended on it: a displayed score binds to a submission and not to the published file, the two are
+depended on it. A displayed score binds to a submission and not to the published file. The two are
 mutable independently, and forking the artifact unmodified is the only way to learn what it does. The
 environment hypothesis is therefore \emph{unsupported} rather than refuted, which is where it stood
 before we over-read the control, and the per-task cap's motivation was independently removed by the
@@ -920,7 +922,7 @@ our hardware and bought nothing that scores.
 \includegraphics[width=0.9\linewidth]{fig_phantom}
 \caption{Displayed against measured. Two public notebooks carrying 33.89-class numbers score 28.06 and
 28.47 when forked unmodified and submitted from our account. The band drawn for our own unchanged
-pipeline is from the three runs available when this figure was made; twelve runs of that one kernel
+pipeline is from the three runs available when this figure was made. Twelve runs of that one kernel
 version now span 28.47 to 32.64 and contain both controls, so the figure supports the claim that a
 displayed score does not bind to the published file, and no longer supports any comparison between
 the controls and our own.}
@@ -933,7 +935,7 @@ came from. A submission binds to a notebook version and its attachments at submi
 afterwards and neither auditable, and a leaderboard entry names a team rather than a file. We treated a
 number as though it pointed at an artifact, first believing it and then disbelieving it, when what it
 actually required was finding the artifact. The remedy is not scepticism, which produced our second
-error, but enumeration: the competition publishes its notebooks, and reading them is both permitted and
+error, but enumeration. The competition publishes its notebooks, and reading them is both permitted and
 the only way to know what a number refers to. We did that a week late, and it took an afternoon.
 
 The costs are worth stating plainly, since they are the argument for the discipline rather than
@@ -941,8 +943,8 @@ decoration on it. Believing the number bought three quantified explanations of a
 elevated to a claim that the software environment outweighed every method lever we had measured.
 Disbelieving it on one control bought a confident published assertion that the effect was illusory.
 Enumerating the notebooks bought a two-line mechanism, testable offline, that neither belief would ever
-have produced. Roughly sixty leaderboard entries share our 30.97 exactly, which is what forking public
-notebooks produces; the same practice means the artifact behind almost any number is sitting in public,
+have produced. Roughly sixty leaderboard entries shared our 30.97 exactly at the time, which is what forking public
+notebooks produces. The same practice means the artifact behind almost any number is sitting in public,
 and the reason to look is that it is cheaper than any amount of reasoning about the number.
 
 The methodological cost is measurable in this document. Three published explanations, two of them
@@ -950,7 +952,7 @@ quantified to two decimal places, one of them elevated to a central claim about 
 being worth more than method, all of them explaining a gap that a single control retired in one
 submission. The control was cheap and available on day one. We ran it seventh. Each explanation was
 individually reasonable and collectively they formed a research programme aimed at a phantom, which is
-the failure mode this section exists to record: we never tested whether the thing we were explaining was
+the failure mode this section exists to record. We never tested whether the thing we were explaining was
 real. Section~\ref{sec:lessons} takes it up as the project's sharpest instance of a recurring habit.
 
 Three builds are staged to price this, each moving one factor at the 1800-second cap both sides ran.
@@ -1071,38 +1073,38 @@ predicting correctness, where full eight-way consensus is right far more often t
 
 \subsection{The search-throughput frontier, and a correct decoder that scores worse}
 \label{sec:frontier}
-Three experiments run in consecutive weeks move the decoder's budget in different directions: more
+Three experiments run in consecutive weeks move the decoder's budget in different directions, toward more
 search, less search, and the same search divided differently among the views. None helps, and the set
 is more informative than any one of them, because together they locate the pipeline on a frontier
 rather than at an arbitrary point.
 
 \textbf{The budget that is actually binding.} Instrumenting per-task time on the rig gives 259
 seconds of test-time training against 600 seconds of decode, so decode is 69\% of the cost. It also
-never converges: across every banked row it stopped at 600, 600, 601 seconds, guillotined by its own
+never converges. Across every banked row it stopped at 600, 600, 601 seconds, guillotined by its own
 wall. The whole pipeline wants about 859 seconds a task, and 240 tasks inside a twelve-hour budget
 allow far less, so tasks that run long starve the ones behind them. That matters because the score
-variance is largely throughput: submission size and score correlate at $r=+0.55$ across fifteen
+variance is largely throughput. Submission size and score correlate at $r=+0.55$ across fifteen
 same-configuration draws, and the entire four-point observed range is accounted for by about a dozen
 tasks producing no answer at all.
 
-\textbf{Direction one: search more. It scored worse.} The deployed \texttt{turbo\_dfs} threads one KV
+\textbf{Direction one is to search more, and it scored worse.} The deployed \texttt{turbo\_dfs} threads one KV
 cache through its recursion and reuses it for every sibling in the loop, position pinned to the
 branch, with no truncation anywhere. On the transformers version the competition image runs,
 \texttt{DynamicCache} appends rather than overwriting, so each sibling attends over every branch
 explored before it. Our own local harness clones the cache at each branch and its docstring says
-exactly why; the shipped decoder and the validated one had differed all along.
+exactly why. The shipped decoder and the validated one had differed all along.
 
 Cropping the cache back to the branch position is correct, is bit-identical to a full deepcopy on
 every task we tested, and recovers \textbf{27\% more candidates} (51 against 65, ahead on 8 of 10
 tasks). It also takes about 7\% longer per task. Submitted three times it scored \textbf{29.72,
 27.36, 29.03, mean 28.70}, against the twelve-draw same-version series at 29.90, $\text{sd}=1.34$.
 That is $t=-1.49$, $p\approx0.22$, with all three draws below the control mean. Not significant, and we do
-not claim it as a regression; what we claim is that a decoder we can prove more correct did not
+not claim it as a regression. What we claim is that a decoder we can prove more correct did not
 score better, and the direction was consistently wrong.
 
-\textbf{Direction two: search less. It is an exact wash.} If decode always exhausts its wall, the
-natural question is what the wall costs. Holding the adapter fixed and decoding the same ten tasks at
-three budgets:
+\textbf{Direction two is to search less, and it is an exact wash.} Decode always exhausts its wall, so the
+natural question is what the wall costs. Holding the adapter fixed, we decoded the same ten tasks at
+three budgets.
 
 \begin{center}
 \begin{tabular}{lcccc}
@@ -1116,12 +1118,12 @@ budget & truth in pool & selected & candidates & s/task \\
 \end{tabular}
 \end{center}
 
-Decode time is not being wasted; it is finding truth right up to the moment it is cut off. The
-throughput this buys back cancels almost exactly: at twelve hours, 600\,s allows 50.3 tasks at a 0.60
+Decode time is not being wasted. It is finding truth right up to the moment it is cut off. The
+throughput this buys back cancels almost exactly. At twelve hours, 600\,s allows 50.3 tasks at a 0.60
 truth rate and 300\,s allows 77.3 at 0.40, which is \textbf{30.2 expected truths against 30.9}, a
 difference of six events. Cutting to 150\,s is clearly worse.
 
-\textbf{Direction three: divide the wall fairly. Three draws, all below the mean.} The sixteen
+\textbf{Direction three is to divide the wall fairly, and all three draws fell below the mean.} The sixteen
 evaluation views decode in four batches, the per-task cap is checked only between batches, and each
 batch may run its full 540 seconds, so on the scoring node the first batch can consume a task's whole
 allowance and the remaining views contribute nothing. Dividing the time still left evenly over the
@@ -1136,9 +1138,9 @@ neither case did the new placement pay for itself.
 
 \textbf{What the three mean.} Moving the decoder in either direction is neutral to negative, and so is
 redistributing its time, so the 540-second budget the pipeline inherited is not an arbitrary constant
-but sits near a local optimum of a real trade. It also revises an earlier reading of ours: the floor sweep found that searching
+but sits near a local optimum of a real trade. It also revises an earlier reading of ours. The floor sweep found that searching
 less was neutral, and we had taken that as evidence that decode time was slack. It is not. Raising
-the floor prunes low-probability branches, which are cheap to lose; cutting the budget stops the
+the floor prunes low-probability branches, which are cheap to lose, while cutting the budget stops the
 search wherever it happens to be, including on branches about to pay. Those are different
 operations and only one of them is free.
 
@@ -1152,16 +1154,16 @@ in the code, and separately as a change we did not ship.
 Every result above changes the pipeline around a fixed base model, and every one of them returns to
 the same place. That pattern points at the base rather than the pipeline, and the base was trained on
 of order $10^6$ LLM-generated puzzles drawn from a finite set of rules. The natural hypothesis is that
-its ceiling is set by how many distinct transformation rules it has seen. We hold 802: the 400 RE-ARC
+its ceiling is set by how many distinct transformation rules it has seen. We hold 802, the 400 RE-ARC
 verifiers and 402 pairwise compositions of them built for this work. Buying more is possible and costs
 money, so we pre-registered a gate before spending any.
 
-\textbf{The gate: rule count at fixed example count.} Two fine-tunes of the same base, each on 8{,}000
+\textbf{The gate varies rule count at a fixed example count.} We trained two fine-tunes of the same base, each on 8{,}000
 examples under an identical recipe, differing only in how many distinct rules those examples were drawn
-from: 100 rules against all 402. If diversity does nothing at $4\times$, it will do nothing at $8\times$,
+from, 100 rules against all 402. Diversity that does nothing at $4\times$ will do nothing at $8\times$,
 and the direction closes for the price of two training runs.
 
-It did nothing. Both arms are \emph{identical} on both evaluations: better on 1 task, worse on 0, tied
+It did nothing. Both arms are \emph{identical} on both evaluations, better on 1 task, worse on 0, tied
 on 7 of 8 composed holdouts, and better on 0, worse on 0, \textbf{tied on 12 of 12} ARC-AGI-2 tasks.
 The only thing that moved is candidate count, which fell 33\% in the narrow arm and 25\% in the wide
 one without changing a single solve. Four times the rule diversity is not visible in the output.
@@ -1170,12 +1172,12 @@ one without changing a single solve. Four times the rule diversity is not visibl
 detect an effect in either direction, which is not the same as establishing there is none. At this
 sample size only a multi-task swing would register, so the result bounds the effect rather than
 excluding it, and we record it as an inconclusive null rather than a refutation. A stop condition that
-fires on an underpowered tie was under-specified when we wrote it. The defensible claim is narrow:
-within composed RE-ARC rules, at 8{,}000 examples, quadrupling rule count buys nothing we can measure.
+fires on an underpowered tie was under-specified when we wrote it. The defensible claim is narrow.
+Within composed RE-ARC rules, at 8{,}000 examples, quadrupling rule count buys nothing we can measure.
 
 \textbf{Rule KIND, holding count and budget fixed.} The gate above varies how many rules a fixed
-example budget is drawn from. It does not vary what kind of rule, and every rule we hold is ARC-1: a
-RE-ARC verifier, or a pair of them composed. The generator corpus of Section~\ref{sec:gencorpus} is
+example budget is drawn from. It does not vary what kind of rule, and every rule we hold is ARC-1, either a
+RE-ARC verifier or a pair of them composed. The generator corpus of Section~\ref{sec:gencorpus} is
 ARC-2-shaped by construction, since each program was written against an ARC-AGI-2 training task and
 verified against that task's own demonstration pairs. Matching 100 ARC-2 rules against 100 composed
 ARC-1 rules at 7{,}840 examples each gives \textbf{0 better, 1 worse, 11 of 12 tied} on ARC-AGI-2.
@@ -1184,14 +1186,14 @@ Matching them properly cost an extra training run and was worth it. Phase 0's na
 trained and free to reuse, but it was built at 160 pairs per pool while the ARC-2 samplers yield 12.8,
 so reusing it would have confounded rule kind with pool depth by a factor of twelve and a loss for the
 ARC-2 arm could not have been attributed to anything. Rebuilding the ARC-1 arm at matched depth also
-produced a finding of its own: cutting pool depth twelvefold changed the candidate counts
+produced a finding of its own. Cutting pool depth twelvefold changed the candidate counts
 substantially and changed \emph{no solves at all}.
 
 \textbf{Training DURATION, the one training-side variable never varied.} Both gates above stop at
 8{,}000 steps, and so does every other fine-tune in this paper. Since the largest single gain
 reported by the 200M LongT5 system is attributed to grokking~(+7.78), extended training past
-convergence is the obvious axis, and unlike more data it costs only card time. Training the same
-corpus for 96{,}000 steps and gating at four points:
+convergence is the obvious axis, and unlike more data it costs only card time. We trained the same
+corpus for 96{,}000 steps and gated it at four points.
 
 \begin{center}
 \begin{tabular}{lccc}
@@ -1207,15 +1209,15 @@ steps & validation loss & ARC-AGI-2 & candidates \\
 \end{center}
 
 Training loss fell to 0.0034, full memorisation of the corpus, while validation loss reached its
-minimum at 16{,}000 steps and then rose for sixty thousand more. There is no grokking signature:
-grokking is a plateau followed by a sharp drop, and this is ordinary overfitting. Not one task
+minimum at 16{,}000 steps and then rose for sixty thousand more. There is no grokking signature.
+Grokking is a plateau followed by a sharp drop, and this is ordinary overfitting. Not one task
 improved at any checkpoint. The 48{,}000-step dip is noise rather than trend, since 96{,}000 is
 deeper into the overfit regime and loses nothing.
 
 Two things follow. Candidate count grew 53\% while solves stayed flat, which is this paper's recurring
 observation that widening a pool the selector cannot rank buys nothing. And more usefully, \textbf{the
 validation optimum is near 16{,}000 steps while every other arm in this paper stopped at 8{,}000}. We
-had flagged that as a threat to the earlier nulls: perhaps rule count and rule kind measured nothing
+had flagged that as a threat to the earlier nulls, since perhaps rule count and rule kind measured nothing
 because both were measured undertrained. They were not. Gating at the optimum gives the same answer,
 which makes the earlier results stronger rather than suspect.
 
@@ -1224,7 +1226,7 @@ the other two were held fixed, each was pre-registered with a stated falsificati
 at its own optimum. We resist calling this three independent confirmations, because all three share
 the same twelve-task gate, which has now tied 12 of 12 three times and plainly cannot resolve a
 single-task effect. The correlation runs through the instrument, not the interventions. What the
-three do establish jointly is narrower and still useful: within the data and compute this budget
+three do establish jointly is narrower and still useful. Within the data and compute this budget
 allows, no training-side variable we can reach moves coverage, and the axis that the published
 results credit most, pretraining at the scale of $10^6$ puzzles, is the one a single 16~GB card
 structurally cannot pay for.
@@ -1233,12 +1235,12 @@ structurally cannot pay for.
 \label{sec:gencorpus}
 The gate above tests \emph{composed ARC-1} diversity, which is not the same intervention as
 ARC-2-shaped data, so we built the second thing separately. RE-ARC implements ARC-1 rules and ships
-generators that mint unlimited fresh instances; no equivalent exists for ARC-2. The 1{,}000 public
+generators that mint unlimited fresh instances, and no equivalent exists for ARC-2. The 1{,}000 public
 ARC-AGI-2 training tasks are published for training, which is what makes this legitimate where the
 evaluation split would not be, and each one is a rule specification with worked examples attached.
 
 We ask a model to write, for each task, a \texttt{solve} implementing the rule and a \texttt{gen\_input}
-sampling fresh inputs it applies to. \textbf{Verification needs no model and admits no judgement}: a
+sampling fresh inputs it applies to. \textbf{Verification needs no model and admits no judgement}, since a
 program is correct if and only if \texttt{solve} reproduces every demonstration pair of that task under
 execution, checked in a process-isolated worker with a hard kill timeout. That is a proof, it is free,
 and it is strictly stronger than asking any model whether the grids look right.
@@ -1247,7 +1249,7 @@ and it is strictly stronger than asking any model whether the grids look right.
 and the symptom is indistinguishable from incapacity.} Our first runs returned nothing at all, every
 extracted program empty, which reads exactly like a model that cannot do the task. It was not. The
 backend is a reasoning model and it needs far more budget on ARC than a generation task normally
-warrants. Raising the cap traces a clean dose-response, and the shape of it is the finding:
+warrants. Raising the cap traces a clean dose-response, and the shape of it is the finding.
 
 \begin{center}
 \begin{tabular}{lccc}
@@ -1264,7 +1266,7 @@ output cap & tasks & converged & verified \\
 At 4{,}000 and 32{,}000 tokens it produced no code whatsoever, spending a mean of 31{,}999 of 32{,}000
 on reasoning. At 64{,}000 three of five converged, at 43{,}488, 55{,}800 and 59{,}671 tokens, and
 \textbf{all three that converged verified}. The two that did not emitted \emph{zero} answer tokens and
-stopped exactly at the cap. Reasoning accounts for 97 to 98\% of output; the program itself is only
+stopped exactly at the cap. Reasoning accounts for 97 to 98\% of output, and the program itself is only
 735 to 1{,}555 tokens. So the failure mode is not a wrong program, it is an unfinished thought, and a
 cap set anywhere below roughly 45{,}000 tokens converts a capable model into an apparently useless one
 while still charging for every token.
@@ -1272,8 +1274,8 @@ while still charging for every token.
 \textbf{This reframes our own headline number, and the effort dial is not monotone.} Disabling
 reasoning returns a complete program in about 1{,}600 tokens at an 11\% verification rate, which is
 what the 110-generator corpus was built on, and at \$0.0016 per task that was the only option a \$3
-budget allowed. Holding the tasks fixed and moving only the effort setting, on five tasks that the
-non-reasoning pass had already failed:
+budget allowed. We then held the tasks fixed and moved only the effort setting, on five tasks that the
+non-reasoning pass had already failed.
 
 \begin{center}
 \begin{tabular}{lccccc}
@@ -1287,41 +1289,41 @@ max & 3 of 5 & 57{,}391 & 0.259 & 0.433 & 534 \\
 \end{tabular}
 \end{center}
 
-\textbf{Low effort strictly dominates maximum effort here}: higher yield, 2.6 times cheaper and 3
+\textbf{Low effort strictly dominates maximum effort here}. It has the higher yield, is 2.6 times cheaper and 3
 times faster. The mechanism is legible in the token counts. Two of the five maximum-effort calls
 stopped exactly at the 64{,}000 cap having emitted zero answer tokens, and one of them,
 \texttt{009d5c81}, is a task low effort solved in 20{,}238. On the single task both failed, low
 reached 3 of 4 demonstration pairs where max reached none. The additional reasoning is not buying
-accuracy; past some point the model fails to terminate and is billed for every token of it.
+accuracy. Past some point the model fails to terminate and is billed for every token of it.
 
 We take two things from this. First, \textbf{the 11\% is a floor imposed by our budget rather than a
 ceiling of the model}, and the honest statement of this contribution is that we measured what three
 dollars buys, not what the method is worth. Second, \textbf{the cheapest marginal program is not the
 cheapest call}. Once the non-reasoning pass has swept all 1{,}000 tasks its 11\% is exhausted, and
-further programs must come from somewhere more expensive: a blind retry converts the remainder at
+further programs must come from somewhere more expensive. A blind retry converts the remainder at
 5\% for 0.21 CNY per program, low effort at 80\% for 0.126, and max effort at 60\% for 0.433. The
 setting with the lowest per-call price is the most expensive per unit of corpus, and the setting with
 the highest is worse than the middle on every axis at once. These are five paired tasks and the
-intervals are correspondingly wide; the ordering is what we claim, not the rates.
-the most promising unexplored direction here rather than claiming a result we did not buy.
+intervals are correspondingly wide, so the ordering is what we claim, not the rates. We flag low effort
+over the 865 failures it never attempted as the most promising unexplored direction here rather than claiming a result we did not buy.
 
 \textbf{Results.} Of the 1{,}000 training tasks, \textbf{110 (11.0\%) yielded a verified generator}
 and 109 of those also emitted a sampler, at a total cost of \$1.57 in off-peak API charges. The
 low-effort reasoning setting described above, run afterwards over 25 of the failures, verified 17 of
 them (68\%) for about 2.5~CNY, and a blind-retry control added one more, so the corpus stands at
 \textbf{128 verified generators, 127 with samplers}. The corpus
-is usable rather than nominal: of the first 95 verified programs, \textbf{93 (98\%) mint fresh valid
+is usable rather than nominal. Of the first 95 verified programs, \textbf{93 (98\%) mint fresh valid
 instances}, 89 of them reliably, meaning at least 8 of 10 random seeds produce a novel grid the
 transform handles, averaging 9.5 usable draws per 10 seeds.
 
 \textbf{Execution against demonstrations is a 94\% precise proxy for capturing the rule.} The concern
 with a demonstrations-only proof is that a program can fit three worked examples while implementing a
 simpler rule than the task intends, and then mint unlimited data for the wrong transformation. The
-ARC-AGI-2 training split publishes held-out test pairs, so this is directly measurable: running each
-verified program on the test inputs it never saw, \textbf{120 of all 128 reproduce them exactly},
+ARC-AGI-2 training split publishes held-out test pairs, so this is directly measurable. We ran each
+verified program on the test inputs it never saw, and \textbf{120 of all 128 reproduce them exactly},
 putting the true overfit rate near 6\%. The first 100, checked before the corpus was complete, gave 93. This is the result that licenses the method. The free
 verification is a close substitute for the expensive property, and no model was needed to judge
-correctness at any point. It is measurable only because we built on the training split; on the
+correctness at any point. It is measurable only because we built on the training split. On the
 evaluation split the same corpus would carry an error rate nobody could check. The corpus is
 released with this paper's code as \texttt{corpus/arc2\_generators.jsonl}, one record per task with
 its program and both verification results, the eight test failures flagged rather than removed.
@@ -1352,13 +1354,13 @@ Enabling them took throughput from 47.7 to \textbf{6.96 tokens per second}, a 6.
 because with 13.6~GiB of weights resident there is only 258~MiB left and the draft context has
 nowhere to live. Speculative decoding trades memory for bandwidth, and at this capacity there is no
 memory left to trade. The constraint this paper is named for does not only cap how large a model can
-be; it removes the optimisation that would have compensated.
+be. It removes the optimisation that would have compensated.
 
 \textbf{Bimodality appears again, in a different model at a different task.}
 Section~\ref{sec:lessons} records that the 4B solver is bimodal, solving or missing with little partial
 credit, and that this is why refinement methods need an external partial-credit signal. The generating
 model is bimodal in the same way, though less sharply than a 30-task pilot first suggested. That pilot
-showed 1 of 27 failures matching even one demonstration pair; at full scale the figure is \textbf{63 of
+showed 1 of 27 failures matching even one demonstration pair, and at full scale the figure is \textbf{63 of
 483}, or 13\%. The direction survived and the magnitude did not, which is the same small-sample lesson
 this paper records elsewhere, arrived at once more by our own hand. A further 407 failures, 46\% of the
 total, are programs that raise rather than programs that answer wrongly, so the near-miss tail
@@ -1395,7 +1397,7 @@ the same direction (Section~\ref{sec:phantom}). What transferred was a repair, t
 that was actively discarding tasks and a batching change inside the search. What failed to transfer, every
 time, was a lever that re-weighted selection among candidates the system already had. The distinction is
 the same one Section~\ref{sec:selection} reaches from the pool statistics, and it is a more useful
-predictor than public magnitude: ask whether the change fixes something broken or tunes something working.
+predictor than public magnitude. Ask whether the change fixes something broken or tunes something working.
 
 Fifth, and most expensive here, confirm that the effect you are explaining exists before you explain it.
 A public notebook displaying a score three points above ours produced, over one week, three quantified
@@ -1404,8 +1406,8 @@ outweighed every method lever we had measured. Forking that notebook unmodified 
 2.91 points \emph{below} our own build (Section~\ref{sec:phantom}). There was no gap. The control was
 the cheapest experiment available and we ran it seventh, after the explanations, because each explanation
 felt like progress in a way that re-measuring the baseline did not. Two properties of a research question
-should now trigger the control first: the effect comes from an artefact whose provenance we cannot audit,
-and the effect is the premise for a programme of work rather than one comparison. Both held from day one.
+should now trigger the control first. One is an effect that comes from an artefact whose provenance we cannot audit,
+and the other is an effect that is the premise for a programme of work rather than one comparison. Both held from day one.
 The general form is that a number is evidence about the thing that produced it, and a leaderboard score
 beside a public notebook is produced by a submission whose code and inputs are not the ones on display.
 
@@ -1465,7 +1467,7 @@ both the official ARC-AGI-2 training split and RE-ARC generations, alongside a s
 $10^6$ puzzles built by an LLM pipeline that summarizes puzzle concepts, mixes them into hybrids,
 generates transformation code and executes it. We had therefore fine-tuned the model on two datasets it
 had already consumed. The 1.16-point regression is duplicate-corpus overfitting rather than a statement
-about data scale, and the general lesson is narrower and more useful than the one we drew: before
+about data scale, and the general lesson is narrower and more useful than the one we drew. Before
 adding data to a task-tuned base, read what the base was trained on, because the failure mode of
 training on a subset of your own pretraining corpus looks exactly like the failure mode of the data
 being useless.
@@ -1516,7 +1518,7 @@ and it returns two independent things. One is a solved flag that preempts the le
 and that half is measured harmful, taking 12 of 39 slice tasks with nothing correct to show. The other is
 an object count read off the demonstration pairs on the CPU while the adapter trains, which never
 preempts anything and only re-ranks beams the search has already produced. Our stub killed the second
-silently along with the first, and it is a weak but free instance of exactly what this section argues for:
+silently along with the first, and it is a weak but free instance of exactly what this section argues for,
 an external signal, valid where the base is lost, obtained by reading the demonstrations rather than the
 model's own beliefs, and therefore outside the ceiling of Appendix~\ref{app:math} that binds every
 selector built from model likelihoods. It costs no GPU, which is the constraint that defeated the 1.5B
@@ -1526,7 +1528,7 @@ We had staged that experiment to close a three-point deficit to a public noteboo
 Section~\ref{sec:phantom} then showed the deficit was never there, which removes the reason we were
 running it and leaves the reason we should have been running it all along. It is now a single-factor test
 on top of our best configuration rather than a catch-up move, and it is the only one of the three staged
-builds still worth a submission slot: the other two revert our changes toward a configuration the control
+builds still worth a submission slot. The other two revert our changes toward a configuration the control
 has already measured at 28.06. The prediction registered before it runs is a gain of no more than two or
 three task credits, since the count is a coarse statistic that is silent on most tasks, and we note in
 advance that a coarse external signal producing a small real gain and a coarse external signal producing
@@ -1955,7 +1957,7 @@ and three readings follow that no selector can act on.
 
 \begin{table}[H]
 \centering
-\caption{Where the 24821 task-seconds of the measurement run went. Outcomes are exclusive: \emph{solved}
+\caption{Where the 24821 task-seconds of the measurement run went. Outcomes are exclusive. \emph{Solved}
 means the deployed selector returned the truth, \emph{in pool} means the truth was decoded but not
 selected, \emph{miss} means it was never decoded, \emph{empty} means the search returned nothing at all.}
 \label{tab:budget}
@@ -1984,13 +1986,13 @@ four tasks that ran past 1200 seconds consumed 26.3\% of the budget and returned
 A later experiment supplies the signal the second reading says is missing, and it arrived from an
 experiment aimed at something else. Asking whether a task's demonstrations underdetermine its rule,
 we trained leave-one-demonstration-out adapters per task and compared their candidate pools. As a
-repair the answer is a flat null: over 20 outputs the union of every subset adapter equals the full
+repair the answer is a flat null. Over 20 outputs the union of every subset adapter equals the full
 adapter exactly, so removing a demonstration does not move the adapter to a different reachable
 hypothesis and the 65\% stays a property of the base model. But the \emph{disagreement} between
 those subset pools separates the outcomes that training loss cannot. Mean pairwise pool Jaccard is
 \textbf{0.373} on outputs where the full adapter found the truth and \textbf{0.015} where it did
 not, against a same-configuration replicate baseline of 0.543. Small samples, seven and four
-outputs, so we report it as a lead rather than a policy. The direction is what matters: when a task's
+outputs, so we report it as a lead rather than a policy. The direction is what matters. When a task's
 rule is determined, adapters trained on different subsets of its demonstrations agree about what to
 propose, and when it is not, they share almost nothing. That is a per-task confidence measure
 computed before the answer is known, which is precisely what a budget allocator needs and what the
@@ -2001,7 +2003,7 @@ task, is the same reclaimed budget the cap frees.
 \centering
 \includegraphics[width=0.94\linewidth]{fig_budget}
 \caption{Where the measurement run's 24822 task-seconds went, one bar per task, longest first. Red
-bars are tasks whose pool never contained the correct grid; they take 26 of the 40 tasks and 71\% of
+bars are tasks whose pool never contained the correct grid, and they take 26 of the 40 tasks and 71\% of
 all task-seconds. The four tasks beyond the 1200-second line are all misses and consume 26.3\% of the
 budget between them, which is the empirical basis for the cap analysis of this appendix.}
 \label{fig:budget}
@@ -2009,7 +2011,7 @@ budget between them, which is the empirical basis for the cap analysis of this a
 
 The visiting-order question received the same treatment before any engineering was spent on it.
 Best-first enumeration, the anytime alternative to threshold-DFS that the general decoding
-literature offers and that no published ARC system uses, makes a testable claim: under truncation,
+literature offers and that no published ARC system uses, makes a testable claim. Under truncation,
 expanding nodes in cumulative-likelihood order should reach the first correct grid in far fewer
 expansions than the depth-first order actually taken. We instrumented the deployed decoder to log
 every node expansion and every emission over sixteen stratified tasks, 30{,}480 batched forward
@@ -2017,7 +2019,7 @@ passes and 217 completed candidates, twelve of the sixteen decodes budget-trunca
 each recorded tree under both orders at equal information. Ten tasks put a correct grid in the tree
 and are the ones that can discriminate. Across them the median saving to the first truth is
 \textbf{2.9 percent} and no task is worse under best-first, but the distribution is the finding
-rather than the median: three tasks save nothing at all, four save between one and three percent,
+rather than the median. Three tasks save nothing at all, four save between one and three percent,
 and the entire effect sits in three tasks saving 13, 26 and 60 percent.
 
 The mechanism is visible in the logs and explains the shape. Nearly all negative log-likelihood
@@ -2040,7 +2042,7 @@ this queue. We derived the mathematics and never applied the policy, which is th
 paper records elsewhere in a different costume.
 
 \textbf{We then applied it, and the timing model did not survive contact with the hidden set.} The
-cap had never once been tested cleanly: v7.3 declared 1200 and ran 1800 because the build script's
+cap had never once been tested cleanly, since v7.3 declared 1200 and ran 1800 because the build script's
 replacement targeted a form of the guard that exists only inside a commented-out cell, and v7.4
 really ran 1200 but also fired 24 unbudgeted greedy fills, so two factors moved and its 29.44 is
 void rather than adverse. The clean test changes one live literal in the replicate notebook, the
@@ -2050,7 +2052,7 @@ banner's default moved to match so it cannot again print a cap the code does not
 
 That is 1.33 points below the same-configuration mean, 1.13 standard deviations, and below all but
 one member of the eight-run family. By this paper's own rule a difference of under two points is not a
-result, and we hold to the rule: the cap is \emph{not} shown to be harmful. What it is not is
+result, and we hold to the rule. The cap is \emph{not} shown to be harmful. What it is not is
 supported. The prediction, recorded before the run and derived from our own timing log, was neutral
 to positive on the reasoning that the four tasks past 1200 seconds were all misses consuming 26.3\%
 of the budget while the slowest solve arrived at 1118 seconds. The observation is the lowest score
@@ -2066,17 +2068,17 @@ cannot separate those. Settling it needs the paired design this section spent it
 for. At one submission per day and the measured $\sigma = 1.34$, detecting an effect of the size this
 proposal could plausibly have needs roughly six runs and therefore six days for a single comparison,
 and we record the cost rather than paying it. That arithmetic is the reason this appendix ends in a
-cost rather than a number, and it generalises: at this noise level the contest's own submission quota
+cost rather than a number, and it generalises. At this noise level the contest's own submission quota
 is the binding constraint on how many hypotheses a season can test, which is perhaps eight.
 
 The proposal is to cap hard and spend the reclaimed time on a second independent adapter for tasks that
 missed, unioning the candidate pools. Seven thousand eight hundred seconds per worker buys roughly
 fifteen restarts each, sixty across the node, against about one hundred and fifty misses on a 240-task
-set. Whether that is worth anything depends entirely on one quantity we do not have: whether a second
+set. Whether that is worth anything depends entirely on one quantity we do not have, which is whether a second
 independent run fails the same tasks.
 
 Here the pipeline turns out to forbid its own experiment. Every stochastic choice in the deployed solver
-is seeded by a constant: the adapter initialiser at 42, the trainer at 42, the training augmentation
+is seeded by a constant, with the adapter initialiser at 42, the trainer at 42, the training augmentation
 draw at 1, and the evaluation augmentation draw at 2. Rerunning a task therefore reproduces the same
 adapter bit for bit, and a restart in the naive sense returns the identical pool. The lever exists only
 if the training augmentation seed is varied, which changes which sixteen of the dihedral-and-colour
@@ -2088,8 +2090,8 @@ deployed configuration on the same task under different augmentation seeds and r
 output, whether the truth is present in the decoded pool, so the comparison is union against single.
 Tasks are sampled stratified by their Kaggle outcome rather than taken in order, because of the first
 twenty tasks only four ever had the truth in the pool and fifteen are outright misses that cannot
-discriminate between seeds while still inflating the denominator; rates are reweighted back to the
-slice. The scope of any answer is narrower than the question sounds: the augmentation always applies
+discriminate between seeds while still inflating the denominator. Rates are reweighted back to the
+slice. The scope of any answer is narrower than the question sounds, because the augmentation always applies
 all eight dihedral views and the seed selects only the colour permutation and example order, and we
 measured the resulting training sets to be almost disjoint as text, so a null licenses ``colour
 permutation restarts do not help'' and not ``restarts do not help''.
@@ -2097,7 +2099,7 @@ permutation restarts do not help'' and not ``restarts do not help''.
 The third detail is a negative control, and it is not optional. The search admits a continuation on a
 hard threshold over half-precision logits, so a rounding difference at a borderline token prunes or
 admits an entire subtree and two runs of the \emph{same} seed need not agree. We measured that noise
-directly: against a cache-free reference the decoder's scores agree only to about $2\times10^{-3}$,
+directly. Against a cache-free reference the decoder's scores agree only to about $2\times10^{-3}$,
 which is the same order as the 0.0043-nat margin scale Section~\ref{sec:selection} measures for the
 selector itself. Without subtracting a same-seed replicate, ``union exceeds single'' would look
 positive whether or not seeds decorrelate, so the reported quantity is cross-seed disagreement minus
@@ -2105,11 +2107,11 @@ replicate disagreement.
 
 The answer is no, and the negative control is what makes that statement worth anything. Over 65 cells
 covering 19 tasks and 30 test outputs, the three seeds place the truth in the pool for 11, 17 and 15
-outputs, and their union is 17. The union equals the best single seed exactly: seed two alone finds
+outputs, and their union is 17. The union equals the best single seed exactly, since seed two alone finds
 everything all three find together, and this held at every sample size we inspected as the run
 proceeded. Reweighted to the slice that is a 4.4-point apparent gain over the mean single seed, and
 reporting that number would have been the error the control exists to prevent. Rerunning the
-\emph{same} seed disagrees with itself on 12.5\% of outputs; different seeds disagree on 13.3\%. The
+\emph{same} seed disagrees with itself on 12.5\% of outputs, and different seeds disagree on 13.3\%. The
 net is $+0.008$, which is indistinguishable from zero, so what the naive contrast measures is the
 decoder's own numerical nondeterminism and not any property of the training draw.
 
@@ -2124,7 +2126,7 @@ measured by the same-seed replicate control at 12.5\% disagreement against 13.3\
 \end{figure}
 
 Two things make the null more credible than a null usually is. The bias in this design runs toward the
-hypothesis rather than away: 48 of 65 decodes were cut at their budget, so the probe is uniformly
+hypothesis rather than away. Of 65 decodes, 48 were cut at their budget, so the probe is uniformly
 weaker than deployment, and decorrelation generically rises as success probability falls toward the
 noise floor. We failed to find an effect under conditions that would exaggerate one. And the sample was
 stratified precisely so the cells would land where seeds could differ, yet every hit lies in the
@@ -2137,14 +2139,14 @@ order, and the finding is that re-rolling those does not change which tasks the 
 does not establish that no restart of any kind helps. What it does establish is that the cheap version,
 the one the reclaimed cap could actually have paid for, does not, so the scheduling lever of this
 section is closed and the 65 percent of tasks that never produce the truth remain a property of the
-model rather than of the budget. Fidelity supports reading it that way: across the 19 shared tasks the
+model rather than of the budget. Fidelity supports reading it that way. Across the 19 shared tasks the
 probe's mean training loss tracks the deployed run's at a median ratio of 0.93, and the two agree on
 outcome for 15 of 19.
 
 Building the probe also produced a result about our own instrument that we report because it nearly cost
 us the experiment. On the reproduction stack the model's tokenizer cannot represent the prompt format the
 model was trained on. It is a word-level vocabulary of sixteen tokens with no merges, and the entries
-for the two turn markers are unreachable: encoding the word for either returns nothing, and the user
+for the two turn markers are unreachable. Encoding the word for either returns nothing, and the user
 and assistant preambles encode identically. The completion-only loss mask keys on exactly those two
 ids to find the assistant spans, so every label was masked, the cross-entropy ran over zero targets and
 returned NaN, and the gradient norm was zero at every rank and optimizer we tried. Nothing raised. Left
@@ -2168,17 +2170,17 @@ is unchanged, and that is what our port does.
 The repair is now verified, though not in the way the first draft of this section claimed. We tested it
 by enumerating the search tree with the pruning threshold set so loose that nothing is ever discarded,
 under which the cached decoder and a cache-free reference that recomputes from scratch must agree
-exactly. They do: identical candidate sets, with scores matching to the numerical tolerance quoted
+exactly. They do, with identical candidate sets and scores matching to the numerical tolerance quoted
 above. The truncation also agrees with an independent implementation that slices the cache tensors
 directly and never calls the library's own truncation method. What we have \emph{not} observed is the
 unpatched decoder failing on the deployed stack, since that stack pins the older interface, so the
 consequence of the dependency remains an inference from the interface change rather than a reproduction
 of the fault. We are explicit about that split because the alternative is the mistake of
 Section~\ref{sec:phantom}, where a plausible mechanism was fitted to an effect nobody had confirmed.
-What is solid is the dependency itself: the pipeline every entry in the
-thirty-point cluster is running relies on a deprecated interface contract, that reliance is invisible in
+What is solid is the dependency itself. The pipeline every entry in the
+thirty-point cluster is running relies on a deprecated interface contract, and that reliance is invisible in
 the notebook, it produces no warning, and it is held in place only by the competition image's pinned
-versions. If that image moves, the failure is not a crash in the general case but a search proceeding
+versions. Were that image to move, the failure would not be a crash in the general case but a search proceeding
 from a corrupted prefix, which would surface as a quiet drop in solve rate that no log would explain.
 A dependency tree really can be worth points, which Section~\ref{sec:phantom} claimed on bad evidence
 and withdrew. This is what a defensible version looks like, and it is offered as a specific mechanism
@@ -2198,7 +2200,7 @@ gains 2.08 points from UL2 denoising of grid tokens, though offline and on demon
 And the self-supervised test-time-training line~\cite{sun2020,ttmae} is built entirely on adapting
 to the unlabeled test instance.
 
-So we ran the composition: a masked-cell denoising objective on this task's test input, expressed
+So we ran the composition, a masked-cell denoising objective on this task's test input, expressed
 inside the deployed prompt format so the existing collator supervises it unmodified, for a fixed
 number of steps before the ordinary demonstration objective. Corrupted grid in the user turn, clean
 grid in the assistant turn, cells dropped at 0.25 to a colour drawn from the task's own palette
@@ -2208,28 +2210,28 @@ The third arm is the reason the experiment is worth running at all. A two-arm de
 instance-specific grid fluency from the brute fact that the treated arm took more gradient steps than
 the control, and an unattributable positive is how three of this project's retracted explanations
 began. So the control arm denoises \emph{a different task's} test input for the same number of steps
-on the same volume of data. If pre-fitting gains and the control does not, the effect follows the
-grid. If both gain, the honest finding is that more steps help and the interesting claim is dead.
+on the same volume of data. A gain under pre-fitting with none in the control means the effect follows the
+grid. A gain in both means only that more steps help, and the interesting claim is dead.
 
 We record the prior-art position before the outcome, because it does not depend on the outcome. The
 precise composition appears to be unclaimed, but the fair characterisation is adjacent-negative
 rather than unexplored. Akyurek et al.~\cite{akyurek2024} defined the neighbouring objective,
 attributed it explicitly to the Sun et al. lineage, ablated it, and dropped it when it lost by 1.9
-points; their loss targets were demonstration inputs of synthetic leave-one-out tasks rather than the
+points. Their loss targets were demonstration inputs of synthetic leave-one-out tasks rather than the
 real test input, and the ablation was on BIG-Bench Hard rather than ARC, but a reviewer will reach
 for it first and should. CompressARC establishes that fitting to the test input at test time works,
 as an entire from-scratch solver rather than as a warm-up. The two adjacent ARC-side measurements
 point opposite ways, which is the only reason the question is still live.
 
-We stated a prediction in advance so that it could be scored: a null, because the demonstration
+We stated a prediction in advance so that it could be scored. We predicted a null, because the demonstration
 inputs already carry the palette, the object vocabulary and the symmetry group of the test input by
 construction, so the marginal information in $x_\star$ is small, and because the perceptual account
 of ARC failure that motivates the intervention is weakest exactly in our regime, the 80\% perception
 figure resting on vision models reading rendered images rather than on text-grid models with literal
 cell access.
 
-\textbf{The prediction was correct, and the null is unusually clean.} Forty pre-fit steps per cell
-over eight stratified tasks, 900 seconds of decode each, 24 cells: the truth is in the pool for
+\textbf{The prediction was correct, and the null is unusually clean.} We ran forty pre-fit steps per cell
+over eight stratified tasks, 900 seconds of decode each, 24 cells in all. The truth is in the pool for
 \textbf{7} of 14 outputs under the deployed configuration, \textbf{7} under pre-fitting on the
 task's own test input, and \textbf{6} under the control that denoises a different task's grid for
 the same number of steps on the same volume of data. Not one output changed status. Zero gained,
@@ -2240,12 +2242,12 @@ The denoising itself worked. Each pre-fit stage supervised 870 label positions p
 sixteen corrupted views and ran in about 33 seconds, on grids from $10\times20$ to $30\times30$. The
 adapter learned to reconstruct the instance's grid and that competence transferred nothing to the
 transformation objective. Read against the prior art, this places an ARC-side companion beside
-Akyurek et al.'s BIG-Bench Hard ablation of the neighbouring loss: putting a generative objective on
+Akyurek et al.'s BIG-Bench Hard ablation of the neighbouring loss. Putting a generative objective on
 input grids inside test-time training was measured to lose there, and measured to do nothing here,
 on the one variant they did not run, the real unlabeled test input under a masked-cell rather than
 autoregressive form. CompressARC's per-task grid signal is therefore either already supplied by
 pretraining or not reachable by this route on a model of this kind. We report it as a kill, and note
-that the control arm is what makes it one: without the third arm, ``7 against 7'' would have been an
+that the control arm is what makes it one. Without the third arm, ``7 against 7'' would have been an
 uninterpretable wash rather than a measurement.
 
 \subsection{The decode batch width is a memory cliff, and the deployed setting is over it}
@@ -2255,8 +2257,8 @@ depth-first search per batch. Nothing in the pipeline documents why the width is
 card it is the single most expensive unexamined constant in the system.
 
 Single-token decoding is bounded by streaming the weights out of memory rather than by arithmetic, so
-doubling the batch should be close to free. It is, right up until it is catastrophic. Timing each
-width in its own process, on prefixes drawn from real evaluation tasks:
+doubling the batch should be close to free. It is, right up until it is catastrophic. We timed each
+width in its own process, on prefixes drawn from real evaluation tasks.
 
 \begin{table}[H]
 \centering
@@ -2286,7 +2288,7 @@ Two readings follow, and the second is the one that matters.
 First, the mechanism is memory and not computation. At 1398 and 1642 tokens the fourth lane costs
 nothing measurable, which is the bandwidth account behaving exactly as predicted. At 1994 and 2730 the
 same width costs twenty-five to thirty-two times more per step. Nothing about the arithmetic changed
-between those rows; what changed is that reserved memory crossed somewhere between 12.7 and
+between those rows. What changed is that reserved memory crossed somewhere between 12.7 and
 14.2~GB on a 16~GB card, after which the platform pages to host memory rather than failing.
 
 Second, \textbf{the majority of the evaluation set is on the wrong side of that threshold}. Over 172
@@ -2303,14 +2305,14 @@ Since the search is deadline-bounded in three places, a decode running twenty-fi
 not merely take longer, it truncates earlier and the candidates it would have found never exist.
 Throughput is coverage, and this constant costs most of it.
 
-The remedy is a two-line policy rather than a method change: choose the batch width from the prompt
+The remedy is a two-line policy rather than a method change. Choose the batch width from the prompt
 length so reserved memory stays under the cliff, which for this model means width four below roughly
 1650 tokens and width two above it. It preserves the same thirty-two views and changes no score by
 construction, since lanes are independent and only the grouping differs.
 
 Three honest limits on the claim, and the third is the one that bounds it hardest.
 
-The platform matters: this card runs Windows, where exceeding device memory pages silently to host
+The platform matters. This card runs Windows, where exceeding device memory pages silently to host
 rather than raising, so on Linux the same configuration would be expected to fail outright rather
 than degrade.
 
@@ -2324,19 +2326,19 @@ native-Windows backend. The submitted notebook calls 	exttt{FastLanguageModel.fo
 whose fused kernels and attention implementation are precisely what decides whether activation memory
 grows linearly or quadratically in prompt length. So the cliff we measure may be a property of our
 stack rather than of the pipeline, we cannot test the alternative on this hardware, and we make no
-claim about the deployed runs. What we do claim is narrower and still useful: the batch width is an
-undocumented constant, on a 16~GB Windows card with a stock stack it is the difference between 130
+claim about the deployed runs. What we do claim is narrower and still useful. The batch width is an
+undocumented constant, and on a 16~GB Windows card with a stock stack it is the difference between 130
 and 4100 milliseconds a step for most of the evaluation set, and anyone porting this pipeline to a
 single consumer card without Unsloth inherits that silently.
 
-\subsection{The complete ledger: what is closed, what is open, and why}
+\subsection{The complete ledger of what is closed, what is open, and why}
 \label{sec:ledger}
 This section exists because the scattered negatives above are more useful collected than distributed,
 and because the most valuable thing a compute-poor entry can hand the next one is a map of where not
-to spend. Everything here is measured on this pipeline; none of it is argued.
+to spend. Everything here is measured on this pipeline, and none of it is argued.
 
 \paragraph{The headline count.} \textbf{Forty levers were measured. None moved the hidden
-score.} That is the finding, not an apology for one: a system whose remaining knobs are all worth
+score.} That is the finding, not an apology for one. A system whose remaining knobs are all worth
 less than its own measurement noise is at a ceiling, and the useful thing to publish is which knobs
 and why. The noise makes that statement sharper than it looks. At sd 1.34 the leaderboard cannot
 resolve anything below roughly four points without three runs per arm, and the largest coverage change
@@ -2344,12 +2346,12 @@ any of these forty produced on a held-out slice is one output in fourteen. So ``
 hidden score'' is partly a claim about the levers and partly a claim about the instrument, and
 separating the two honestly is the point of this section.
 
-Two of the forty produced a genuine positive on their own terms without moving coverage ---
-task retrieval by demonstration embedding, and warm-starting an adapter from a same-rule neighbour
---- and both sit \emph{upstream} of the candidate pool. Every lever that produced nothing at all sits
+Two of the forty produced a genuine positive on their own terms without moving coverage, namely
+task retrieval by demonstration embedding and warm-starting an adapter from a same-rule neighbour,
+and both sit \emph{upstream} of the candidate pool. Every lever that produced nothing at all sits
 downstream of it, on candidates the search has already generated or on how time is divided between
 them. We did not notice that pattern until the ledger was assembled, and it is the single thing we
-would most like a reader to take from this section: the theorem bounds the downstream half, the
+would most like a reader to take from this section. The theorem bounds the downstream half, while the
 budget table says the upstream half is starved, and we spent most of a season optimising the bounded
 one.
 
@@ -2359,11 +2361,11 @@ the solver left without an answer, was first submitted inside v7.3 alongside a l
 1200-second per-task cap, scoring 28.61. Attributing that to any one of the three would have been
 guesswork, and the kernel then became unreachable, its output no longer held by the host, so the
 obvious re-test was not available either. It was rebuilt as v7.2's pipeline with the fallback as the
-only change and drawn three times: \textbf{30.56, 29.72, 29.44, mean 29.91}. Against the
+only change and drawn three times, scoring \textbf{30.56, 29.72, 29.44, mean 29.91}. Against the
 twelve-draw same-version series (29.90, sd 1.34) that is $+0.01$, a hundredth of a task. The
 difference has standard error 0.88 and $t=0.02$. \textbf{The mechanism does nothing on its own}, and
 the three draws straddle the control mean. The general point is
-about experimental hygiene rather than this knob: a lever bundled with two others and submitted once
+about experimental hygiene rather than this knob. A lever bundled with two others and submitted once
 is not a measured lever, and the cost of finding that out was three days of a one-a-day submission
 quota spent re-establishing something a single clean run would have given us the first time.
 
@@ -2389,74 +2391,78 @@ essentially always, 18 of 18 on freshly generated tasks. The system is therefore
 closed because it operates downstream of generation on a pool that either already contains the answer
 or never will.
 
-\begin{table}[H]
-\centering
+\begingroup
 \small
+\begin{longtable}{@{}p{0.30\linewidth}p{0.13\linewidth}p{0.50\linewidth}@{}}
 \caption{Every lever this project measured and closed, with the evidence that closed it. Hidden-set
-numbers are quoted against the twelve-run same-version series (mean 29.90, sd 1.34); no hidden-set
+numbers are quoted against the twelve-run same-version series (mean 29.90, sd 1.34), and no hidden-set
 delta we recorded clears \emph{1.5} standard deviations, which is why the offline column carries the
-weight and why the offline evidence was collected in the first place.}
-\label{tab:ledger}
-\begin{tabular}{@{}p{0.30\linewidth}p{0.13\linewidth}p{0.50\linewidth}@{}}
+weight and why the offline evidence was collected in the first place.}\label{tab:ledger}\\
 \toprule
 lever & where & what closed it \\
 \midrule
+\endfirsthead
+\toprule
+lever & where & what closed it \\
+\midrule
+\endhead
+\bottomrule
+\endfoot
 \multicolumn{3}{@{}l}{\itshape Selection, downstream of a fixed pool} \\
 selector reweighting & offline & leave-one-task-out refit scores below the deployed selector \\
-cell-wise voting & offline & 0 of 41 missing truths reconstructed; pool errors are correlated \\
-second-model rescoring & offline & oracle gap 0 of 18 on fresh tasks; nothing to fuse \\
+cell-wise voting & offline & 0 of 41 missing truths reconstructed, since pool errors are correlated \\
+second-model rescoring & offline & oracle gap 0 of 18 on fresh tasks, so nothing to fuse \\
 any belief-only selector & proof & bounded by top-two posterior mass (Appendix~\ref{app:math}) \\
-nine task-mined candidate filters & offline & 7 of 9 false-kill; the other 2 kill \emph{nothing}, ever \\
+nine task-mined candidate filters & offline & 7 of 9 false-kill, and the other 2 kill \emph{nothing}, ever \\
 \midrule
 \multicolumn{3}{@{}l}{\itshape Search, over a fixed adapter} \\
 best-first enumeration & offline & median 2.9\% saving over 16 logged trees, 30{,}480 passes \\
 augmentation-seed restarts & offline & union of three seeds equals the best single seed exactly \\
 invariant mining as a filter & offline & 0 recovered, kills 11 of 19 truths \\
-per-task cap at 1200s & hidden & 29.31, inside noise; prediction unsupported \\
-depth-decayed admission threshold & offline & backwards: truths emit deeper \emph{and} cheaper than wrongs \\
+per-task cap at 1200s & hidden & 29.31, inside noise, prediction unsupported \\
+depth-decayed admission threshold & offline & backwards, since truths emit deeper \emph{and} cheaper than wrongs \\
 raising the probability floor & offline & at fixed wall clock, 6 of 14 outputs falls to 5 \\
-greedy fallback for empty pools & hidden & isolated in v7.6: 30.56, 29.72, 29.44, mean 29.91 against 29.90 \\
-DFS cache crop & both & provably correct, 27\% more candidates offline; hidden 29.72, 27.36, 29.03, mean 28.70 \\
-decode budget, 600 to 300 to 150\,s & offline & truth in pool 6, 4, 1 of 10; the throughput bought back cancels it \\
-truncation-fair view scheduling & hidden & 29.44, 27.78, 28.61, mean 28.61; $t=-2.09$, all three below the mean \\
+greedy fallback for empty pools & hidden & isolated in v7.6 at 30.56, 29.72, 29.44, mean 29.91 against 29.90 \\
+DFS cache crop & both & provably correct, 27\% more candidates offline, hidden 29.72, 27.36, 29.03, mean 28.70 \\
+decode budget, 600 to 300 to 150\,s & offline & truth in pool 6, 4, 1 of 10, and the throughput bought back cancels it \\
+truncation-fair view scheduling & hidden & 29.44, 27.78, 28.61, mean 28.61, $t=-2.09$, all three below the mean \\
 \midrule
 \multicolumn{3}{@{}l}{\itshape Adaptation} \\
-adapter rank and depth & offline & inverted U; the shipped configuration sits on its peak \\
-pre-fitting on the test input & offline & 7 / 7 / 6 across base, treated, control; nothing moved \\
+adapter rank and depth & offline & inverted U, and the shipped configuration sits on its peak \\
+pre-fitting on the test input & offline & 7 / 7 / 6 across base, treated, control, so nothing moved \\
 leave-one-demo subset adapters & offline & $+0$ coverage over 20 outputs \\
-continued fine-tuning of the base & offline & honest negative; bimodality unmoved \\
+continued fine-tuning of the base & offline & honest negative, bimodality unmoved \\
 synthetic rule count, 100 against 402 & offline & tied 12 of 12 at an equal example budget \\
 synthetic rule kind, ARC-1 against ARC-2 generators & offline & 0 better, 1 worse, 11 of 12 tied at matched pool depth \\
-training duration, 8{,}000 to 96{,}000 steps & offline & validation optimum at 16{,}000; tied 12 of 12 at every checkpoint \\
+training duration, 8{,}000 to 96{,}000 steps & offline & validation optimum at 16{,}000, tied 12 of 12 at every checkpoint \\
 refinement loops & offline & no partial-credit middle for a loop to grip \\
-unchanged-cell loss masking & offline & works and loses: see below, the most informative negative here \\
+unchanged-cell loss masking & offline & works and loses, the most informative negative here (below) \\
 \midrule
 \multicolumn{3}{@{}l}{\itshape Cross-task structure, a surface an earlier draft called open} \\
-retrieval of similar tasks & offline & \emph{works}: AUC 0.884 same-rule against 0.684 surface \\
-warm start from a related adapter & offline & final loss 30\% lower on 7 of 8; coverage 6 vs 6 \\
+retrieval of similar tasks & offline & \emph{works}, AUC 0.884 same-rule against 0.684 surface \\
+warm start from a related adapter & offline & final loss 30\% lower on 7 of 8, coverage 6 vs 6 \\
 \midrule
 \multicolumn{3}{@{}l}{\itshape The augmentation space, the other surface called open} \\
 masked-output completion & offline & 8 vs 8 on 12 matched tasks \\
-sub-grid bounding-box crops & offline & 3 vs 3 on 5 matched tasks; 5.8\% of cells are margin \\
+sub-grid bounding-box crops & offline & 3 vs 3 on 5 matched tasks, and 5.8\% of cells are margin \\
 rule inversion, shape-matched pairs & offline & 4 vs 4 on 7 matched tasks \\
-background run-length serialization & offline & unimplementable: 16-token vocabulary, no spare marker \\
+background run-length serialization & offline & unimplementable, since a 16-token vocabulary has no spare marker \\
 lossless uniform row/column deletion & offline & saves 1.0\% of cells, truncates 6.7\% of answers \\
-the compression family, generally & offline & its motive does not exist: 0 of 240 training views is short of demonstrations \\
+the compression family, generally & offline & its motive does not exist, as 0 of 240 training views is short of demonstrations \\
 canonical palette pre-sorting & proof & a fixed bijection composed with a uniform one is uniform \\
 column-major output ordering & code & it is the transpose view, already in every training set \\
 wrap, translation, line permutation & offline & false demonstrations on 93\% of tasks \\
 \midrule
 \multicolumn{3}{@{}l}{\itshape The vocabulary, attacked once and on purpose} \\
-forced output-dimension prefix & offline & 0 of 10 outputs against 4; 14 of 19 grids contradict their own header \\
+forced output-dimension prefix & offline & 0 of 10 outputs against 4, and 14 of 19 grids contradict their own header \\
 \midrule
 \multicolumn{3}{@{}l}{\itshape Program synthesis} \\
-1.5B DSL proposer & offline & 0 of 101; could not express the transforms \\
+1.5B DSL proposer & offline & 0 of 101, unable to express the transforms \\
 14B coder, zero-shot & offline & 0 of 120 on the full set, median per-cell lift over identity $+0.000$ \\
 14B reasoner & offline & 0 of 12 bounded, empty near-miss band \\
-symbolic object-count prune & both & 27.92 hidden; offline, a predicted oracle is not accurate enough \\
-\bottomrule
-\end{tabular}
-\end{table}
+symbolic object-count prune & both & 27.92 hidden, and offline a predicted oracle is not accurate enough \\
+\end{longtable}
+\endgroup
 
 \paragraph{Seven architectural constraints, and which of them we actually probed.} The closures above
 are consequences of a small number of structural facts about the system, and separating the two makes
@@ -2467,26 +2473,26 @@ clear which walls are load-bearing.
 nothing else. Chain-of-thought, self-critique, natural-language hypotheses, verifier feedback in text
 and program emission are all structurally unavailable to it, which removes most of the contemporary
 reasoning literature from consideration in one stroke. This is the deepest constraint in the system.
-An earlier draft said we never attacked it; we have now attacked it exactly once, with the cheapest
+An earlier draft said we never attacked it. We have now attacked it exactly once, with the cheapest
 in-vocabulary syntax we could design, and the result sets the price. Prefixing each output grid with
-its own dimensions as four zero-padded digits --- no new token, five extra tokens per grid --- took
+its own dimensions as four zero-padded digits, with no new token and five extra tokens per grid, took
 coverage from 4 of 10 outputs to \textbf{0}, and 14 of the 19 grids the model produced under it
 contradicted the header it had just written. After per-task training the model cannot hold its own
 stated intent for the length of one grid. The direction is not closed, because nothing else has
 touched it, but any future proposal here has to explain how it avoids that failure.
 \item \textbf{Gradients flow only on output grids.} Inherited from the ARChitects as an explicit design
-choice. Probed twice: pre-fitting on the test input returned an exact null, and reshaping the loss
+choice. We probed it twice. Pre-fitting on the test input returned an exact null, and reshaping the loss
 \emph{within} the output grid, by masking the cells the rule leaves unchanged, made the transformed
 cells 4.6 times more accurate and the answer worse (Table~\ref{tab:maskloss}).
 \item \textbf{Two hundred and forty independent adaptations that share nothing.} A fresh adapter per
-task, discarded after use. Nothing learned on one task reaches another. Probed: retrieval of a
+task, discarded after use. Nothing learned on one task reaches another. We probed it, and retrieval of a
 same-rule neighbour works at AUC 0.884 and warm-starting from it lowers final loss 30\% on 7 of 8
 tasks, changing coverage by nothing.
 \item \textbf{A narrow augmentation space.} Eight dihedral transforms crossed with colour permutation
 and example order. An earlier draft called this largely unprobed. It has since been probed to
-exhaustion: three auxiliary objectives, palette canonicalisation, column-major ordering, the
+exhaustion. Three auxiliary objectives, palette canonicalisation, column-major ordering, the
 compression family, and the translation family are all closed above, and the space turns out to be
-narrow for reasons rather than by oversight --- most enrichments either duplicate a view the dihedral
+narrow for reasons rather than by oversight, because most enrichments either duplicate a view the dihedral
 group already contains or inject false supervision on the majority of tasks.
 \item \textbf{Every budget is wall-clock, not operations.} Three deadlines in seconds. This is why one
 immutable artifact scores 30.56, 32.64 and 28.47, and why throughput converts into coverage.
@@ -2502,8 +2508,8 @@ cross-task transfer and the augmentation space as the two places with a plausibl
 measurement against them, and no published work claiming them. Both have since been measured, and
 the way each closed is more informative than the closure.
 
-\textbf{Cross-task transfer works and does not pay.} Task embeddings do recover rule identity:
-mean-pooled hidden states over a task's demonstrations separate same-rule from different-rule
+\textbf{Cross-task transfer works and does not pay.} Task embeddings do recover rule identity.
+Mean-pooled hidden states over a task's demonstrations separate same-rule from different-rule
 instances at AUC 0.884, against 0.684 for a deliberately weak surface descriptor of colour histogram,
 grid dimensions and density, with precision@1 of 0.65 against a chance rate of 0.035. Ground truth
 comes from RE-ARC, whose generators emit unlimited instances of one transformation, so slicing a pool
@@ -2511,15 +2517,15 @@ gives tasks identical in rule and different in every surface respect. Retrieval 
 obstacle. The obstacle is what retrieval would be for. Initialising a task's adapter from one trained
 on \emph{a different instance of the same generator} lowers the final training loss by 30\%, on 7 of
 8 tasks, graded by relatedness (same-rule 0.00414, unrelated 0.00569, cold 0.00594) so it is genuine
-transfer and not a warm-start artefact --- and it changes truth-in-pool not at all, 6 against 6. Same
+transfer and not a warm-start artefact, and it changes truth-in-pool not at all, 6 against 6. Same
 rule is the most favourable case any retrieval scheme could return. The adapter fits the
 demonstrations better and reaches no new hypothesis, which is what the budget table implies and this
-measures directly: training loss was already between 0.0006 and 0.09 on solved and unsolved tasks
+measures directly. Training loss was already between 0.0006 and 0.09 on solved and unsolved tasks
 alike, so optimisation was never the binding constraint.
 
 \textbf{The augmentation space is not obviously enrichable either.} Three auxiliary objectives, each
 sharing a fixed step budget with the demonstration objective so that a winner must beat the real
-training it displaced, all changed coverage by nothing: masked-output completion 8 against 8 on
+training it displaced, all changed coverage by nothing, with masked-output completion 8 against 8 on
 twelve matched tasks, bounding-box crops 3 against 3 on five, rule inversion 4 against 4 on seven.
 The two serialization-shrinking variants failed before reaching a GPU, one because the 16-token
 vocabulary has no spare token for a run marker, the other because lossless uniform deletion saves
@@ -2527,34 +2533,34 @@ vocabulary has no spare token for a run marker, the other because lossless unifo
 
 A later pass closed the rest of that surface without a GPU at all. \emph{Canonical palette
 pre-sorting}, remapping colours by descending pixel count so the adapter does not have to absorb an
-arbitrary labelling, is a no-op by construction: the deployed augmentation already composes a
+arbitrary labelling, is a no-op by construction. The deployed augmentation already composes a
 permutation drawn uniformly from all $10!$ bijections, and a fixed bijection composed with a uniform
 one is uniform, so the training distribution does not move. Applied per demonstration, as originally
-proposed, it is worse than a no-op --- the per-demonstration maps disagree about where a shared
+proposed, it is worse than a no-op, because the per-demonstration maps disagree about where a shared
 colour goes on 92\% of tasks, on the half of tasks where the palette itself carries the rule.
 \emph{Column-major output ordering} is the transpose view, which the dihedral group already contains,
 so every training set has always included it. \emph{Toroidal wrap, zero-padded translation and blank
-row permutation} inject false supervision at scale: content touches a grid edge on 79\% of grids and
+row permutation} inject false supervision at scale. Content touches a grid edge on 79\% of grids and
 93\% of tasks, the cells a rule changes touch the border on 65\% of shape-matched pairs, and the
 count of uniform rows or columns changes across 72\% of them, so all three are editing the label on
-most of the set. And the entire compression family --- run-length coding, coordinate interleaving,
-digit-position prefixes --- rests on a motive that does not exist. Saved tokens can only change an
+most of the set. And the entire compression family (run-length coding, coordinate interleaving,
+digit-position prefixes) rests on a motive that does not exist. Saved tokens can only change an
 answer through \texttt{cut\_to\_len}, which drops demonstrations from the front of an over-long
-prompt; at the deployed 8192-token context that costs \textbf{0 of 240 training views} and 6 of 344
+prompt, and at the deployed 8192-token context that costs \textbf{0 of 240 training views} and 6 of 344
 evaluation views, 6 demonstrations out of 1046. The compression is real and there is nothing
 competing for what it frees.
 
-\paragraph{The most informative negative in this paper: an idea that worked and lost anyway.}
+\paragraph{The most informative negative in this paper is an idea that worked and lost anyway.}
 Every proposal in the loss-shaping family shares one premise, that gradient spent reproducing cells
 the rule does not touch is waste. The premise is quantitatively attractive. Among the 67.5\% of
 ARC-AGI-2 evaluation tasks that preserve grid shape, \textbf{88\% of a median output is a verbatim
 copy of its input}, so the collator's uniform cross-entropy spends most of its signal teaching the
 model to echo. Masking the loss on those positions is the sharpest version of the idea, and unlike
-the background-reweighting variants it assumes nothing about which colour is background --- which
+the background-reweighting variants it assumes nothing about which colour is background. That
 matters, because colour 0 has a \emph{median share of zero} in these grids and the modal colour
 occupies 66\%, not the 80\% those proposals assume.
 
-We ran it with three arms at an identical step budget: the deployed objective, the masked objective,
+We ran it with three arms at an identical step budget, the deployed objective, the masked objective,
 and a control masking an equal number of randomly chosen supervised positions. The third arm is what
 makes the result interpretable, since any masking reduces the token count and changes the effective
 learning rate.
@@ -2580,7 +2586,7 @@ mask an equal random set  & \textbf{6} / 14 & 44 & 0.021 & 0.146 \\
 The intervention did exactly what it was designed to do. Redirecting the gradient off the copied
 cells cut the error on the cells the rule actually changes by a factor of \textbf{4.6}, from 0.286 to
 0.062, which is the largest movement any lever in this paper produced on any quantity. And it lost,
-because it broke the other half: error on the cells that should have been copied rose fourfold, and
+because it broke the other half. Error on the cells that should have been copied rose fourfold, and
 when 88\% of a grid is a copy, a model that transforms correctly and mis-copies one cell in ten
 submits a wrong grid. Coverage fell from 6 of 14 to 3, worse on three tasks and better on none.
 
@@ -2588,16 +2594,16 @@ The control is what turns this from a suggestive null into an explanation. Maski
 \emph{number} of positions at random is indistinguishable from the deployed objective, tied on all
 eight tasks. So the loss is not caused by having less supervision and not by a smaller effective
 learning rate. It is caused specifically by removing \emph{all} supervision on copying. A uniform
-twelve percent sample of every kind of cell is sufficient; zero copy-supervision is fatal. The
-premise underneath the whole family is therefore false in an interesting way: the gradient spent on
-unchanged cells is not waste, it is the load-bearing half, and the transformation the task is
+twelve percent sample of every kind of cell is sufficient, while zero copy-supervision is fatal. The
+premise underneath the whole family is therefore false in an interesting way. The gradient spent on
+unchanged cells is not waste but the load-bearing half, and the transformation the task is
 nominally about can be improved several-fold while the answer gets worse. We report the strength
-honestly --- the coverage drop is three tasks of eight, which a sign test alone would not call, while
+honestly. The coverage drop is three tasks of eight, which a sign test alone would not call, while
 the cell-level split is measured over thousands of cells and is not close.
 
 \paragraph{One constructive result, and it began as a claim we made without measuring.} Asked whether
 a compute-poor entrant could train a base model rather than inherit one, we answered that the blocker
-was data rather than GPUs: ARC-AGI-2's difficulty is compositional, its training set is about a
+was data rather than GPUs. ARC-AGI-2's difficulty is compositional, its training set is about a
 thousand tasks, and procedural generators such as RE-ARC implement ARC-1 rules. Building generators
 for ARC-2-style composition, we said, was a larger project than a remaining season. That was an
 assertion, and this paper's own discipline says a question about how much structure exists is
@@ -2606,14 +2612,14 @@ answered with a script.
 It is answerable in an afternoon, and the answer is no. RE-ARC ships 400 \emph{verifiers}, each a
 pure grid-to-grid function implementing one task's rule. Transformations compose, so
 $\mathrm{verify}_B(\mathrm{verify}_A(x))$ is a new deterministic rule and 400 verifiers give 159{,}600
-ordered pairs. Consistency, the property that normally makes synthetic task generation hard, is free:
-both stages are functions, so every instance of the composition obeys the same rule by construction.
+ordered pairs. Consistency, the property that normally makes synthetic task generation hard, is free.
+Both stages are functions, so every instance of the composition obeys the same rule by construction.
 What is not free is non-degeneracy, so we require that $B$ runs on $A$'s output, that $B$ visibly
 acts, that $A$ remains visible in the result, that the pair is not an identity in disguise, and that
 the output is within ARC's dimension and colour bounds.
 
 A first pass applied each predicate as ``holds on at least one instance'' and kept 1{,}440 pairs.
-That number is wrong, and how we found out is the useful part: we rendered two surviving tasks as
+That number is wrong, and how we found out is the useful part. We rendered two surviving tasks as
 grids and looked at them. In one, the stage-by-stage trace showed the second stage was a
 \emph{no-op on the test instance}, so the task was two-step on some examples and one-step on others.
 In the same task the shape relationship changed between demonstrations, because a
@@ -2624,30 +2630,30 @@ Tightening every predicate to hold on \emph{every} instance, and adding a consis
 the input-to-output shape relationship, leaves \textbf{402 of the 159{,}600 ordered pairs}, drawn
 from 30 distinct first stages and 28 second stages. Each can still be instantiated without limit.
 The count is therefore below ARC-AGI-2's training set rather than above it, and the compositional
-variety is narrow: thirty first operations crossed with twenty-eight second ones.
+variety is narrow, thirty first operations crossed with twenty-eight second ones.
 
 Two qualifications, in opposite directions. The shape-consistency filter is blunt, since real ARC
 rules do produce variable output shapes and ``extract the largest object'' is one, so 402 is a
 conservative floor and the true figure lies between it and 1{,}440. And the first-stage bottleneck is
-an engineering limit rather than a fundamental one: verifiers raise on each other's outputs because
+an engineering limit rather than a fundamental one. Verifiers raise on each other's outputs because
 each was written for its own input distribution, so a normalisation pass between stages would likely
 recover a share of the 158{,}000 pairs that never ran at all.
 
 We report this as a capability rather than a result, because we have not yet trained on it at scale
 and do not claim it helps. Two things would have to hold. The first, that compositions of two ARC-1
 rules resemble ARC-2's compositional difficulty rather than merely stacking, is not established here.
-The second, that a corpus consistent by construction is also \emph{learnable} --- a composition is
-guaranteed well-defined but not guaranteed to admit a short description --- we did measure, because a
+The second, that a corpus consistent by construction is also \emph{learnable} (a composition is
+guaranteed well-defined but not guaranteed to admit a short description), we did measure, because a
 corpus that is consistent but arbitrary would teach a model noise rather than composition.
 
 The test runs the deployed per-task pipeline on both, drawing single-rule and composed tasks from the
 same RE-ARC pools so that grid distribution is held fixed and only rule structure differs, with the
-reading fixed in advance: composed near single means the compositions add instances but not
-difficulty; composed near zero means they are arbitrary rather than hard, and training on them would
-be worse than not; composed clearly between is the case a corpus meant to teach composition should
+reading fixed in advance. Composed near single means the compositions add instances but not
+difficulty. Composed near zero means they are arbitrary rather than hard, and training on them would
+be worse than not. Composed clearly between is the case a corpus meant to teach composition should
 show. Over fourteen matched pairs, single-rule tasks put the truth in the pool \textbf{14 times out
 of 14} and composed tasks \textbf{5 out of 14}, with composed worse on nine pairs, tied on five and
-better on none, and mean final training loss of 0.0019 against 0.0176. That is the middle case:
+better on none, and mean final training loss of 0.0019 against 0.0176. That is the middle case,
 substantially harder than one rule and still solvable on better than a third of instances. The corpus
 is not noise.
 
@@ -2655,7 +2661,7 @@ What that costs is worth stating precisely, because it is the sharpest instance 
 thesis. A pilot fine-tune of 8{,}000 of the 78{,}792 examples, rank 32 at a 2048-token context, runs
 at 11.7 seconds per optimizer step on the 16~GB card with 97.6\% of its memory in use, which puts the
 full corpus at roughly \textbf{eleven days} of continuous training. Every lever in the ledger above
-changes the pipeline around a fixed model and is worth less than the measurement noise; the one lever
+changes the pipeline around a fixed model and is worth less than the measurement noise, while the one lever
 that changes the model itself is precisely the one the memory constraint prices out. That is a
 cleaner statement of what 16~GB costs than any of the accuracy comparisons in this paper, and we
 arrived at it only after exhausting the alternatives.
@@ -2693,8 +2699,8 @@ sit inside 1.5 standard deviations of that mean. Separating two configurations a
 about four points and three runs each, so a contest allowing one submission a day permits perhaps
 eight properly powered comparisons in a season. We report a ledger of forty measured levers
 that moved nothing, and the honest reading of it is not that nothing helps but that a programme of
-single-submission A/B tests --- which is what the field and this project both ran --- was never
-capable of the discrimination it claimed. Beyond that: public-eval gains must be re-validated in the
+single-submission A/B tests, which is what the field and this project both ran, was never
+capable of the discrimination it claimed. Beyond that, public-eval gains must be re-validated in the
 deployed condition, since every public-validated candidate lever we submitted regressed on the hidden
 set, and the one class that did transfer was repair rather than tuning. A score displayed beside a
 public notebook is not a measurement of the code published there, and treating it as one cost us a
@@ -2710,8 +2716,8 @@ What we could not move is the part that was never about scheduling or ranking. A
 closed, the residual is that most tasks never produce the correct grid at all, which is a property of a
 4B model rather than of the twelve-hour budget, and the honest next step is a stronger base rather than
 another pass over the same candidates. We can now price that step rather than gesture at it. The one
-lever available to us that changes the model rather than the pipeline around it --- continued training
-on the compositional corpus this paper constructs --- runs at 11.7 seconds per optimizer step on the
+lever available to us that changes the model rather than the pipeline around it, continued training
+on the compositional corpus this paper constructs, runs at 11.7 seconds per optimizer step on the
 16~GB card, putting the full corpus at roughly eleven days of continuous training. Everything cheap is
 worth less than the noise, and the one thing that is not cheap is what the memory constraint prices
 out. That is the sharpest form of this paper's claim, and it is not an accuracy comparison. Those bounds belong to one small card, not to
@@ -2746,7 +2752,7 @@ disabled (\texttt{--no-cache-prompt}). Its own logs are redirected to a file so 
 notebook. Decoding is greedy (temperature $0$) with \texttt{n\_predict} sized to the target grid.
 
 \textbf{Hyperparameters.} AIRV uses the eight D4 augmentations and votes to two attempts. Per-task
-TTT (regularized): rank 16 to 32, dropout 0.05 to 0.1, 8 to 20 steps, AdamW, a fresh random
+TTT (regularized) uses rank 16 to 32, dropout 0.05 to 0.1, 8 to 20 steps, AdamW, a fresh random
 augmentation per step, leave-one-out target, context capped at $\approx 1{,}600$ tokens, applied at
 adapter scale $1.25$ at inference. Exact values per experiment are in the development log.
 
@@ -3016,8 +3022,8 @@ submission, and the repeat-run noise floor of one credit.}
 
 \subsection{A family of rules is a multiplicity}
 
-The selection sweep of Section~\ref{sec:selection} scored sixteen rules against one pool. If each rule
-independently had probability $\alpha$ of a spurious win, the chance that at least one wins is
+The selection sweep of Section~\ref{sec:selection} scored sixteen rules against one pool. Were each rule
+independently to have probability $\alpha$ of a spurious win, the chance that at least one wins would be
 $1-(1-\alpha)^{16}$, which at $\alpha = 0.05$ is $1-0.95^{16} \approx 0.56$. The sixteen rules share the
 pool, so the tests are positively correlated and the true figure is smaller, but the reading survives the
 correction. The sweep's observed yield, exactly one rule gaining exactly one output, is what chance
@@ -3092,10 +3098,10 @@ same-shape candidates fusing to a grid wrong in the same two cells the selected 
 
 The census of Figure~\ref{fig:pool-census} completes the pool's accounting and adds two measurements
 made after the theorem was proved. Counting Pareto dominators over the recorded summary statistics
-alone, only one leaked output is blocked for every monotone rule and the bound reads 18 of 60; the
+alone, only one leaked output is blocked for every monotone rule and the bound reads 18 of 60. The
 exact-addend analysis above is stricter, excluding a second output and giving 17. Either way two to
 three outputs of headroom exist inside the theorem, and the first measurement is that they are not
-learnable: refitting the selector weights over multiplicity, augmentation and beam terms with
+learnable. Refitting the selector weights over multiplicity, augmentation and beam terms with
 leave-one-task-out validation attains 14 against the deployed 15, one output \emph{worse}, against a
 pre-registered bar of plus two. With four leaked outputs in sixty, weight tuning memorises them, so
 the headroom is real but unreachable from data of this size, and the practical ceiling is the deployed
@@ -3108,7 +3114,7 @@ outputs where no candidate even has the right shape are beyond every selection-s
 \begin{figure}[H]
 \centering
 \includegraphics[width=\linewidth]{fig_pool_census}
-\caption{The pool census. Left, the selection funnel on the 60 deployed-condition outputs: the truth is
+\caption{The pool census. Left, the selection funnel on the 60 deployed-condition outputs. The truth is
 present for 19, a monotone selector over the recorded summary statistics can reach at most 18 (17 under
 the stricter exact-addend counting above), the deployed selector reaches 15, and a leave-one-task-out
 refit of the selector weights reaches 14, demonstrating the gap is not learnable at this sample size.
@@ -3181,7 +3187,7 @@ the 432 candidates in the dumped pool was rescored under the \emph{un-adapted} b
 weights with the deployed model but not beliefs, having never seen the sixteen task-specific
 augmentations the adapter trained on. Against the deployed selector's 15 of 60 outputs with the truth
 in the top two, that likelihood scores 12 alone, 15 when added to the deployed score, and 14 when
-combined with multiplicity: no combination we tried recovers a single additional output, and the
+combined with multiplicity. No combination we tried recovers a single additional output, and the
 correct-in-pool total it is competing for is 19. The reading is not that a second opinion is worthless
 in general but that these particular dominators are not an artifact of the adapter. A belief state that
 never saw this task's augmentations ranks them above the truth as well, so the domination is a property
@@ -3214,8 +3220,8 @@ capability predicts, the 4B at \textbf{78.3\%} against the 2B's \textbf{65.0\%}.
 $+83.3$ points with $z = 8.0$ (Figure~\ref{fig:contamination}). A 2B does not beat a 4B from the same
 author eight-fold on the harder published set while losing to it on easier fresh data. The narrow claim,
 and the only one the evidence licenses, is that the public evaluation set is not a valid measurement
-instrument for this checkpoint. Nothing here speaks to intent, training on the public split is standard
-practice in a competition scored on a private one; the finding is about what the artifact can measure,
+instrument for this checkpoint. Nothing here speaks to intent, since training on the public split is standard
+practice in a competition scored on a private one. The finding is about what the artifact can measure,
 not about the conduct of its author.
 
 \begin{figure}[H]
@@ -3240,12 +3246,12 @@ candidate was rescored under both models over eight fixed augmentations. Of 23 o
 non-empty pool, 18 contained the truth, and the deployed single-expert selector already placed all
 18 in its top two. \textbf{The oracle gap available to any fusion of the two experts is 0 of 18.}
 There is no headroom on fresh data for a second belief state to recover, because the first one is
-not making selection errors there; it is failing to generate. The apparent 19-of-19 on public data
+not making selection errors there. It is failing to generate. The apparent 19-of-19 on public data
 was recall, and the fresh replication shows the route has nothing left to give even when
 contamination is removed. We record this as a closure rather than an untested possibility.
 
 The other named escape, executing task-side structure against the demonstrations, was run on the
-hidden set as v7.5a: the symbolic arm's object-count signal restored as a pure re-ranking prune,
+hidden set as v7.5a, with the symbolic arm's object-count signal restored as a pure re-ranking prune,
 adding $0.5$ to a beam's score per unit of disagreement with the predicted component count. It
 scored \textbf{27.92}, which against twelve runs of one immutable kernel version is 1.5 standard
 deviations below the mean and therefore \emph{not} a demonstration of harm on its own. That figure
@@ -3253,8 +3259,8 @@ has moved three times as the variance series grew, always toward the null, which
 argument for not resting a conclusion on it. The
 conclusion below rests instead on the offline invariant-mining experiment, which reaches it with a
 within-task comparison that no hidden-set noise touches.
-The theorem is not touched, but its escape clause acquires a measured precondition: a task-side
-oracle only lifts the bound if it is more accurate than the model's own beliefs about the same
+The theorem is not touched, but its escape clause acquires a measured precondition. A task-side
+oracle lifts the bound only when it is more accurate than the model's own beliefs about the same
 property, and this one, which returns a count on every branch including its no-rule fallback, is
 not. A noisy oracle is strictly worse than none, because the bound it escapes is lower than the
 penalty it inflicts.
@@ -3266,7 +3272,7 @@ against the task's own demonstration pairs, and reports an open-weights model ri
 names, with the one property ours lacked. Execution either reproduces the demonstrations or it does
 not, so the oracle is exact by construction, whereas ours predicted a property from the same
 machinery whose beliefs it was meant to correct. Read together, the two results bracket the escape
-clause from both sides: exact verification nearly triples an open model's score, and approximate
+clause from both sides. Exact verification nearly triples an open model's score, and approximate
 verification of the same kind of structure costs us three sigma. The route is real, and oracle
 accuracy is the whole of it. The open engineering question, which we do not answer, is whether
 execution-verified synthesis fits the offline track's roughly \$0.20 per task when the published
@@ -3278,11 +3284,11 @@ tasks will be inflated, and the inflation is invisible unless absolute likelihoo
 fresh data is minted. We report it because the published model card does not, and because a 19-of-19
 result is exactly the kind of number this paper has already been fooled by once. The instrument
 generalises beyond this case, establish a capability ordering on data generated after publication,
-measure the same models on the suspect set, and read contamination off the interaction; it needs no
+measure the same models on the suspect set, and read contamination off the interaction. It needs no
 access to training data, no private split, and no cooperation from the model's author. It has a
 place in a literature. Performance-based contamination testing exists in general
 form~\cite{constat}, and regenerating a benchmark from scratch to measure the drop was done for
-grade-school arithmetic~\cite{gsm1k}; the field's own 2025 technical report names the ARC version of
+grade-school arithmetic~\cite{gsm1k}. The field's own 2025 technical report names the ARC version of
 the problem, ``knowledge overfitting'', and states explicitly that it does not quantify
 it~\cite{arc2025}. The ordering inversion on generator-fresh instances is, to our knowledge, the
 first instrument that quantifies it for ARC checkpoints, and the generator that makes the fresh
@@ -3290,8 +3296,8 @@ column possible ships with the benchmark's own ecosystem~\cite{rearc}.
 
 Identifiability closes the pool-only question from below. The pool is exchangeable given $q$, so its
 law depends on the draws only through the recorded multiset, the empirical measure is sufficient, and
-the best pool-only rule is a function of it. If two rules $\theta_0 \ne \theta_1$ induce the same $q$
-but different truths, the pool laws coincide and the posterior odds equal the prior odds, the pool
+the best pool-only rule is a function of it. Two rules $\theta_0 \ne \theta_1$ that induce the same $q$
+but different truths have coinciding pool laws, so the posterior odds equal the prior odds and the pool
 contributes nothing toward telling the truths apart. A quantitative form needs three hypotheses rather
 than two, since with two confusable truths a two-attempt rule submits both and never errs. Take three
 rules with pairwise distinct truths whose pool laws sit within total variation $\eta$ of a common
@@ -3441,8 +3447,8 @@ never catastrophically worse than clairvoyance.
 
 \subsection{Composition and coverage}
 
-A heuristic closes the appendix because it frames the benchmark itself. If evaluation tasks are
-compositions of $k$ primitives drawn from a library of size $n$, the composition space grows like $n^k$
+A heuristic closes the appendix because it frames the benchmark itself. Suppose evaluation tasks are
+compositions of $k$ primitives drawn from a library of size $n$. The composition space then grows like $n^k$
 while any training set covers a fixed $m$ of them, so coverage $m/n^k$ vanishes and memorizing
 compositions cannot transfer. The design intent of the benchmark is exactly this regime, and the body
 measured its signature, a continued fine-tune on the public training distribution scored 11.63 against
