@@ -71,9 +71,12 @@ def build():
     ax = fig.add_axes(AX_RECT, projection="3d")
     blocks3d(ax, GRID)
 
-    bg.text(TEXT_X, 0.60, "16.28%", fontsize=46, color=BLUE, weight="bold", va="center")
+    # The June cover read 16.28%, a public-evaluation blend later superseded by 18.19 on the hidden
+    # set. These are the two numbers the paper and the writeup lead with.
+    bg.text(TEXT_X, 0.60, "18.19%", fontsize=46, color=BLUE, weight="bold", va="center")
     bg.text(TEXT_X, 0.405, "on a single 16 GB GPU", fontsize=12.5, color=INK, va="center")
-    bg.text(TEXT_X, 0.315, "up from 12.79%, 13× faster", fontsize=12.5, color=GREY, va="center")
+    bg.text(TEXT_X, 0.315, "29.90% on the contest's four L4s", fontsize=12.5, color=GREY,
+            va="center")
     bg.text(TEXT_X, 0.10, "ARC Prize 2026  ·  Paper Track", fontsize=11.5, color=GREY, va="center")
     return fig
 
