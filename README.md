@@ -6,8 +6,8 @@ ARChitects lineage of per-task test-time training, depth-first decoding and augm
 The paper measures how far that recipe goes on a single 16 GB consumer GPU, prices the gap to the contest's
 four-L4 node, and spends most of its length on what it takes to trust a hidden-set score.
 
-Two deliverables live in `paper/`: the 1,500-word Kaggle writeup, `writeup.md`, and the full paper,
-`the-16gb-ceiling.{tex,pdf}`, with every figure regenerable from `scripts/`.
+Two deliverables live in `paper/`. One is the 1,500-word Kaggle writeup, `writeup.md`, and the other
+is the full paper, `the-16gb-ceiling.{tex,pdf}`, with every figure regenerable from `scripts/`.
 
 ## Results
 
@@ -21,11 +21,11 @@ The twelve-run series is the paper's central measurement. The same artifact span
 credits, so one submission cannot separate configurations less than about four points apart, and every
 build this project called a regression, plus both public notebooks run as controls, falls inside 1.5
 standard deviations of the series mean. Forty levers were measured on top of the reproduction and none
-moved the hidden score; the paper's ledger section records what closed each one. Three training-side gates
+moved the hidden score. The paper's ledger section records what closed each one. Three training-side gates
 (rule count, rule kind, training duration) are null at their own optimum, and a corpus of 128
-execution-verified ARC-AGI-2 generators was built for under three dollars along the way; it is released in `corpus/`.
+execution-verified ARC-AGI-2 generators was built for under three dollars along the way and is released in `corpus/`.
 
-Every measurement and dead end is recorded in `DEVLOG.md` and `docs/pending-results.md`.
+Every measurement and dead end is recorded in the paper, with working notes in `docs/`.
 
 ## Compute
 
@@ -38,10 +38,10 @@ generation logs live only on the rig. The Kaggle submissions run on the contest 
 
 `paper/` holds the writeup, the paper `the-16gb-ceiling.{tex,pdf}`, an HTML snapshot of an earlier draft whose
 headline statistics were brought current on 4 September (the PDF is authoritative), and the figures. `src/arc/` is the
-single-card pipeline: IO and serialization, invertible augmentations, the competition scorer, model loading
-and ID-level ChatML prompt assembly, top-2 selection, and per-task test-time training. `scripts/` holds the
+single-card pipeline, covering IO and serialization, invertible augmentations, the competition scorer, model
+loading and ID-level ChatML prompt assembly, top-2 selection, and per-task test-time training. `scripts/` holds the
 runnable entry points, the Kaggle notebook builder (`build_v7_from_architects.py`), the rig experiment
-drivers, and the figure builders. `notebooks/` holds every submitted Kaggle notebook by version;
+drivers, and the figure builders. `notebooks/` holds every submitted Kaggle notebook by version.
 `arc_submission_v7_2_replicate.ipynb` is the exact artifact behind the twelve-run series (kernel version
 339772104) and `arc_submission_v7_2_original.ipynb` the build that scored 30.97 (337769272). `corpus/`
 holds the released ARC-AGI-2 generators and their verification results. `docs/` holds the working notes, `archive/` keeps superseded experiments and drafts out of the way, and `tests/`

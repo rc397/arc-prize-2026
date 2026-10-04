@@ -664,7 +664,7 @@ v7.2, ``our best'' & 30.97 & $+1.07$ & 0.80 & the configuration everything was c
 The standard deviation is not only a caveat on past claims, it is a budget constraint on future ones.
 Separating two configurations at 80\% power with a two-sample comparison at this standard deviation
 needs about \textbf{4.1 points of separation with three runs in each arm}, by an exact two-sample $t$
-computation; the normal approximation an earlier draft used gave 3.3 and understated it, because with
+computation. The normal approximation an earlier draft used gave 3.3 and understated it, because with
 two degrees of freedom per arm the standard deviation is itself poorly known. The contest allows one
 submission a day, so a single properly powered comparison costs six submission days. Nothing in our
 ledger of forty measured levers is remotely four points; the largest coverage change any of
@@ -1127,10 +1127,10 @@ batch may run its full 540 seconds, so on the scoring node the first batch can c
 allowance and the remaining views contribute nothing. Dividing the time still left evenly over the
 batches still to run guarantees every view decodes something, at the price of cutting the first batch
 short. Pre-registered for three draws, it scored \textbf{29.44, 27.78 and 28.61, mean 28.61}, against
-29.90: $t=-2.09$, $p\approx0.09$, with all three draws below the control mean. That is the strongest
+29.90. That is $t=-2.09$ and $p\approx0.09$, with all three draws below the control mean. That is the strongest
 signal any hidden-set arm in this paper produced, and it is still short of significance. Together with
 the crop, six draws of six from the two arms landed below the control mean, which a fair coin does one
-time in sixty-four; that pooling was chosen after seeing the data, so we report it as a pattern rather
+time in sixty-four. That pooling was chosen after seeing the data, so we report it as a pattern rather
 than as a test. Both changes move decode time away from where the inherited schedule put it, and in
 neither case did the new placement pay for itself.
 
@@ -1319,7 +1319,7 @@ with a demonstrations-only proof is that a program can fit three worked examples
 simpler rule than the task intends, and then mint unlimited data for the wrong transformation. The
 ARC-AGI-2 training split publishes held-out test pairs, so this is directly measurable: running each
 verified program on the test inputs it never saw, \textbf{120 of all 128 reproduce them exactly},
-putting the true overfit rate near 6\%; the first 100, checked before the corpus was complete, gave 93. This is the result that licenses the method. The free
+putting the true overfit rate near 6\%. The first 100, checked before the corpus was complete, gave 93. This is the result that licenses the method. The free
 verification is a close substitute for the expensive property, and no model was needed to judge
 correctness at any point. It is measurable only because we built on the training split; on the
 evaluation split the same corpus would carry an error rate nobody could check. The corpus is
@@ -2360,7 +2360,7 @@ the solver left without an answer, was first submitted inside v7.3 alongside a l
 guesswork, and the kernel then became unreachable, its output no longer held by the host, so the
 obvious re-test was not available either. It was rebuilt as v7.2's pipeline with the fallback as the
 only change and drawn three times: \textbf{30.56, 29.72, 29.44, mean 29.91}. Against the
-twelve-draw same-version series (29.90, sd 1.34) that is $+0.01$, a hundredth of a task; the
+twelve-draw same-version series (29.90, sd 1.34) that is $+0.01$, a hundredth of a task. The
 difference has standard error 0.88 and $t=0.02$. \textbf{The mechanism does nothing on its own}, and
 the three draws straddle the control mean. The general point is
 about experimental hygiene rather than this knob: a lever bundled with two others and submitted once

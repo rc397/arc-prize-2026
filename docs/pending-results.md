@@ -479,5 +479,5 @@ repo, unpushed since 5 August, and the decision to make it public.
 |---|---|---|
 | generator corpus, full re-check | 128/128 demonstrations, 120/128 held-out test outputs (94%), 127 samplers | corpus/README, tex gencorpus, writeup, README, CONTEXT |
 | covers | triptych and field rebuilt on the twelve runs and the 1 October board; title page 18.19 / 29.90 | paper/, scripts/make_hero_final.py, scripts/make_cover_hero.py |
-| history | all commits rewritten to the GitHub noreply address, locally; force push pending Ryan | DEVLOG, CONTEXT |
-| daily replicate series | script written, not running; needs Ryan | DEVLOG, CONTEXT |
+| history | all commits rewritten to the GitHub noreply address, locally; force push pending Ryan | CONTEXT |
+| daily replicate series | script written, not running; needs Ryan | CONTEXT |
