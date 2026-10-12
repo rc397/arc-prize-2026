@@ -36,8 +36,8 @@ generation logs live only on the rig. The Kaggle submissions run on the contest 
 
 ## Layout
 
-`paper/` holds the writeup, the paper `the-16gb-ceiling.{tex,pdf}`, an HTML snapshot of an earlier draft whose
-headline statistics were brought current on 4 September (the PDF is authoritative), and the figures. `src/arc/` is the
+`paper/` holds the writeup, the paper `the-16gb-ceiling.{tex,pdf}`, the Kaggle card and cover, and the
+figures, each regenerable from `scripts/`. The PDF is the record. `src/arc/` is the
 single-card pipeline, covering IO and serialization, invertible augmentations, the competition scorer, model
 loading and ID-level ChatML prompt assembly, top-2 selection, and per-task test-time training. `scripts/` holds the
 runnable entry points, the Kaggle notebook builder (`build_v7_from_architects.py`), the rig experiment

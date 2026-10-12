@@ -57,7 +57,7 @@ def blocks3d(ax, grid):
     ax.set_axis_off()
 
 
-def build():
+def build(big="18.19%", line1="on a single 16 GB GPU", line2="29.90% on the contest's four L4s"):
     plt.rcParams.update({
         "font.family": "serif",
         "font.serif": ["Times New Roman", "Times", "DejaVu Serif"],
@@ -73,10 +73,9 @@ def build():
 
     # The June cover read 16.28%, a public-evaluation blend later superseded by 18.19 on the hidden
     # set. These are the two numbers the paper and the writeup lead with.
-    bg.text(TEXT_X, 0.60, "18.19%", fontsize=46, color=BLUE, weight="bold", va="center")
-    bg.text(TEXT_X, 0.405, "on a single 16 GB GPU", fontsize=12.5, color=INK, va="center")
-    bg.text(TEXT_X, 0.315, "29.90% on the contest's four L4s", fontsize=12.5, color=GREY,
-            va="center")
+    bg.text(TEXT_X, 0.60, big, fontsize=46, color=BLUE, weight="bold", va="center")
+    bg.text(TEXT_X, 0.405, line1, fontsize=12.5, color=INK, va="center")
+    bg.text(TEXT_X, 0.315, line2, fontsize=12.5, color=GREY, va="center")
     bg.text(TEXT_X, 0.10, "ARC Prize 2026  ·  Paper Track", fontsize=11.5, color=GREY, va="center")
     return fig
 
@@ -92,6 +91,12 @@ def main():
     open(svg, "w", encoding="utf-8").write(s)
     fig.savefig(os.path.join(ROOT, "paper", "cover_hero_1120x560.png"), dpi=144)
     print("saved cover_hero.pdf, cover_hero.svg, cover_hero_1120x560.png")
+
+    # The Kaggle card carries the best hidden score. It came from the four-L4 node, not one card,
+    # so the line under it says what it is rather than repeating the single-GPU claim.
+    card = build("32.64%", "best ARC-AGI-2 hidden score", "mean 29.90 over twelve runs")
+    card.savefig(os.path.join(ROOT, "paper", "kaggle_card_1120x560.png"), dpi=144)
+    print("saved kaggle_card_1120x560.png")
 
 
 if __name__ == "__main__":
