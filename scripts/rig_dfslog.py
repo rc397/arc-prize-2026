@@ -1,7 +1,7 @@
 """Log the DFS's explored tree, then replay it offline to ask if visiting order costs us answers.
 
 Every Kaggle-track decode since 2024 is threshold-DFS, and the novelty audit found no ARC precedent
-for best-first enumeration (docs/novelty-audit.md, lever a). The cheap first experiment is not to
+for best-first enumeration (archive/notes/novelty-audit.md, lever a). The cheap first experiment is not to
 build the enumerator but to measure whether it could matter: instrument the deployed turbo_dfs to
 record every node expansion and every completed-candidate emission, run the stratified task slice
 once, and replay the logged tree under best-first order at equal node budgets. If best-first reaches

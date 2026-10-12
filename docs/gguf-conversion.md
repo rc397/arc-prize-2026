@@ -6,21 +6,21 @@ needs two small patches. Validated on 2026-06-19 (llama.cpp release b9724).
 
 ## Why patches are needed
 
-The tokenizer is WordLevel, not BPE: vocab `{0..9, Ċ(=newline)=10, user=11, assistant=12}`
-plus added specials `<|endoftext|>=13, <|im_start|>=14, <|im_end|>=15`, and zero merges.
-`convert_hf_to_gguf.py` assumes a Qwen BPE tokenizer, which causes two failures:
+The tokenizer is WordLevel, not BPE. Its vocabulary is `{0..9, Ċ(=newline)=10, user=11, assistant=12}`
+plus the specials `<|endoftext|>=13, <|im_start|>=14, <|im_end|>=15`, with no merges.
+`convert_hf_to_gguf.py` assumes a Qwen BPE tokenizer, and that causes two failures.
 
 1. The pre-tokenizer hash is unrecognized, so the converter raises
    `NotImplementedError: BPE pre-tokenizer was not recognized`. The model's pre-tokenizer
    regex is byte-for-byte the qwen2 regex, so the fix is to map its hash to `"qwen2"`.
 2. WordLevel has no merges, so no `tokenizer.ggml.merges` key is written, and the llama.cpp
    loader aborts with `cannot find tokenizer merges in model file`. The fix is to write a
-   non-empty merges list. We add two throwaway merges among the `user`/`assistant` tokens;
-   they never fire on digit or newline text, and we prompt at the token-ID level anyway.
+   non-empty merges list. We add two throwaway merges among the `user`/`assistant` tokens.
+   They never fire on digit or newline text, and we prompt at the token-ID level anyway.
 
 ## Steps (run on the rig)
 
-Engine binary and convert script (matching versions):
+Get the engine binary and the convert script at matching versions.
 
 ```powershell
 # prebuilt CUDA 12.4 binary (loads on Blackwell sm_120 via PTX JIT) + cudart, into D:\arc\llamacpp
@@ -29,23 +29,23 @@ git clone --depth 1 --branch b9724 https://github.com/ggml-org/llama.cpp D:\arc\
 python -m pip install "D:\arc\llama.cpp\gguf-py" sentencepiece protobuf
 ```
 
-Patch 1, `conversion/base.py` `get_vocab_base_pre`, before the final `if res is None:` that
-precedes the `raise NotImplementedError("BPE pre-tokenizer was not recognized ...")`:
+Patch 1 goes in `conversion/base.py`, `get_vocab_base_pre`, before the final `if res is None:` that
+precedes the `raise NotImplementedError("BPE pre-tokenizer was not recognized ...")`.
 
 ```python
 if chkhsh == "3f7ffce2c85ce59d277e21c40359aa7326aaa65660c8166288ec5137c9cc1967":
     res = "qwen2"
 ```
 
-Patch 2, `conversion/base.py` `_set_vocab_gpt2`, immediately after
-`special_vocab.add_to_gguf(self.gguf_writer)`:
+Patch 2 goes in `conversion/base.py`, `_set_vocab_gpt2`, immediately after
+`special_vocab.add_to_gguf(self.gguf_writer)`.
 
 ```python
 if not special_vocab.merges:
     self.gguf_writer.add_token_merges(["user assistant", "assistant user"])
 ```
 
-Convert and quantize:
+Then convert and quantize.
 
 ```powershell
 $model = "D:\arc\models\kagglehub\models\sorokin\qwen3_4b_grids15_sft139\transformers\bfloat16\1"
@@ -65,7 +65,7 @@ Q8_0 is the chosen operating point (near-lossless, 13x the 13 tok/s HF baseline)
 
 ## Serving and correctness
 
-Serve with token-ID prompting:
+Serve it and prompt with token IDs.
 
 ```powershell
 D:\arc\llamacpp\llama-server.exe -m D:\arc\models\arc-qwen4b-q8_0.gguf -ngl 99 -c 16384 --host 127.0.0.1 --port 8080 --no-webui

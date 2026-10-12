@@ -323,4 +323,4 @@ DEVLOG and `ARC_DFS_FLOOR` remains a knob for anyone who wants to re-open it.
 Selection reweighting is also dead as of 2026-08-01. The exact Appendix F bound on the dumped pool is 18
 of 60 against kgmon's attained 15, but a re-weighted monotone selector fit with leave-one-task-out
 cross-validation attains 14, a loss of one against a pre-registered bar of plus two. See
-`docs/score-levers.txt`.
+`archive/notes/score-levers.txt`.

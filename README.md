@@ -25,7 +25,8 @@ moved the hidden score. The paper's ledger section records what closed each one.
 (rule count, rule kind, training duration) are null at their own optimum, and a corpus of 128
 execution-verified ARC-AGI-2 generators was built for under three dollars along the way and is released in `corpus/`.
 
-Every measurement and dead end is recorded in the paper, with working notes in `docs/`.
+Every measurement and dead end is recorded in the paper. The lab notes written along the way are kept
+unedited in `archive/notes/`.
 
 ## Compute
 
@@ -44,7 +45,8 @@ runnable entry points, the Kaggle notebook builder (`build_v7_from_architects.py
 drivers, and the figure builders. `notebooks/` holds every submitted Kaggle notebook by version.
 `arc_submission_v7_2_replicate.ipynb` is the exact artifact behind the twelve-run series (kernel version
 339772104) and `arc_submission_v7_2_original.ipynb` the build that scored 30.97 (337769272). `corpus/`
-holds the released ARC-AGI-2 generators and their verification results. `docs/` holds the working notes, `archive/` keeps superseded experiments and drafts out of the way, and `tests/`
+holds the released ARC-AGI-2 generators and their verification results. `docs/` holds the context document, the contamination audit and the GGUF conversion recipe.
+`archive/` keeps superseded experiments, drafts and the dated lab notes out of the way, and `tests/`
 holds the model-independent unit tests.
 
 ## License

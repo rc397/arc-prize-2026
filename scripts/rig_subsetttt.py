@@ -1,6 +1,6 @@
 """Subset-disagreement TTT: how many ARC tasks are underdetermined by their own demonstrations?
 
-POSITIONING, decided after the prior-art check in docs/subset-ttt-priorart.md, and it changes what
+POSITIONING, decided after the prior-art check in archive/notes/subset-ttt-priorart.md, and it changes what
 this script is for. The ensembling mechanism is old: query-by-bagging named committee-from-subsets
 in 1998, and Lakshminarayanan et al. found bagging deteriorated deep ensembles, which is the default
 prior any reviewer holds. ironbar already ablated single ARC adapters at n-1 and n-2 demonstrations

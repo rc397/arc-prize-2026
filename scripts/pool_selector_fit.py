@@ -10,7 +10,7 @@ Features per candidate: multiplicity, mean augmentation NLL, mean beam NLL, and 
 NLL. The bound was computed over the first three; adding a fourth can only loosen it, so a win here
 is still inside the theorem, just over a richer summary.
 
-Kill condition from docs/score-levers.txt: LOO gain < 2 outputs kills the lever.
+Kill condition from archive/notes/score-levers.txt: LOO gain < 2 outputs kills the lever.
 
 Usage: python pool_selector_fit.py [POOL_JSON]
 """

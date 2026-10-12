@@ -1,182 +1,108 @@
-# Scoping: a contamination audit of the public ARC checkpoint zoo
+# A contamination audit of a public ARC checkpoint
 
-Status: COMPLETE, 2026-08-01. All five gates passed. Result in section 8.
+Run on 1 August 2026. The data is in `paper/data/contamination_g{2,3,5}.json`, and
+`scripts/rig_contamination_audit.py` reproduces it.
 
-## 1. What we actually observed
+## What prompted it
 
-While testing the ceiling theorem's second escape route (score the candidate pool under a
-separately trained model), `scripts/rig_crossscore.py` run with `ARC_SCORER_MODEL` pointed at
-`sorokin/qwen3_2b_grids15_sft141` produced:
+We were testing whether a second, separately trained model could rescore our candidate pools. Pointed
+at `sorokin/qwen3_2b_grids15_sft141`, the rescoring script reported a median likelihood of
+0.0002 nats per token for the true answers on the ARC-AGI-2 public evaluation set. It also preferred
+the true grid over every decoded alternative on 54 of 60 outputs, including 40 of the 41 where our own
+4B never produced the truth.
 
-- median per-token NLL of the true ARC-AGI-2 public evaluation answer: **0.0002 nats**
-- the 2B prefers the true grid over every decoded alternative on **54 of 60** outputs, including
-  **40 of 41** outputs where our 4B never produced the truth at all
+That is too good. Over a 16-token vocabulary a uniform guess costs 2.77 nats a token, and a model that
+reasons through a task still carries real doubt at the ambiguous cells. A number that small looks like
+recall. The same script on our base model, `sorokin/qwen3_4b_grids15_sft139`, showed nothing like it.
 
-0.0002 nats/token over a grid of several hundred cells is not understanding. Over a 16-token
-vocabulary, uniform is 2.77 nats and a confident-but-reasoning model still carries real uncertainty
-at ambiguous cells. A number that small means recall.
+## Why one number was not enough
 
-The same script against `sorokin/qwen3_4b_grids15_sft139`, our base, shows nothing of the kind.
+Two things could fake that result.
 
-## 2. Why this is not yet a finding
+The first is a broken encoding. This model family uses a 16-token word-level vocabulary with no merges,
+and it had already caught us once, when the word "user" encoded to nothing. If the encoder silently
+dropped or merged cells, the "answer" being scored could be a short run of tokens any model predicts
+easily. So the first check decodes every scored answer back to a grid and compares it with the truth.
 
-Two failure modes would produce the same number, and neither has been ruled out.
+The second is the answer leaking into the prompt. We checked the slicing in the scoring code by hand,
+and it is clean.
 
-**2a. Degenerate encoding.** The NVARC tokenizer is a WordLevel vocabulary of 16 tokens with no
-merges, and it has already bitten us once: `tok.encode("user")` returns the empty list, and both
-ChatML turn markers encode to the same pair. If `encoder_for(2B tokenizer)` silently drops or
-collapses characters, the "answer" being scored could be a short degenerate token run that any model
-predicts trivially. **Gate: decode the scored token ids back to a grid and assert equality with the
-truth, for every task, before anything else.**
+It also may not be misconduct at all. Many ARC training recipes include the public evaluation set on
+purpose, because the private set is what gets scored. So the claim we set out to test is narrower than
+"contamination". It is that the public evaluation set is not a valid instrument for measuring this
+checkpoint.
 
-**2b. Prefix leak.** Checked and clean. `answer_nll` builds `ids = pre + ans` and slices
-`logits[len(pre)-1 : -1]`, which has length `len(ans)` and aligns position `len(pre)-1` with the
-prediction of `ans[0]`. No off-by-one, no visibility of the answer. Recorded here so it is not
-re-litigated.
+## The instrument
 
-**2c. It may not be misconduct.** Many ARC training recipes deliberately include the public
-evaluation set, because the private set is what gets scored. That is standard practice, not
-cheating. So "contamination" is the wrong frame for the paper. The defensible claim is narrower and
-more useful:
+A likelihood alone cannot tell memorising from being very good. Capability ordering can.
 
-> The ARC public evaluation set is not a valid measurement instrument for these checkpoints, and it
-> is widely used as one.
+1. Establish how two models rank against each other on data generated after both were published.
+2. Measure the same two models on the suspect benchmark.
+3. Look for the ordering to flip. A 2B that beats a 4B from the same author on the suspect set while
+   losing to it on fresh data is not showing capability.
 
-That is a methodological warning with a measurement behind it, not an accusation, and it does not
-depend on establishing intent.
+This needs no access to training data, no private split and no cooperation from whoever built the
+model. For fresh data we minted RE-ARC instances under our own seed. Their concepts are public, but the
+specific instances cannot be in any published checkpoint.
 
-## 3. The instrument: capability-ordering inversion
+## Design
 
-A likelihood contrast alone cannot separate "memorized it" from "is very good at it". The decisive
-version does not need training-data access, does not need the private test set, and does not need
-the model card to be honest:
+The measurement is a two-by-two of the 2B and the 4B against the public evaluation set and fresh
+RE-ARC, with greedy decoding and no test-time training. That is the condition people actually use these
+models in when they reach for one as a scorer or a filter. The two columns differ in difficulty, and
+that does not matter, because the comparison is the gap between the models within each column.
 
-1. Establish a capability ordering between two or more models on a set **provably minted after they
-   were published**.
-2. Measure the same models on the suspect set.
-3. Contamination shows up as an **interaction that inverts the ordering**. A 2B beating a 4B from
-   the same author, same recipe family, same data pipeline, on the suspect set while losing to it on
-   fresh data is not capability.
+We fixed five checks in advance, each one gating the next.
 
-The fresh set is the crux, and we already have the generator: `D:\arc\re-arc` ships `generators.py`,
-`verifiers.py` and `main.py`, so we mint instances under our own seed. Their concepts are public;
-their specific realizations are not, and cannot be in any published checkpoint.
-
-The general form of the method, which is what makes it worth a paper section:
-
-> Given any set of models whose capability ordering is established on freshly generated data,
-> contamination of a benchmark is the deviation of that benchmark's ordering from the fresh one.
-
-Benchmark-agnostic, checkpoint-agnostic, needs no cooperation from the model's author.
-
-## 4. Design and gates
-
-The measurement is a 2x2 over {2B sft141, 4B sft139} x {ARC-AGI-2 public eval, fresh RE-ARC},
-greedy decode, no TTT. No TTT is the right condition: a scorer or filter is used off the shelf, and
-the raw base model is what people are actually reading.
-
-Difficulty differs between the two column sets, which is fine. The design does not compare across
-columns. It compares the **model gap within each column**, and asks whether the sign flips.
-
-Gates, in order. Each must pass before the next runs.
-
-| # | Gate | Fails if |
+| check | what it tests | what would stop the audit |
 |---|---|---|
-| G1 | Token round-trip: decode the scored ids back to a grid, assert equality with the truth on all tasks, both tokenizers | Any mismatch. The 0.0002 is then an encoder artefact and the whole line dies here |
-| G2 | Reproduce the NLL result under the round-tripped encoder | Median NLL rises to a normal range |
-| G3 | Greedy decode of the 2B on public eval. A model at 0.0002 nats must reproduce the answers | Accuracy is low. Then the NLL and the decode disagree and something is wrong with one of them |
-| G4 | Fresh RE-ARC minted under our seed; verify with RE-ARC's own `verifiers.py` that each instance is a correct instance of its concept | Verifier rejects. Do not measure on unverified generated data |
-| G5 | The 2x2, and the interaction term | Ordering does not invert. Then it is capability, and we report that instead |
+| G1 | decode every scored answer back to a grid, both tokenizers | any mismatch |
+| G2 | reproduce the likelihood result with the verified encoding | the likelihood rises to a normal range |
+| G3 | greedy-decode the 2B on public eval | low accuracy, meaning likelihood and decoding disagree |
+| G4 | verify every fresh RE-ARC instance with RE-ARC's own verifier | any rejected instance kept |
+| G5 | the two-by-two and its interaction | no flip, in which case we report capability instead |
 
-G3 deserves emphasis. It is the honest test that could kill this cheaply: a teacher-forced NLL of
-0.0002 makes a hard prediction about free-running decode, and if the decode does not match, the
-likelihood number is measuring something other than what we think.
+G3 was the cheap way for the whole idea to die. A likelihood of 0.0002 nats makes a hard prediction
+about free-running decoding, and if decoding had not matched, the likelihood would have been measuring
+something else.
 
-## 5. Cost
+## Result
 
-No training. Decode only, 2B and 4B, roughly 120 + 120 tasks per model per column.
+All five checks passed.
 
-- Mint and verify fresh RE-ARC: minutes, CPU
-- Four decode sweeps: order of 1-2 hours total on the rig
-- Fits alongside the score work rather than competing with it
+G1 compared 172 outputs and 75,052 scored tokens under both tokenizers, with no mismatches.
 
-The field-wide version, enumerating public ARC checkpoints on Kaggle and HF and running the same
-instrument on each, is the paper-scale extension. Cost scales linearly in checkpoints and is
-dominated by download bandwidth, not compute.
+G2 measured truth-likelihood over 167 outputs of the public evaluation set.
 
-## 6. Rubric fit
-
-Against the six criteria ([[paper-track-rules]]):
-
-- **Novelty**: no published audit of ARC checkpoints for evaluation-set validity. The
-  ordering-inversion instrument is new as far as we can tell.
-- **Universality**: the method is benchmark-agnostic and checkpoint-agnostic, and needs neither
-  training-data access nor a private split.
-- **Progress**: a field that measures itself wrong cannot reach 85%. This also offers an explanation
-  for something the field observes and does not explain, namely the systematic gap between numbers
-  displayed beside public notebooks and numbers those notebooks score. Our own 33.89-versus-28.06
-  episode is one instance of that genre.
-- **Theory**: the signature can be stated precisely rather than as a heuristic.
-
-## 7. Kill conditions
-
-State these now so they are not negotiated later.
-
-- G1 fails: encoder artefact, report nothing.
-- G3 fails: likelihood and decode disagree, report the discrepancy as a caution about NLL-based
-  contamination tests and stop.
-- G5 shows no inversion: the 2B is simply better on this set than we assumed. Report it as a
-  negative result in the paper, which is what we did with restarts and with targeted synthetic data.
-
-If it survives all five, we name the checkpoint and state the measurement and the method, and we do
-not speculate about intent, exactly as the paper already handles the 33.89.
-
-## 8. Result
-
-All five gates passed. Data in `paper/data/contamination_g{2,3,5}.json`.
-
-**G1**, 172 outputs, both tokenizers, 75,052 scored ids, zero round-trip mismatches. The likelihoods
-are computed on the truth.
-
-**G2**, truth-likelihood over 167 outputs of the public evaluation set:
-
-| model | median NLL/token | fraction under 0.01 nats |
+| model | median NLL per token | share under 0.01 nats |
 |---|---|---|
 | 4B sft139 | 0.04039 | 13% |
-| 2B sft141 | **0.00014** | **91%** |
+| 2B sft141 | 0.00014 | 91% |
 
-**G4**, 120 fresh RE-ARC instances minted under seed 20260801 at difficulty [0.35, 1.0], each
-verified by RE-ARC's own verifier, 8 candidates rejected.
+G4 minted 120 fresh RE-ARC instances under seed 20260801 at difficulty 0.35 to 1.0. RE-ARC's verifier
+rejected 8 candidates, which were dropped.
 
-**G3 and G5**, the 2x2. Greedy decode, no test-time training, no search, 60 outputs per cell:
+G3 and G5 used greedy decoding, no test-time training and no search, with 60 outputs per cell.
 
 | model | ARC-AGI-2 public eval | fresh RE-ARC |
 |---|---|---|
-| 4B sft139 | 10.0% (6/60) | 78.3% (47/60) |
-| 2B sft141 | **80.0%** (48/60) | 65.0% (39/60) |
+| 4B sft139 | 10.0% (6 of 60) | 78.3% (47 of 60) |
+| 2B sft141 | 80.0% (48 of 60) | 65.0% (39 of 60) |
 
-Within-column model gap: **+70.0 points on eval** (z = 7.7), **-13.3 points on fresh** (z = 1.6).
-Interaction **+83.3 points, z = 8.0**.
+On the public evaluation set the 2B leads by 70 points (z = 7.7). On fresh data it trails by 13 points
+(z = 1.6). The interaction is 83 points at z = 8.0. The fresh-data gap alone is not significant at 60
+outputs, and the claim does not need it to be. A 2B that beats its 4B sibling eight-fold on the suspect
+set and does not beat it on data minted after both were published is not explained by capability.
 
-The fresh column is not at ceiling or floor, so it establishes an ordering, though note honestly
-that the fresh-column gap alone is not significant at n = 60. The claim does not need it to be: a
-2B that beats a 4B from the same author by eight-fold on the suspect set while **not** beating it on
-data minted after both were published cannot be explained by capability, and a null on the fresh
-column would suffice for that.
+## What it means
 
-Conclusion, stated as narrowly as the evidence supports:
+The ARC-AGI-2 public evaluation set is not a valid instrument for `sorokin/qwen3_2b_grids15_sft141`.
+Any score, filter or candidate selection made with that checkpoint against the public set is reading
+recall rather than reasoning.
 
-> The ARC-AGI-2 public evaluation set is not a valid measurement instrument for
-> `sorokin/qwen3_2b_grids15_sft141`. Any score, filter, validation or candidate selection performed
-> with that checkpoint against public eval is reading recall rather than reasoning.
+This says nothing about intent. Training on the public evaluation set is normal in this field, because
+the private set is what gets scored. The finding is about what the checkpoint can be used to measure.
 
-Nothing here speaks to intent. Training on the public evaluation set is standard practice in this
-field because the private set is what gets scored. The finding is about what the artefact can be
-used to measure, not about the conduct of whoever built it.
-
-Two consequences for our own work. First, it retroactively validates the call to discard the
-cross-scoring experiment that used this checkpoint as a second belief state. Second, and more
-useful: the 2B reaches 65% on fresh data against the 4B's 78.3%, so it is a **genuinely capable
-model** whose contamination is specific to the public evaluation set. Using it as a second scorer on
-the HIDDEN set is therefore legitimate and better motivated than before. That is lever F3 in
-docs/score-levers.txt.
+It also cuts the other way. The 2B reaches 65% on fresh data, so it is a capable model whose
+contamination is specific to the public set. Using it as a second scorer on the hidden set remains
+legitimate.
