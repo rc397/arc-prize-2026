@@ -99,7 +99,7 @@ components (lines 426 to 430). That's v7.5a, which was built but never submitted
 
 3. NEW NUMBERS FROM THAT DAY'S POOL CENSUS
 
-On the 60-output slice:
+These are on the slice of 60 outputs.
 
 - The truth is in the pool for 19 outputs and kgmon gets 15 of them into its top two, so four
   leak at selection.
