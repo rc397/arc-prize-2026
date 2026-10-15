@@ -1,84 +1,87 @@
-# Inference Stack Research and Revised Plan (2026-06-19)
+# Inference stack research and a revised plan
 
-Verification tags: [V] read the source directly this session, [E] estimated/extrapolated,
-[?] unverified, needs an empirical test.
+Written on 19 June 2026. I tagged claims as I went. [V] means I read the source directly that
+session, [E] means estimated or extrapolated, and [?] means unverified and waiting on a test.
 
 ## Bottom line
 
-Pause the WSL2 + vLLM build. Use llama.cpp on native Windows for generation. Getting vLLM
-onto the RTX 5070 Ti took a documented "three-and-a-half bleary-eyed days" building PyTorch
-and vLLM from source on Linux [V], while llama.cpp already benches at ~140 tok/s on a 20B
-model on this card with no Triton and no WSL [V].
+Stop building WSL2 and vLLM. Use llama.cpp on native Windows for generation. Getting vLLM running on
+an RTX 5070 Ti took someone a documented "three-and-a-half bleary-eyed days" of building PyTorch and
+vLLM from source on Linux [V]. llama.cpp already benchmarks at about 140 tokens a second on a 20B
+model on this card, with no Triton and no WSL [V].
 
-## Root cause of the slowness (confirmed)
+## Why decoding is slow
 
-- Decode at 13 tok/s is ~10% of the card's memory-bandwidth ceiling (a 4B at ~896 GB/s
-  should hit ~130 tok/s) [E]. Prefill is fine (3403 tok/s). The gap is per-token framework
-  overhead (36-layer Python dispatch, dynamic cache, no CUDA graphs), the classic slow
-  Hugging Face generate problem.
-- Standard fix is StaticCache + torch.compile (up to 4x) [V], but torch.compile needs
-  Triton and Triton has no native-Windows support (our TritonMissing error) [V]. So native
-  PyTorch decode cannot be made fast on this Windows setup; an optimized engine is required.
+- Decoding at 13 tokens a second uses about 10% of what the card's memory bandwidth allows. A 4B
+  model at roughly 896 GB/s should manage about 130 [E]. Prefill is fine at 3,403 tokens a second.
+  The gap is per-token framework overhead, meaning Python dispatch across 36 layers, a dynamic cache
+  and no CUDA graphs. It's the classic slow Hugging Face generate problem.
+- The usual fix is a static cache plus torch.compile, worth up to 4x [V]. But torch.compile needs
+  Triton, and Triton has no native Windows support, which is the TritonMissing error we hit [V]. So
+  plain PyTorch decoding can't be made fast on this setup, and we need a proper inference engine.
 
-## Engine comparison
+## The engines
 
-- llama.cpp: ~140 tok/s @20B on the 5070 Ti via llama-cli [V]; native Windows; low setup
-  (sm_120 workarounds, issue #22696) [V]. Per-task LoRA is clunky (PEFT->GGUF per task) and
-  Qwen3 LoRA conversion has an open bug (#21125) [V]. Best first move.
-- vLLM: ~120 tok/s @7B FP4 on the 5070 Ti [V]; Linux/WSL2 only; very high setup (build from
-  source, FA3 broken on Blackwell) [V]; clean dynamic LoRA. Only if per-task LoRA forces it.
+- **llama.cpp** runs about 140 tokens a second on a 20B model on the 5070 Ti through llama-cli [V].
+  It works natively on Windows and needs little setup beyond a few sm_120 workarounds (issue
+  #22696) [V]. Per-task LoRA is awkward, since every adapter has to go from PEFT to GGUF, and
+  converting Qwen3 LoRAs has an open bug (#21125) [V]. This is the best first move.
+- **vLLM** runs about 120 tokens a second on a 7B model in FP4 on the 5070 Ti [V]. It only runs on
+  Linux or WSL2, takes a lot of setup (building from source, and FA3 is broken on Blackwell) [V], and
+  handles dynamic LoRA cleanly. Worth it only if per-task LoRA forces our hand.
 
-## TTT economics (the crux)
+## The economics of test-time training
 
-- TTT is essential: up to 6x accuracy, 53% on ARC-AGI-1 with an 8B model, +27.5 points over
-  a fine-tuned baseline [V, Akyurek et al. 2411.07279].
-- The winners paid with hardware: ARChitects ran 128 TTT steps/task (rank-32, batch 1) plus
-  102 refinement steps, with speculative decoding (4.7x) and prefix caching (5.8x), on
-  8xH100 / GH200 / 16xH100 clusters [V]. NVARC ran on Kaggle L4x4 [V].
-- The knot: TTT must run in PyTorch (no engine trains), fast generation needs an engine, and
-  per-task TTT makes a new LoRA every task that the engine must serve. That serving step is
-  the real difficulty on a single consumer GPU. A single global fine-tune throws away most of
-  TTT's per-task gain [V], so there is no clean shortcut.
+- Test-time training matters a lot. It gave up to 6x accuracy, 53% on ARC-AGI-1 with an 8B model, and
+  27.5 points over a fine-tuned baseline [V, Akyurek et al., 2411.07279].
+- The winners paid for it with hardware. The ARChitects ran 128 training steps per task at rank 32
+  and batch 1, plus 102 refinement steps, with speculative decoding (4.7x) and prefix caching (5.8x),
+  on clusters of 8 H100s, GH200s and 16 H100s [V]. NVARC ran on Kaggle's four L4s [V].
+- Here's the knot. Training has to happen in PyTorch, because no engine trains. Fast generation needs
+  an engine. And per-task training makes a new LoRA for every task, which the engine then has to
+  serve. That serving step is the real difficulty on one consumer card. A single global fine-tune
+  throws away most of the per-task gain [V], so there's no clean shortcut.
 
-## Staged plan (with validation gates)
+## Staged plan, with a check at each step
 
-- Stage 0 (today): install llama.cpp on the rig (native Windows), convert the NVARC model to
-  GGUF, benchmark decode tok/s on one task. Target >=150 tok/s. Tests the key open risk: does
-  the 16-token-vocab model convert to GGUF at all? [?]
-- Stage 1: fast no-TTT pipeline on llama.cpp (base model, augmented multi-candidate
-  generation + voting). Real complete 120-task number in a couple of hours. Validates the
-  pipeline at speed.
-- Stage 2: add TTT, made tractable: ~40-64 steps, subsample few-shot context to ~1500 tokens,
-  drop gradient checkpointing at the shorter length. Decide LoRA serving with data (merge into
-  base + re-convert per task, or commit to vLLM+WSL2 only if it pays off). WSL features are
-  already enabled, so that door stays open at zero extra cost.
-- Stage 3: speculative decoding + prefix caching (the winners' 4.7x and 5.8x), both supported
-  by llama.cpp.
+- **Stage 0, today.** Install llama.cpp on the rig, convert the NVARC model to GGUF and time decoding
+  on one task, aiming for at least 150 tokens a second. This tests the biggest open risk, which is
+  whether a model with a 16-token vocabulary converts to GGUF at all [?].
+- **Stage 1.** Build a fast pipeline without test-time training on llama.cpp, using the base model
+  with augmented multi-candidate generation and voting. That gives a real number on all 120 tasks in
+  a couple of hours and proves the pipeline runs at speed.
+- **Stage 2.** Add test-time training and make it affordable. That means about 40 to 64 steps,
+  few-shot context cut to about 1,500 tokens, and no gradient checkpointing at that shorter length.
+  Let the data decide how to serve the LoRAs, either merging each into the base and re-converting it
+  per task, or moving to vLLM on WSL2 only if that pays off. WSL is already enabled, so that door
+  stays open at no cost.
+- **Stage 3.** Add speculative decoding and prefix caching, the winners' 4.7x and 5.8x, both of which
+  llama.cpp supports.
 
-## Engineering checklist (anti-traps)
+## Traps to avoid
 
-1. Benchmark decode tok/s AND per-task wall-clock on ONE task before any long run.
-2. Confirm the inference engine is fast before building the pipeline on it.
-3. Always print output lengths (runaway generation to the cap was a silent killer).
-4. Measure prefill, decode, TTT-step, and selection costs independently.
-5. Size every run to complete; verify task 0 finished correctly before walking away.
-6. Keep a known-good fast path (llama.cpp base generation) as fallback.
+1. Time decoding speed and the wall-clock for one whole task before starting any long run.
+2. Confirm the engine is fast before building the pipeline on top of it.
+3. Always print output lengths, because generation silently running to the cap has killed runs before.
+4. Measure prefill, decoding, training steps and selection separately.
+5. Size every run so it finishes, and check that task 0 came out right before walking away.
+6. Keep a known-good fast path, plain llama.cpp generation, as a fallback.
 
-## Open gaps
+## Still open
 
-- [?] Whether the 16-token-vocab Qwen3 converts to GGUF (Stage 0 tests it; biggest risk).
-- [?] Exact llama.cpp decode speed for our specific 4B (extrapolated from 20B).
-- [?] Per-task LoRA serving in llama.cpp for this model (empirical, Stage 2).
-- NVARC's exact TTT/inference config is gated to interviews, not the written report [V].
+- [?] Whether the 16-token Qwen3 model converts to GGUF. Stage 0 tests this, and it's the biggest risk.
+- [?] The real llama.cpp decoding speed for our 4B, which I extrapolated from the 20B numbers.
+- [?] Serving per-task LoRAs in llama.cpp for this model, to be tested in Stage 2.
+- NVARC's exact training and inference settings are only in interviews, not the written report [V].
 
 ## Sources
 
-- vLLM RTX 5070 Ti guide: https://ligma.blog/post1/
-- vLLM RTX 5090 issue: https://github.com/vllm-project/vllm/issues/14452
-- llama.cpp RTX 5070 Ti eval speed: https://github.com/ggml-org/llama.cpp/issues/15297
-- llama.cpp Windows sm_120 workarounds: https://github.com/ggml-org/llama.cpp/issues/22696
-- llama.cpp Qwen3 LoRA conversion bug: https://github.com/ggml-org/llama.cpp/issues/21125
-- ARChitects 2025 report: https://lambdalabsml.github.io/ARC2025_Solution_by_the_ARChitects/
-- ARC Prize 2025 technical report: https://arxiv.org/html/2601.10904v1
-- Surprising Effectiveness of TTT: https://arxiv.org/abs/2411.07279
-- Transformers KV-cache docs: https://huggingface.co/docs/transformers/kv_cache
+- vLLM on the RTX 5070 Ti, <https://ligma.blog/post1/>
+- vLLM RTX 5090 issue, <https://github.com/vllm-project/vllm/issues/14452>
+- llama.cpp speed on the RTX 5070 Ti, <https://github.com/ggml-org/llama.cpp/issues/15297>
+- llama.cpp Windows sm_120 workarounds, <https://github.com/ggml-org/llama.cpp/issues/22696>
+- llama.cpp Qwen3 LoRA conversion bug, <https://github.com/ggml-org/llama.cpp/issues/21125>
+- The ARChitects' 2025 report, <https://lambdalabsml.github.io/ARC2025_Solution_by_the_ARChitects/>
+- The ARC Prize 2025 technical report, <https://arxiv.org/html/2601.10904v1>
+- The Surprising Effectiveness of Test-Time Training, <https://arxiv.org/abs/2411.07279>
+- Transformers KV-cache docs, <https://huggingface.co/docs/transformers/kv_cache>

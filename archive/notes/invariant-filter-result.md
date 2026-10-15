@@ -1,18 +1,26 @@
-# Invariant-mining candidate filter (lever A2): measured, and dead by its own bar
+# The invariant-mining candidate filter (lever A2) is dead by its own bar
 
-Measured 2026-08-04 with `scripts/pool_invariants.py` on `paper/data/pool_dump.json` (60 outputs,
-39 tasks), demonstrations and solutions from the public evaluation JSONs. Reproduce with
-`python scripts/pool_invariants.py [POOL] [CHALLENGES] [SOLUTIONS]`. The dump's `correct` flags are
-re-verified against the solutions file at load. Baseline confirmed before filtering: truth in pool
-19, kgmon top-2 attains 15, leaked outputs 142ca369_0, 3a25b0d8_0, 3dc255db_0, 4c7dc4dd_1.
+Measured on 4 August 2026 with `scripts/pool_invariants.py` on `paper/data/pool_dump.json`, which
+holds 60 outputs across 39 tasks, with demonstrations and solutions from the public evaluation files.
+To reproduce it, run `python scripts/pool_invariants.py [POOL] [CHALLENGES] [SOLUTIONS]`. The script
+re-checks the dump's `correct` flags against the solutions file when it loads.
 
-Design: 15 invariant types mined per task from its train pairs only, kept only if the property held
-on every pair (every pool task has at least 2 pairs; 214 invariants total, median 6 per task, no
-task with zero). A candidate violating any kept invariant is killed.
+Before filtering, the baseline matched what we expected. The truth is in the pool for 19 outputs, the
+kgmon selector gets 15 of them into its top two, and the four it misses are 142ca369_0, 3a25b0d8_0,
+3dc255db_0 and 4c7dc4dd_1.
 
-## (a) False kills, the kill condition: 11 of 19 truths die under the full set
+## The design
 
-| invariant              | tasks mined | wrong kills | false kills |
+For each task the script mines 15 kinds of invariant from its training pairs alone, and keeps one only
+if it held on every pair. Every task in the pool has at least two pairs. That gave 214 invariants, a
+median of six per task, and no task ended up with none. Any candidate that breaks a kept invariant
+gets killed.
+
+## False kills, which was the kill condition
+
+With the full set, 11 of the 19 true answers die.
+
+| invariant              | tasks mined | wrong candidates killed | true answers killed |
 |------------------------|------------:|------------:|------------:|
 | background_preserved   | 27          | 7           | 0           |
 | col_parity             | 21          | 41          | 2           |
@@ -30,58 +38,65 @@ task with zero). A candidate violating any kept invariant is killed.
 | shape_fixed            | 8           | 29          | 2           |
 | shape_scaled           | 1           | 0           | 0           |
 
-False-killed truths: 2d0172a1_1, 4c3d4a41_0, 1ae2feb7_2, 53fb4810_0, 3a25b0d8_0, 45a5af55_0,
-38007db0_1, 135a2760_0, 3dc255db_0, 3a25b0d8_1, 38007db0_0. Attained after filtering with the full
-set: 6 of 60, a catastrophe. Spot checks confirm these are faithful minings, not bugs: 38007db0 has
-both train outputs 19x7 but test truths 29x8 and 25x7; 3a25b0d8 has both train outputs
-left-right symmetric but neither test truth is; 4c3d4a41 conserves colour 6 on every train pair but
-not on the test pair. With 2 or 3 demonstrations, coincidental regularities are common, and
-ARC-AGI-2 test pairs are constructed to break exactly the regularities that are coincidental.
+The true answers it killed were 2d0172a1_1, 4c3d4a41_0, 1ae2feb7_2, 53fb4810_0, 3a25b0d8_0,
+45a5af55_0, 38007db0_1, 135a2760_0, 3dc255db_0, 3a25b0d8_1 and 38007db0_0. After filtering with the
+full set the selector gets just 6 of 60, which is a disaster.
 
-Pruning the 8 offending types leaves background_preserved, components_eq_input, mirror_ud,
-palette_additive, palette_subset, shape_eq_input, shape_scaled. False kills after pruning: 0 of 19.
+Spot checks show these are honest minings, not bugs. In 38007db0 both training outputs are 19 by 7,
+but the test answers are 29 by 8 and 25 by 7. In 3a25b0d8 both training outputs are mirror-symmetric
+left to right, but neither test answer is. In 4c3d4a41 colour 6 is conserved on every training pair
+but not on the test pair. With two or three demonstrations, coincidences are common, and ARC-AGI-2
+test pairs are built to break exactly the regularities that are coincidental.
 
-## (b) Payoff on the 4 leaked outputs: zero, with a sharp mechanism
+Dropping the eight types that kill true answers leaves background_preserved, components_eq_input,
+mirror_ud, palette_additive, palette_subset, shape_eq_input and shape_scaled. With those alone, no
+true answer dies.
 
-With the pruned set, 0 blockers die on any leaked output and no truth enters the top 2 (0 recovered
-of the 3-4 available). The full unpruned set shows why this is structural, not bad luck:
+## What it buys on the four missed outputs
 
-- 3a25b0d8_0 and 3dc255db_0: the full set kills every blocker (2 of 2, 5 of 5), but the same
-  aggressive types (components_fixed, row_parity, mirror_lr; colour_count_conserved,
-  immutable_colours, col_parity) kill the truth too. Selectivity and safety are the same axis.
-- 142ca369_0 and 4c7dc4dd_1: no mined invariant of any type separates blockers from truth; the
-  blockers satisfy everything the demonstrations certify.
+Nothing, and the reason is clear-cut. With the pruned set, none of the wrong candidates blocking a
+missed output gets killed, and no true answer moves into the top two. The full set shows why this is
+built in and not bad luck.
 
-The safe types are demo-evident properties (palette subset, input shape, background) that TTT has
-already conditioned the model on, so its wrong candidates virtually never violate them.
+- For 3a25b0d8_0 and 3dc255db_0 the full set kills every blocker, 2 of 2 and 5 of 5. But the same
+  aggressive types kill the true answer too. Those are components_fixed, row_parity and mirror_lr in
+  the first case, and colour_count_conserved, immutable_colours and col_parity in the second. The
+  filter can't be selective without being unsafe, because those are the same knob.
+- For 142ca369_0 and 4c7dc4dd_1 no invariant of any type separates the blockers from the true answer.
+  The blockers satisfy everything the demonstrations vouch for.
 
-## (c), (d) Overall
+The safe types are properties you can see straight from the demonstrations, like the palette, the
+input shape and the background. Test-time training has already taught the model those, so its wrong
+candidates almost never break them.
 
-kgmon top-2 attained: 15 before, 15 after the pruned filter (no decrease, and no increase). Of the
-41 truth-absent outputs, 4 have their entire pool killed by the pruned set and could route to a
-fallback if one existed; count only, no such fallback is built.
+## Overall
+
+The selector gets 15 into its top two before the pruned filter and 15 after, with no loss and no gain.
+Of the 41 outputs where the truth never appears, the pruned set kills the entire pool for four. Those
+could be routed to a fallback if one existed. I only counted them and built no fallback.
 
 ## Leave-one-task-out
 
-Invariant parameters are mined per task from its own train pairs and never cross tasks; the one
-cross-task fitted choice is which invariant TYPES survive pruning. Scoring that choice honestly
-(prune on the other 38 tasks' false kills, evaluate the held-out task) gives LOO attained 11
-versus baseline 15, with 5 false kills (mirror_lr, shape_fixed and palette_fixed each false-kill
-on only one task, so no other task's evidence prunes them). The in-sample zero-false-kill property
-does not transfer even within this slice.
+The invariants themselves are mined per task from that task's own training pairs and never cross
+tasks. The one choice fitted across tasks is which types survive pruning. Scoring that choice
+honestly, pruning on the false kills of the other 38 tasks and testing on the one held out, gives 11
+in the top two against the baseline's 15, with 5 false kills. mirror_lr, shape_fixed and
+palette_fixed each false-kill on only one task, so no other task's evidence prunes them. The clean
+zero-false-kill result from pruning on everything doesn't hold up even within this slice.
 
-## Verdict against the pre-registered bar
+## Against the bar set in advance
 
-Bar was +2 outputs recovered with 0 false kills. Result: 0 recovered, 0 false kills only after
-in-sample pruning, LOO net -4 outputs. NOT MET, on both the payoff side and the honest-safety
-side. A2 joins A1 in section 2 of score-levers: the selection headroom (bound 18, attained 15) is
-real but reachable by neither statistic reweighting nor demonstration-mined hard constraints.
+The bar was two outputs recovered with no false kills. The result is none recovered, no false kills
+only after pruning on the same data, and a net loss of four outputs under leave-one-task-out. It fails
+on both the payoff and an honest test of safety. A2 joins A1 in section 2 of the score-levers note.
+The selection headroom, a bound of 18 against 15 attained, is real, but neither reweighting statistics
+nor hard constraints mined from demonstrations reaches it.
 
-## Hidden-set transfer risk, honestly
+## Would it transfer to the hidden set
 
-The pruned filter's zero-false-kill property was fitted on this slice's 19 truths, and LOO already
-shows that choice failing to transfer within the slice (11 versus 15), so on the hidden set the
-expected effect of any variant of this filter ranges from zero to several lost credits. The zero
-payoff is the transferable part: safe invariants are demo-evident properties the TTT-adapted model
-already respects, a mechanism independent of which evaluation set is used. Deploying A2 in any form
-risks real losses for a measured upside of zero, so it must not be queued.
+The pruned filter's zero false kills were fitted to this slice's 19 true answers, and
+leave-one-task-out already shows that choice failing inside the slice, 11 against 15. On the hidden
+set, any version of this filter would land somewhere between no effect and several lost credits. The
+zero payoff is the part that does transfer. The safe invariants are properties visible in the
+demonstrations that the adapted model already respects, whichever evaluation set you use. Deploying
+any form of A2 risks real losses for a measured upside of nothing, so it must not be queued.
