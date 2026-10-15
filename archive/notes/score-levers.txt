@@ -1,382 +1,375 @@
-SCORE LEVERS: METHOD DECONSTRUCTION, BLIND SPOTS, RANKED IDEAS
-2026-08-01. Written to be re-readable cold, per request. All line numbers cite
-notebooks/v7_debug/arc_solver.py unless stated. Numbers marked [measured] were
-computed today from paper/data/pool_dump.json (60 outputs, deployed-condition
-slice) with scripts/pool_census.py and scripts/pool_vote.py.
+SCORE LEVERS
+How the pipeline works, where its blind spots are, and the remaining ideas ranked
 
-Scope note. No library was attached to the request, so this audits the library
-we deploy: the v7 pipeline source plus every measurement this project has
-recorded. The "1.0 point behind the cutoff" premise is not verifiable from
-here; our recorded board state is 30.97 with 5th at 33.89, and the working
-target Ryan set is 32+, which is the same band. Nothing below depends on the
-exact cutoff.
+Written on 1 August 2026, meant to make sense when read cold. Line numbers refer to
+notebooks/v7_debug/arc_solver.py unless I say otherwise. Anything marked [measured] was
+computed that day from paper/data/pool_dump.json, a 60-output slice run under deployed
+conditions, using scripts/pool_census.py and scripts/pool_vote.py.
+
+A note on scope. No outside library came with the request, so this audits the library we
+actually deploy, meaning the v7 pipeline source plus every measurement the project has
+recorded. I can't verify the premise that we're "1.0 point behind the cutoff" from here.
+Our recorded board state is 30.97 with fifth place at 33.89, and the target Ryan set is 32
+or more, which is the same band. Nothing below depends on the exact cutoff.
 
 
-================================================================
 1. WHAT THE PIPELINE ACTUALLY IS
-================================================================
 
-Funnel, four stages, each with its own loss channel:
+Each task goes through four stages, and each one can lose the answer. Test-time training
+builds an adapter, a depth-first search builds a pool of candidates, the candidates get
+rescored under augmentations, and the top two are submitted.
 
-  task -> TTT adapter -> DFS candidate pool -> augmented rescoring -> top-2
+I checked these facts against the source that day rather than relying on memory.
 
-Stage facts confirmed from source today, not from memory:
+1a. Test-time training uses a rank-256 LoRA with alpha 32 and rslora, over 16 augmented
+    views (augment(n=16), line 288). The loss only covers the answer, using token ids 11
+    and 12 to find it (lines 60 to 76).
 
-1a. TTT: rank-256 LoRA, alpha 32, rslora, 16 augmented views
-    (augment(n=16), line 288), completion-only masking keyed on token ids
-    11/12 (lines 60-76).
+1b. The search is turbo_dfs (line 79), a recursive depth-first walk over the 16-token
+    vocabulary. Its max_score is a cap on cumulative suffix NLL, set by default to
+    -log(0.2) (line 256). So every candidate it emits has a total conditional probability
+    above 0.2, which means each view can emit at most four. The pool is small by design,
+    not because the time ran out.
 
-1b. Search: turbo_dfs (line 79) is a recursive depth-first walk over the
-    16-token vocab. max_score is a CUMULATIVE suffix-NLL cap, default
-    -log(0.2) (line 256). Consequence: every emitted candidate has total
-    conditional probability > 0.2, so each view emits AT MOST 4 completions.
-    The pool is small by construction, not by budget.
+1c. The walk runs all views in lockstep, one token per view per forward pass (lines 96 to
+    117). Children are sorted best first locally (line 94), but the overall order is depth
+    first, so the walk stays inside a subtree until it's used up. Each call has a 540-second
+    limit (line 96).
 
-1c. The walk is lockstep-batched across views (batch dim n, one token per
-    view per forward, lines 96-117), children sorted best-first LOCALLY
-    (line 94), but the global order is depth-first: the walk commits to a
-    subtree until it is exhausted. 540s wall cap per call (line 96).
+1d. The inner loop talks to the CPU at every node, with logits.float().cpu().log_softmax(-1)
+    on line 81 and an .item() call per child on line 87. With only 16 tokens the softmax
+    itself is free. The likely cost is the forced sync between GPU and CPU at each node,
+    which is exactly what the LB33 perfpatch removes. rig_dfsbench.py is measuring whether
+    that matters on our hardware.
 
-1d. The hot loop synchronises with the host at every node:
-    logits.float().cpu().log_softmax(-1) (line 81) plus .item() per child
-    (line 87). Vocab is 16, so the softmax FLOPs are nothing; the cost
-    candidate is the forced GPU-to-CPU sync per node. This is exactly what
-    the LB33 perfpatch removes. rig_dfsbench.py is measuring whether that
-    matters on our hardware right now.
+1e. The views decode in four batches of four, always in the same order (lines 382 to 391),
+    under ARC_TASK_TIMEOUT=1800 (line 403). When a task runs long, the later batches get
+    skipped without a word. Views 8 to 15 never decode, and the multiplicity count the
+    selector relies on is built from half the views it should have. Nothing in the log
+    records how often this happens.
 
-1e. Views decode in 4 batches of 4, in a FIXED order (lines 382-391), under
-    ARC_TASK_TIMEOUT=1800 (line 403). When a task runs long, later batches
-    are silently skipped: views 8-15 never decode, and the multiplicity
-    statistic the selector depends on is computed over half its intended
-    support. No log line records how often this happens.
+1f. For selection, candidates are rescored under about eight augmentations with duplicates
+    removed (known_scores, lines 435 to 455). Then kgmon, which is multiplicity minus the
+    mean augmentation NLL, picks the top two.
 
-1f. Selection: candidates rescored under ~8 augmentations with dedup
-    (known_scores, lines 435-455), then kgmon = multiplicity minus mean
-    augmentation NLL picks top-2.
-
-The v7_debug copy also carries the AIF arm (component-count penalty, lines
-426-430); that is v7.5a, built, never submitted.
+The v7_debug copy also carries the AIF arm, a penalty based on the number of connected
+components (lines 426 to 430). That's v7.5a, which was built but never submitted.
 
 
-================================================================
-2. CLOSED BY MEASUREMENT. DO NOT RE-PROPOSE.
-================================================================
+2. CLOSED BY MEASUREMENT. DON'T PROPOSE THESE AGAIN.
 
-- Seed restarts / adapter ensembling: cross-seed union equals best single
-  seed; net decorrelation +0.008 after replicate control. 65-cell probe.
-- Targeted synthetic data for the miss set: no structural feature separates
-  missed from reached (AUC ~0.5-0.65), coverage of the best feature's tail
-  is WORSE than random selection.
-- Rescoring the pool with the un-adapted base: null on the dominated
-  outputs; dominance is a property of the candidates, not the adapter.
-- Validating the 2B rescorer on public eval: the 2B is contaminated on
-  public eval (median truth NLL 0.0002). Salvaged as the audit paper
-  section. Note carefully what this does NOT close: the 2B on the HIDDEN
-  set, see F3.
-- Trusting a score displayed beside a public notebook: the 28.06 control.
-- [measured today] Cell-wise voting across pool candidates: reconstructs
-  0 of 41 absent truths under uniform, multiplicity, and exp(-augNLL)
-  weightings. Candidate errors are correlated through the model's beliefs;
-  consensus is confidently wrong at exactly the miss cells.
-- [measured today] Attempt-2 diversification: top-2 kgmon picks are already
-  diverse (median Hamming 12, only 12/56 within 2 cells). Little to gain.
-- [measured today] A1, the re-weighted monotone selector: DEAD by its own
-  pre-registered bar. Training-set optimum 16 of the 18 bound; leave-one-
-  task-out attains 14 vs kgmon's 15 (gain -1, weights (1,0,4) chosen in
-  37/39 folds). The 3-output gap is real but not learnable from 60 outputs;
-  weight tuning memorises the leaked outputs. scripts/pool_selector_fit.py.
-- [measured 2026-08-04] A2, invariant-mining filter: DEAD by its own bar
-  (+2 recovered / 0 false kills required; got 0 recovered, and the full
-  15-type library false-kills 11 of 19 TRUTHS). The mechanism is structural,
-  not bad luck: with 2-3 demos, coincidental regularities are common and
-  ARC-2 test pairs are built to break exactly those (38007db0 trains 19x7,
-  tests 29x8). The safe invariant types are demo-evident properties TTT has
-  already conditioned the model on, so wrong candidates never violate them:
-  selectivity and safety are the same axis. LOO over the type-pruning choice
-  attains 11 vs baseline 15. scripts/pool_invariants.py,
-  docs/invariant-filter-result.md. SECOND independent pricing of the
-  theorem's escape precondition after v7.5a: demo-derived oracles are
-  noisier than the model's own beliefs, offline this time, so the pattern
-  is not a fluke of the hidden run.
-
-
-================================================================
-3. NEW NUMBERS FROM TODAY'S POOL CENSUS
-================================================================
-
-On the 60-output deployed slice:
-
-- Truth in pool 19, kgmon top-2 attains 15, so 4 leak at selection.
-- Appendix-F attainable bound: 18 of 60. Only ONE leaked output
-  (3dc255db_0, 3 dominators among 13 candidates) is truly blocked for
-  every monotone selector. THE GAP INSIDE THE THEOREM IS 3 OUTPUTS.
-  Earlier language ("the dominators dominate, selection is at ceiling")
-  overstated the case; the ceiling is real but we sit 3 below it.
-- Near-miss census on the 41 truth-absent outputs: 7 within 3 cells of a
-  pool candidate (1 at d=1: 1ae2feb7_1), 14 within 10 cells, 6 with no
-  same-shape candidate at all, and a deep-loss tail beyond repair.
-- Six outputs never even produce the right SHAPE. Those are coverage
-  problems; no selection or repair idea touches them.
+- Restarting with new seeds, or ensembling adapters. The union across seeds equals the best
+  single seed, and once the same-seed control is subtracted the extra diversity is +0.008.
+  This came from a 65-cell probe.
+- Synthetic data aimed at the tasks we miss. No structural feature separates missed tasks
+  from reached ones (AUC about 0.5 to 0.65), and covering the tail of the best feature does
+  worse than picking at random.
+- Rescoring the pool with the base model before adaptation. Nothing on the outputs where
+  wrong candidates dominate. The domination belongs to the candidates, not the adapter.
+- Validating the 2B rescorer on the public evaluation set. The 2B is contaminated on public
+  eval, with a median truth NLL of 0.0002, and that became the audit section of the paper.
+  Be careful about what this does not close, which is using the 2B on the hidden set. See F3.
+- Trusting the score shown beside a public notebook. See the 28.06 control.
+- [measured] Voting cell by cell across the candidates. It rebuilds none of the 41 missing
+  true answers, whether the votes are uniform, weighted by multiplicity or weighted by
+  exp(-augNLL). The candidates' mistakes are correlated through the model's beliefs, so the
+  consensus is confidently wrong at exactly the cells that matter.
+- [measured] Making the second attempt more different from the first. The two kgmon picks
+  are already different, with a median Hamming distance of 12 and only 12 of 56 pairs within
+  two cells. There's little to gain.
+- [measured] A1, the reweighted monotone selector, is dead by the bar set in advance. Fitted
+  on everything it reaches 16 of the 18 the bound allows, but under leave-one-task-out it
+  gets 14 against kgmon's 15, a loss of one. The weights (1, 0, 4) won in 37 of 39 folds. The
+  three-output gap is real but can't be learned from 60 outputs, and tuning the weights just
+  memorises the outputs that leaked. See scripts/pool_selector_fit.py.
+- [measured 4 August] A2, the invariant-mining filter, is also dead by its own bar. It
+  needed two recovered with no true answers killed. It recovered none, and the full library
+  of 15 types killed 11 of the 19 true answers. That's built in, not bad luck. With two or
+  three demonstrations, coincidences are common, and ARC-2 test pairs are built to break
+  exactly those. In 38007db0, for instance, the training outputs are 19 by 7 and the test
+  answers 29 by 8. The safe invariant types are properties visible in the demonstrations
+  that training has already taught the model, so wrong candidates never break them. Being
+  selective and being safe are the same dial. Leave-one-task-out over the choice of which
+  types to keep reaches 11 against a baseline of 15. See scripts/pool_invariants.py and
+  archive/notes/invariant-filter-result.md. This is the second independent pricing of the
+  theorem's condition for escaping, after v7.5a. Checks derived from the demonstrations are
+  noisier than the model's own beliefs, and this time it showed up offline, so the pattern
+  isn't a fluke of one hidden run.
 
 
-================================================================
-4. RANKED LEVERS
-================================================================
+3. NEW NUMBERS FROM THAT DAY'S POOL CENSUS
 
-Ranking key: expected points x testability / cost. Every lever names its
-kill condition. Slot discipline applies to all: offline measurement first,
-one factor per submission, control before port (score-push-plan).
+On the 60-output slice:
 
----- A. OFFLINE NOW, ZERO GPU ----
+- The truth is in the pool for 19 outputs and kgmon gets 15 of them into its top two, so four
+  leak at selection.
+- The bound from Appendix F allows 18 of 60. Only one leaked output, 3dc255db_0 with three
+  dominating candidates among thirteen, is blocked for every monotone selector. So the gap
+  inside the theorem is three outputs. Earlier wording, that "the dominators dominate and
+  selection is at its ceiling", overstated it. The ceiling is real, but we sit three below it.
+- Of the 41 outputs where the truth never appears, 7 have a candidate within three cells of
+  it (1ae2feb7_1 is just one cell away), 14 have one within ten cells, 6 have no candidate of
+  the right shape at all, and the rest are too far gone to repair.
+- Six outputs never even produce the right shape. Those are coverage problems, and no
+  selection or repair idea touches them.
 
-A1. Tuned monotone selector aimed at the 3-output gap.
-    KILLED 2026-08-01, see section 2. LOO gain -1 against a +2 bar. The
-    selection headroom is real (bound 18, attained 15) but belongs to A2.
 
-A2. KILLED 2026-08-04, see section 2. Kept below for the design record.
-    Mined-invariant filtering (the theorem's task-evidence escape).
-    Mine candidate invariants from the demonstrations: output-size map,
-    palette map, per-colour cell-count relations, component-count
-    relations, symmetry class, background colour. Keep only invariants
-    that hold on EVERY demo pair; kill pool candidates that violate one.
-    This reads the task, not the model's beliefs, so the ceiling does not
-    apply to it; it can dethrone dominators that kgmon cannot.
-    Harness: challenges JSON + pool dump, measure (a) false-kill rate on
-    the 19 correct candidates, must be 0, (b) dominators killed on the
-    leaked outputs, (c) kgmon-after-filter attainment.
-    Cost: 1-2 days offline.
-    Kill: any false-kill of a truth, or no dominator dies.
+4. THE LEVERS, RANKED
 
-A3. Add a per-cell margin dump to the next rig run.
-    The repair question (7 outputs at d<=3) cannot be decided from the
-    current dump because it lacks per-cell posteriors, and section 2 shows
-    pool consensus cannot substitute. One extra field per candidate
-    (min per-cell margin and its argmin cells) decides whether
-    uncertainty-targeted repair (enumerate second-choice colours at the k
-    lowest-margin cells, rescore) is live. Decision only, no deploy.
+They're ranked by expected points times how testable they are, divided by cost. Every lever
+names what would kill it. The discipline for slots applies to all of them. Measure offline
+first, change one factor per submission, and run the control before porting anything (see
+score-push-plan).
 
----- B. IN FLIGHT ----
+---- A. OFFLINE NOW, NO GPU ----
 
-B1. dfsbench verdict, then the unmodified LB33 fork as a control, then
-    v7.6 = v7.2 + perfpatch + cap 1200. Sequence is fixed in
-    score-push-plan; the 1d finding gives the patch a concrete mechanism
-    to have (sync-stall removal, not FLOPs).
+A1. A tuned monotone selector aimed at the three-output gap.
+    Killed on 1 August, see section 2. Leave-one-task-out lost one against a bar of two. The
+    selection headroom is real (a bound of 18 against 15 attained), but it belongs to A2.
 
----- C. SCHEDULER, SMALL CODE, CONFIRMED MECHANISM ----
+A2. Killed on 4 August, see section 2. Kept here as a record of the design.
+    Filtering by mined invariants, which is the theorem's escape through evidence from the
+    task. Mine candidate invariants from the demonstrations, such as how the output size maps
+    from the input, how the palette maps, how cell counts per colour relate, how component
+    counts relate, the symmetry class and the background colour. Keep only invariants that
+    hold on every demonstration pair, and kill pool candidates that break one. This reads
+    the task rather than the model's beliefs, so the ceiling doesn't apply, and it could
+    unseat dominating candidates that kgmon can't.
+    The test harness takes the challenges JSON and the pool dump and measures three things.
+    The rate of killing true answers among the 19 has to be zero. It counts dominating
+    candidates killed on the leaked outputs. And it measures how many kgmon gets after
+    filtering.
+    Cost was one to two days offline. It dies if it kills any true answer, or if no
+    dominating candidate dies.
 
-C1. Truncation-fair view scheduling.
-    Replace the flat 540s per call with remaining/(calls_left) so all 16
-    views decode SOMETHING under the task cap. Section 1e shows late view
-    batches vanish silently today, which corrupts multiplicity exactly on
-    the long tasks where selection is hardest. A few lines. Must first log
-    how often batch skipping fires on a rig replay (if rare, the lever is
-    dead; if common, this is the cheapest real change we have).
+A3. Add a per-cell margin to the dump on the next rig run.
+    The repair question, about the 7 outputs within three cells, can't be settled from the
+    current dump because it has no per-cell probabilities, and section 2 shows that
+    consensus across the pool can't stand in for them. One extra field per candidate, its
+    smallest per-cell margin and which cells have it, decides whether targeted repair is
+    alive. That repair would try second-choice colours at the k least confident cells and
+    rescore. This is for a decision only, not for deployment.
 
-C2. Unanimity early-exit. If all decoded views' greedy answers agree,
-    stop searching that output and bank the time. Offline-checkable from
-    timing data before any deploy.
+---- B. ALREADY RUNNING ----
 
-C3. Cross-task anytime reallocation: bank early-finish time, grant it to
-    tasks whose DFS truncated with the frontier still above the floor.
-    Real points live here (the hard-stratum truncations), but it is a
-    scheduler rewrite; only after C1 proves the accounting.
+B1. First the dfsbench verdict, then the unmodified LB33 fork as a control, then v7.6, which
+    is v7.2 plus the perfpatch plus a 1200-second cap. The order is fixed in
+    score-push-plan. The finding in 1d gives the patch a concrete reason to help, which is
+    removing sync stalls rather than saving arithmetic.
 
----- D. SEARCH CORE, THE BIG ENGINEERING ----
+---- C. SCHEDULING, SMALL CODE, CONFIRMED MECHANISM ----
 
-D1. Global best-first frontier search replacing depth-first order.
-    In this domain NLL accrues almost only at true branch points (most
-    tokens are forced), so a priority queue over open nodes keyed by
-    cumulative NLL emits candidates in exactly descending-probability
-    order (Dijkstra on a DAG, nonnegative edge weights). Under any
-    timeout, the emitted set is the best possible one; DFS instead loses
-    arbitrary subtrees, which is precisely the observed failure
-    (0-3 candidates, truncated=True on the hard stratum). Engineering
-    cost is cache management for frontier jumps: hybrid PQ-over-shallow-
-    roots with DFS below depth k, or recompute-on-pop with batched
-    prefixes. This is the flagship lever if B1's control run validates
-    the LB33 direction, and it composes with everything else.
+C1. Divide the time fairly across the views.
+    Replace the flat 540 seconds per call with the remaining time divided by the calls left,
+    so all 16 views decode something within the task's limit. Section 1e shows that late view
+    batches vanish without a trace, which corrupts multiplicity on exactly the long tasks
+    where selection is hardest. It's a few lines of code. First we have to log how often the
+    batch skipping fires in a replay on the rig. If it's rare the lever is dead, and if it's
+    common this is the cheapest real change we have.
 
-D2. Speculative stepping with the 2B as draft.
-    The 2B proposes forced-run segments, the 4B verifies in one batched
-    forward, branch only where 4B mass spreads below the floor. Multiplies
-    nodes/sec on top of D1/D3. Gate: measure 2B/4B token-agreement on
-    fresh RE-ARC first (cheap; the fresh set exists since today). The 2B's
-    public-eval contamination does not preclude hidden-set use.
+C2. Stop early when every view agrees. If all the decoded views give the same greedy answer,
+    stop searching that output and bank the time. This can be checked offline from timing
+    data before any deployment.
 
-D3. Search cheap, score exact.
-    Walk the tree under an int8-quantised or compiled+CUDA-graph model,
-    then rescore emitted candidates under the exact bf16 model so the
-    selection statistics are unchanged. The floor at 0.2 is robust to
-    small logit noise in the WALK because rescoring restores exactness.
-    Kaggle-compatible; decouples throughput from fidelity.
+C3. Move spare time between tasks. Bank the time saved by tasks that finish early and give it
+    to tasks whose search was cut off while its frontier was still above the floor. Real
+    points live here, in the hard tasks that get truncated, but it means rewriting the
+    scheduler, so only do it after C1 proves the bookkeeping.
 
-D4. Adaptive floor.
-    When the tree completes early (num_alive_beams==0 before the cap, the
-    signal already exists at line 109), rerun the same view with floor
-    0.10 to widen the by-construction-small pool (still at most 10
-    candidates); when truncating, tighten toward 1.2 to finish the
-    high-mass region. A control loop around existing code, no new search.
+---- D. THE SEARCH ITSELF, THE BIG ENGINEERING ----
 
----- E. TTT SIDE ----
+D1. Replace depth-first order with a global best-first frontier.
+    In this domain NLL builds up almost only at genuine branch points, because most tokens are
+    forced. So a priority queue over open nodes, keyed by cumulative NLL, emits candidates in
+    exactly descending order of probability, like Dijkstra on a graph with non-negative edges.
+    Under any time limit the set it emits is the best possible. Depth-first search instead
+    loses arbitrary subtrees, which is exactly the failure we see, zero to three candidates
+    with the search truncated on the hard tasks. The engineering cost is managing the cache
+    when the frontier jumps around. One option is a priority queue over shallow roots with
+    depth-first search below some depth. Another is recomputing on each pop with batched
+    prefixes. This is the flagship lever if B1's control run backs the LB33 direction, and it
+    combines with everything else.
 
-E1. Meta-initialised adapter.
-    Pre-train a rank-256 LoRA init on TTT episodes sampled from the ARC
-    train split (simulate test-time), ship it as the per-task init.
-    Fewer steps to the same loss means decode budget freed for C/D.
-    Validate on the restart-probe harness (loss-at-step curves) before
-    any submission.
+D2. Speculative stepping with the 2B as the draft model.
+    The 2B proposes the forced stretches, the 4B checks them in one batched forward pass, and
+    the search only branches where the 4B's probability spreads below the floor. That
+    multiplies nodes per second on top of D1 and D3. First measure how often the 2B and 4B
+    agree on tokens on fresh RE-ARC, which is cheap now that the fresh set exists. The 2B's
+    contamination on public eval doesn't stop it being used on the hidden set.
 
-E2. Position-weighted TTT loss (weight early answer tokens higher, since
-    search dies at early branch points). Speculative; ride E1's harness.
+D3. Search cheaply, score exactly.
+    Walk the tree under an int8 or compiled CUDA-graph version of the model, then rescore the
+    emitted candidates under the exact bf16 model, so the selection statistics don't change.
+    The 0.2 floor tolerates small noise in the logits during the walk, because rescoring
+    restores exactness. It works on Kaggle and separates speed from accuracy.
+
+D4. A floor that adapts.
+    When the tree finishes before the time limit (num_alive_beams == 0, which line 109 already
+    signals), rerun the same view with a floor of 0.10 to widen a pool that's small by design,
+    to at most ten candidates. When it's getting cut off, tighten toward 1.2 so it finishes
+    the most probable region. It's a control loop around existing code, with no new search.
+
+---- E. THE TRAINING SIDE ----
+
+E1. A meta-learned starting point for the adapter.
+    Pre-train a rank-256 LoRA starting point on training episodes sampled from the ARC
+    training split, simulating test time, and ship it as the starting point for each task.
+    Reaching the same loss in fewer steps frees decode time for C and D. Validate it with the
+    restart-probe harness, using loss curves by step, before any submission.
+
+E2. Weight the training loss toward early answer tokens, since the search dies at early
+    branch points. Speculative, and it can ride on E1's harness.
 
 ---- F. COVERAGE ----
 
-F1. Uncertainty-targeted repair, gated entirely on A3's margin dump.
+F1. Repair aimed at uncertain cells, which depends entirely on A3's margin dump.
 
-F2. Demo-subset selection at decode time. cut_to_len drops training pairs
-    from the front on big tasks (line 375), so the model predicts with
-    fewer demos exactly where tasks are hardest. Choose the retained
-    subset by adapted-model leave-one-out loss instead of position.
+F2. Choosing which demonstrations to keep at decode time. On big tasks cut_to_len drops
+    training pairs from the front (line 375), so the model predicts with fewer
+    demonstrations exactly where tasks are hardest. Choose which pairs to keep by the adapted
+    model's leave-one-out loss instead of by position.
 
-F3. 2B rescoring validated on FRESH pools.
-    The theorem's second escape died on contaminated validation, not on
-    the mechanism. Build pools on fresh RE-ARC tasks (the 120 minted
-    today), rescore with the 2B, and if truth gets lifted there, deploy:
-    the hidden set is uncontaminated for both models. This resurrects a
-    named escape route with a clean validation bed.
+F3. Validate 2B rescoring on fresh pools.
+    The theorem's second escape died because it was validated on contaminated data, not
+    because the mechanism failed. Build pools on fresh RE-ARC tasks, using the 120 minted
+    that day, and rescore them with the 2B. If it lifts the truth there, deploy it, because
+    neither model is contaminated on the hidden set. This brings a named escape route back
+    with a clean place to test it.
 
 
-================================================================
-4b. THE REAL CONSTRAINT, AND WHAT IT IMPLIES  (corrected 2026-08-01)
-================================================================
+4b. THE REAL CONSTRAINT AND WHAT IT MEANS (corrected 1 August)
 
-The binding constraint is ONE SUBMISSION PER DAY. It is not GPU quota.
+The constraint that binds is one submission a day. It isn't the GPU quota.
 
-Why quota does not bind. Kaggle sets KAGGLE_IS_COMPETITION_RERUN only when it
-re-runs a notebook to score it. On our own commit the variable is unset, so the
-notebook reads the public evaluation set instead of the hidden one, and it can
-queue a handful of tasks rather than all of them. LB33 subsets to four keys
-(0934a4d8, 36a08778, 981571dc, aa4ec2a5) and its commit finished in about 15
-minutes. The full 240-task run happens inside the SCORING rerun, which is
-Kaggle's compute, not our weekly allowance. arc_solver.py:258 already switches
-the data file on rerun_mode; confirm it also subsets the queue on commit.
+Here's why the quota doesn't bind. Kaggle only sets KAGGLE_IS_COMPETITION_RERUN when it
+re-runs a notebook to score it. On our own commit the variable isn't set, so the notebook
+reads the public evaluation set instead of the hidden one, and it can queue a few tasks
+instead of all of them. LB33 limits itself to four keys (0934a4d8, 36a08778, 981571dc and
+aa4ec2a5), and its commit finished in about 15 minutes. The full 240-task run happens inside
+the scoring rerun, which uses Kaggle's compute rather than our weekly allowance.
+arc_solver.py line 258 already switches the data file in rerun_mode. Check that it also
+shrinks the queue on commit.
 
-Budget: about 90 submissions before the 2 November main-track deadline. Latency
-per experiment is roughly one day.
+That leaves about 90 submissions before the main-track deadline on 2 November, with roughly a
+day of delay per experiment.
 
-CONSEQUENCE, and it reverses the earlier advice in this file. Do NOT bundle.
-Bundling was a response to imagined scarcity. With ~90 slots there is budget to
-change one factor at a time, and a confounded result costs MORE days afterwards
-disentangling it than a clean one costs to run. The bundling rule in an earlier
-draft (one unbounded change plus bounded ones) is retired.
+This reverses the earlier advice in this file. Don't bundle changes. Bundling was a response
+to a scarcity that wasn't real. With about 90 slots there's room to change one factor at a
+time, and a confounded result costs more days untangling afterwards than a clean one costs to
+run. The bundling rule from an earlier draft, one open-ended change plus some bounded ones, is
+retired.
 
-THE SUBMISSION RULE. Never spend a day on a variant that lacks BOTH of:
-  (a) an offline, rig-side reason to expect it to work, and
-  (b) exactly one changed factor against a named, already-scored baseline.
-A variant failing (a) is a guess and belongs on the rig first. A variant failing
-(b) is unattributable and burns a day of information.
+The rule for submissions is never to spend a day on a variant unless it has both of these.
 
-THE STARVATION RULE. One per day means a day with nothing queued is a day lost
-permanently. The rig's job is to keep the queue non-empty. If the queue is empty
-and the rig is idle, that is the actual emergency, not a slow experiment.
+  (a) an offline reason, from the rig, to expect it to work, and
+  (b) exactly one changed factor against a named baseline that has already been scored.
 
-================================================================
+A variant without (a) is a guess and belongs on the rig first. A variant without (b) can't be
+attributed and wastes a day of information.
+
+The rule against starving the queue is that one submission a day means a day with nothing
+queued is lost for good. The rig's job is to keep the queue full. An empty queue with an idle
+rig is the real emergency, not a slow experiment.
+
+
 5. WHAT I WOULD ACTUALLY DO, IN ORDER
-================================================================
 
-Two tracks running in parallel. The SUBMISSION QUEUE consumes one slot per day
-and must never be empty. The BUILD TRACK runs on the rig, costs no slots, and
-exists to keep the queue fed.
+Two tracks run side by side. The submission queue uses one slot a day and must never be empty.
+The build track runs on the rig, costs no slots and exists to keep the queue fed.
 
-SUBMISSION QUEUE, one factor each, baseline named for every entry:
+THE SUBMISSION QUEUE, one factor each, each against a named baseline.
 
-  S1  LB33 control, unmodified fork. Committed 2026-08-01, awaiting submit.
-      Baseline: none, this is the reference for whether 33.89 transfers.
-  S2  v7.2 + cap 1200 (ARC_TASK_TIMEOUT 1800 -> 1200), and NOTHING else.
-      Baseline v7.2 = 30.97. Read the history before running this, it is more
-      tangled than it looks. The paper had WITHDRAWN the cap hypothesis on the
-      grounds that the public build forks a source hardcoding 1800; that was
-      established against the wrong notebook. Pulled mikelou1/arc-agi2-lb33-89
-      -minimal-perfpatch on 2026-08-01 and its own decode loop carries a
-      literal 1200 on the effective path (line 851 of the flattened source).
-      The hypothesis is reinstated and the paper is corrected.
-      Against it: v7.4 already moved the cap to 1200 and lost 1.53 points, but
-      that run also fired 24 unbudgeted greedy fills through a gate treating
-      the string "0" as true, so two factors moved and it is void, not adverse.
-      The internal timing model says four tasks past 1200 s consumed 26.3% of
-      the budget and returned nothing, predicting the change is neutral to
-      positive. So this is a genuinely open one-factor question and worth a day.
-  S3  DONE 2026-08-02, v7.5a scored 27.92 against v7.2's 30.97. The AIF prune
-      costs about seven task credits. Whether that is selection harm (a wrong
-      expected_count demoting correct beams) or time harm (the executor pushing
-      the queue tail past the twelve-hour wall) is decided by the decoded-task
-      count the last cell now prints. Read it in the Kaggle UI.
-      CONSEQUENCE FOR THE THEORY: the ceiling theorem names program execution
-      against the demonstrations as an escape from the selection bound. This is
-      the first time we have run that channel, and it made things worse. The
-      escape requires an oracle MORE accurate than the model's own beliefs; a
-      noisy one is worse than none. That is a real result for the paper and it
-      does not refute the theorem, it prices its precondition.
+  S1  The LB33 control, an unmodified fork. Committed on 1 August and waiting to submit. It
+      has no baseline, because it's the reference for whether 33.89 transfers at all.
 
-  S3b DONE 2026-08-03. The replicate scored 30.56 against the original 30.97,
-      a difference of exactly one task credit. Three runs of the same method
-      (v7.1 30.56, v7.2 30.97, replicate 30.56) give mean 30.70, range 0.41,
-      sd 0.24. RUN-TO-RUN VARIANCE IS ABOUT ONE CREDIT, NOT SEVERAL POINTS.
-      Consequences, and they are large:
-        - Every post-v7.2 regression is real, between 4.7 and 11.2 sd below the
-          lowest baseline run. Our changes were harmful. The record stands.
-        - The wall-clock explanation for the bimodality is unsupported, since a
-          binding wall with variable session speed would spread these three
-          baseline runs and it does not.
-        - The measurement instrument is trustworthy at the one-credit level, so
-          a lever must move the score by more than about 0.4 to be visible, and
-          differences of that size can now be believed rather than argued about.
-      Caveat kept: three runs is a small sample and 0.24 is an estimate from it.
+  S2  v7.2 with the cap at 1200 seconds instead of 1800, and nothing else changed. The
+      baseline is v7.2 at 30.97. The history here is more tangled than it looks. The paper
+      had withdrawn the cap hypothesis because the public build forks a source that
+      hardcodes 1800, but that was checked against the wrong notebook. I pulled
+      mikelou1/arc-agi2-lb33-89-minimal-perfpatch on 1 August, and its own decode loop has
+      a literal 1200 on the path that actually runs (line 851 of the flattened source). So
+      the hypothesis is back, and the paper has been corrected.
+      Against it, v7.4 already moved the cap to 1200 and lost 1.53 points. But that run also
+      fired 24 greedy fills nobody budgeted for, through a check that treated the string "0"
+      as true, so two things changed and the run is void rather than evidence against. Our
+      timing model says four tasks past 1200 seconds used 26.3% of the budget and returned
+      nothing, which predicts the change is neutral or better. It's a genuinely open
+      one-factor question and worth a day.
 
-  S4  v7.2 MINUS THE DISCARDED AIF WORK. The strongest remaining candidate and
-      the only one that is nearly free. The v7.2 that scores 30.5 to 31.0
-      launches a ThreadPoolExecutor and runs run_aif_analysis on EVERY task,
-      then overwrites the result with a neutered dict. The arm was disabled by
-      throwing away its output, not by skipping its work. Today's builder gates
-      the launch on ARC_AIF != "off", so a rebuilt v7.2 simply never pays it.
-      That rebuild has never been scored. It gives back per-task wall clock for
-      something already being discarded, so unlike every lever above it removes
-      work rather than adding it, which is the direction that has actually
-      helped us before (the AIF strip, the batching restore).
-      Baseline: the replicate at 30.56, same-week and same environment.
-  S4  v7.2 + whichever of S2/S3 won, combined. First deliberate two-factor
-      run, and only because both components will by then have solo numbers.
-  S5+ fed by the build track below, in the order results justify.
+  S3  Done on 2 August. v7.5a scored 27.92 against v7.2's 30.97, so the AIF prune costs about
+      seven task credits. Whether that's harm to selection, a wrong expected count demoting
+      correct candidates, or harm to time, the executor pushing the end of the queue past
+      the twelve-hour limit, is settled by the count of decoded tasks the last cell now
+      prints. Read it in the Kaggle interface.
+      For the theory, the ceiling theorem names running a program against the
+      demonstrations as a way past the selection bound. This was the first time we ran that
+      kind of check, and it made things worse. The escape needs a check that's more accurate
+      than the model's own beliefs, and a noisy one is worse than none. That's a real result
+      for the paper. It doesn't refute the theorem, it prices its precondition.
 
-If a queue slot would otherwise go empty, re-run the current best config
-unchanged. A replicate measures the run-to-run noise of the hidden score, which
-we have never measured and which every comparison above silently assumes.
+  S3b Done on 3 August. The replicate scored 30.56 against the original's 30.97, a
+      difference of exactly one task credit. Three runs of the same method (v7.1 at 30.56,
+      v7.2 at 30.97 and the replicate at 30.56) give a mean of 30.70, a range of 0.41 and a
+      standard deviation of 0.24. That suggested run-to-run noise was about one credit
+      rather than several points, and the consequences looked large.
+        - Every regression after v7.2 would be real, between 4.7 and 11.2 standard deviations
+          below the lowest baseline run, and our changes would have been harmful.
+        - The wall-clock explanation for the bimodal scores would be unsupported, since a
+          hard time limit with variable session speed should spread these three runs and it
+          didn't.
+        - The instrument would be trustworthy at the level of one credit, so a lever would
+          have to move the score by more than about 0.4 to be seen.
+      I kept a caveat at the time that three runs is a small sample. That caveat turned out
+      to matter. Later runs of the same artifact spread over 4.17 points, which reversed all
+      three conclusions above.
 
-BUILD TRACK, rig only, no slots, roughly in expected-value order:
+  S4  v7.2 without the discarded AIF work. This is the strongest remaining candidate and the
+      only one that's nearly free. The v7.2 that scores 30.5 to 31.0 starts a
+      ThreadPoolExecutor and runs run_aif_analysis on every task, then throws the result
+      away and overwrites it with a dummy. The arm was switched off by discarding its output,
+      not by skipping its work. The current builder only starts it when ARC_AIF isn't
+      "off", so a rebuilt v7.2 never pays the cost. That rebuild has never been scored. It
+      hands back per-task time spent on something that gets thrown away anyway, so unlike
+      every lever above it removes work rather than adding it. Removing work is the
+      direction that has actually helped us before, as with stripping the AIF arm and
+      restoring the batching. The baseline is the replicate at 30.56, from the same week and
+      environment.
 
-  B1  DONE, and it was real. Our notebook subsets the commit queue only when
-      ARC_N_EVAL > 0 (line 1507), but the config block sets ARC_N_EVAL = "40"
-      at line 30 and then OVERRIDES it to "0" at line 39, and 0 means all 120.
-      So every interactive commit has been running the full public evaluation
-      set. LB33 by contrast queues four hardcoded keys and its commit finished
-      in about 15 minutes. Fix is to set ARC_N_EVAL to a small number in the
-      committed config. Costs nothing and returns hours per iteration.
-  B2  A2 invariant mining. Lead offline item, carries the selection headroom
-      (bound 18 vs attained 15) now that A1 is dead, and is paper content as
-      the ceiling theorem's escape made operational.
-  B3  C1's prerequisite measurement: how often does the task cap silently drop
-      view batches 8-15? If often, C1 is the cheapest real change we have.
-  B4  F3, 2B rescoring on FRESH pools. The audit established the 2B is
-      genuinely capable (65% on fresh) and contaminated only on public eval, so
-      the hidden set is a legitimate arena for it. Validate on fresh, then queue.
-  B5  D4 adaptive floor, a control loop around existing code.
-  B6  D1 best-first frontier search. The flagship engineering item, and the one
-      that most plausibly moves us more than a point. Start it once S1/S2 have
-      told us whether search throughput is where the score actually lives.
+  S5  v7.2 plus whichever of S2 and S3 won, together. That's the first deliberate
+      two-factor run, and only because both parts will have their own numbers by then.
 
-Not doing: anything in section 2, any submission failing the section 4b rule,
-agents, or trusting a displayed leaderboard number as a measurement.
+  S6 onward, fed by the build track below, in whatever order the results justify.
 
-Not doing: anything in section 2, anything that burns a submission slot
-without an offline number first, agents (none used here), or trusting any
-displayed leaderboard number as a measurement of published code.
+If a slot would otherwise go empty, re-run the current best configuration unchanged. A
+replicate measures the run-to-run noise in the hidden score, which we've never measured and
+which every comparison above quietly assumes.
+
+THE BUILD TRACK, on the rig only, costing no slots, roughly in order of expected value.
+
+  B1  Done, and it was real. Our notebook only shrinks the commit queue when ARC_N_EVAL is
+      above zero (line 1507). The config block sets ARC_N_EVAL to "40" at line 30 and then
+      overrides it to "0" at line 39, and 0 means all 120. So every interactive commit has
+      been running the full public evaluation set. LB33 queues four hardcoded keys, and its
+      commit finished in about 15 minutes. The fix is to set ARC_N_EVAL to a small number in
+      the committed config. It costs nothing and gives back hours on every iteration.
+
+  B2  A2, invariant mining. The lead offline item, now that A1 is dead. It carries the
+      selection headroom (a bound of 18 against 15 attained), and it's paper material as the
+      theorem's escape made concrete.
+
+  B3  The measurement C1 needs first. How often does the task limit silently drop view
+      batches 8 to 15? If it's often, C1 is the cheapest real change we have.
+
+  B4  F3, 2B rescoring on fresh pools. The audit showed the 2B is genuinely capable, at 65% on
+      fresh data, and contaminated only on public eval, so the hidden set is fair ground for
+      it. Validate on fresh pools and then queue it.
+
+  B5  D4, the floor that adapts, a control loop around existing code.
+
+  B6  D1, the best-first frontier search. The flagship engineering item, and the one most
+      likely to move us by more than a point. Start it once S1 and S2 have told us whether
+      search throughput is really where the score lives.
+
+What I'm not doing is anything in section 2, any submission that fails the rule in 4b, any
+use of agents, or trusting a number shown on the leaderboard as a measurement of the code
+published beside it.

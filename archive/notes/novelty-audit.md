@@ -1,126 +1,366 @@
-# Novelty audit: public state of the art for ARC-AGI-2
+# Novelty audit of the public state of the art on ARC-AGI-2
 
-Date: 2026-08-04. Scope: ARC Prize 2025 winner writeups, the ARChitects lineage, public 2025-2026 research on ARC-AGI-2, and a prior-art check on six candidate levers. All notebook-displayed scores are treated as unverified unless the number comes from a paper, the final private leaderboard, or the ARC Prize verified (semi-private) leaderboard. Where a claim could not be verified it is marked as such.
+Written on 4 August 2026. It covers the ARC Prize 2025 winners' writeups, the ARChitects lineage,
+public research on ARC-AGI-2 from 2025 and 2026, and a check for prior art on six candidate levers. I
+treat any score shown beside a notebook as unverified unless it comes from a paper, the final private
+leaderboard or ARC Prize's verified semi-private leaderboard. Where I couldn't verify something, I say
+so.
 
-Reference point for this audit: our pipeline is the sorokin/ARChitects lineage (per-task LoRA rank-256 TTT on a 4B grid model, DFS decode with cumulative-probability threshold 0.2, augmentation-based selection), 30.97 hidden. Current 2026 ARC-AGI-2 public LB: 67.50 (nvbanana), 44.86 (rabbithole), 37.22, then a dense band 33.06-34.44 consistent with forks of the public NVARC notebook (sorokin/arc2-qwen3-unsloth-flash-lora-batch4-queue).
+For reference, our pipeline is the Sorokin and ARChitects lineage. That means per-task test-time
+training of a rank-256 LoRA on a 4B grid model, depth-first decoding with a cumulative-probability
+threshold of 0.2, and selection based on augmentations. It scored 30.97 on the hidden set. The 2026
+ARC-AGI-2 public leaderboard reads 67.50 for nvbanana, 44.86 for rabbithole, then 37.22, then a dense
+band from 33.06 to 34.44 that looks like forks of the public NVARC notebook
+(sorokin/arc2-qwen3-unsloth-flash-lora-batch4-queue).
 
 ## 1. What the winners actually did
 
-### 1.1 ARChitects 2024 / the Product-of-Experts paper (the base recipe, with exact numbers)
+### 1.1 The ARChitects in 2024, and the Product-of-Experts paper
 
-Sources: https://github.com/da-fr/arc-prize-2024 and the academic version, Franzen, Disselhoff, Hartmann, "Product of Experts with LLMs: Boosting Performance on ARC Is a Matter of Perspective", https://arxiv.org/html/2505.07859
+This is the base recipe, with exact numbers. The sources are <https://github.com/da-fr/arc-prize-2024>
+and the academic version, Franzen, Disselhoff and Hartmann, "Product of Experts with LLMs. Boosting
+Performance on ARC Is a Matter of Perspective" (<https://arxiv.org/html/2505.07859>).
 
-- Mistral-NeMo-Minitron-8B, tokenizer and embedding layers shrunk to a small grid vocabulary, trained with Unsloth on one H100 (98 GPU hours initial training).
-- Per-task test-time LoRA training; TTT costs 51 seconds per task on an RTX 4090 in the paper configuration.
-- DFS decode: depth-first traversal of the token tree, pruning any partial path whose accumulated probability falls below threshold T. Paper final T = 9 percent. Quote: "pruning any partial path whose accumulated probability falls below T."
-- Selection: product of experts over 16 augmented views (D8 symmetries, color permutations, example reordering); score_agg(s) = product over augmentations of P(aug(s) | aug(p)), a geometric-mean likelihood ensemble.
-- The paper compares DFS only against beam search, stochastic sampling, and greedy. "Beam search with 4 beams can achieve the same accuracy as DFS with T=9%" but needs roughly twice the VRAM. Best-first or A*-style enumeration is not evaluated anywhere in the paper.
-- Result: 71.6 percent on ARC-AGI-1 public eval at about $0.02 per task.
+- They used Mistral-NeMo-Minitron-8B with the tokenizer and embeddings cut down to a small grid
+  vocabulary, trained with Unsloth on one H100 for 98 GPU hours.
+- Each task gets its own LoRA trained at test time, which takes 51 seconds a task on an RTX 4090 in
+  the paper's setup.
+- Decoding is depth first over the token tree, dropping any partial path whose accumulated
+  probability falls below a threshold T. The paper's final T is 9%.
+- Selection is a product of experts over 16 augmented views, covering the eight symmetries, colour
+  permutations and reordered examples. A candidate's score multiplies its probability under each
+  augmentation, which amounts to a geometric-mean ensemble of likelihoods.
+- The paper only compares depth-first search with beam search, random sampling and greedy decoding.
+  Beam search with four beams matches depth first at T of 9% but needs about twice the memory.
+  Nowhere does it test best-first or A*-style enumeration.
+- The result was 71.6% on the ARC-AGI-1 public evaluation at about two cents a task.
 
-### 1.2 NVARC, 1st place 2025 (24.03 private, 27.64 public during comp, 29.72 post-deadline)
+### 1.2 NVARC, first in 2025
 
-Sources: paper PDF in https://github.com/1ytic/NVARC (nvarc_2025.pdf, read in full), Kaggle writeup https://www.kaggle.com/competitions/arc-prize-2025/writeups/nvarc, interview https://trelis.substack.com/p/nvarc-2025-arc-prize-winners, NVIDIA blog https://developer.nvidia.com/blog/nvidia-kaggle-grandmasters-win-artificial-general-intelligence-competition/
+They scored 24.03 private, 27.64 public during the competition and 29.72 after the deadline. The
+sources are the paper PDF in <https://github.com/1ytic/NVARC> (nvarc_2025.pdf, which I read in full),
+the Kaggle writeup at <https://www.kaggle.com/competitions/arc-prize-2025/writeups/nvarc>, an
+interview at <https://trelis.substack.com/p/nvarc-2025-arc-prize-winners> and NVIDIA's blog at
+<https://developer.nvidia.com/blog/nvidia-kaggle-grandmasters-win-artificial-general-intelligence-competition/>.
 
-Distinct mechanisms beyond the base ARChitects recipe:
+Here's what they did beyond the ARChitects' base recipe.
 
-1. Four-stage synthetic data generation. Stage 1: collect human natural-language solution descriptions (H-ARC, solution attempts from 1700+ humans, plus 160 BARC descriptions, giving descriptions for 716 ARC-AGI-2 training puzzles) and reformat into a 5-section summary (input generation, solution steps, rules summary, key insight, concepts) using claude-opus-4 and gpt-oss-120b. Stage 2: INSTRUCT-SKILLMIX-style mixing of summary pairs into 266,593 harder summaries (gpt-oss-120b). Stage 3: generate Python input-grid programs plus unit tests, keep programs producing at least 30 unique grids that pass their tests (70 percent acceptance on easy mixes, 50 percent on eval-level mixes), 126,901 programs. Stage 4: generate about 20 output-grid programs per puzzle and keep only self-consistent sets (for example 15 of 20 producing identical outputs). Net: 103,253 verified synthetic puzzles, about 30 pairs each.
-2. Deliberate use of the public evaluation set in data design: they hand-labeled 29 ARC-AGI-2 eval puzzles, then LLM-generated summaries for the remaining 91 eval puzzles and all 1000 training puzzles (claude-sonnet-4-5). They openly state they "leaked" eval descriptions into the synthetic set and still saw good public-LB correlation. Local validation was contaminated by construction; the hidden set stayed clean because it is disjoint.
-3. Grid encoding through the Qwen3 chat template: each pair is a user turn (input grid) and assistant turn (output grid), so the effective vocabulary is 16 tokens (10 digits, newline, user, assistant, im_start/im_end, pad).
-4. Full fine-tuning, not LoRA, of Qwen3-4B-Thinking-2507 on 3.2M augmented samples (256 augs per real puzzle, 24-32 per synthetic), NeMo RL with Megatron backend, sequence packing to 256k tokens, 4 nodes of 8xH100 for 27 hours. Data mix in the paper: MINI-ARC, ConceptARC, RE-ARC, ARC-AGI-2, plus NVARC synthetic (about 90 percent of samples).
-5. TTT: LoRA r=256 alpha=32, bf16, gradient checkpointing removed, 4-bit quantization removed, Flash Attention 2 with Unsloth.
-6. Batched DFS: a batch implementation of the DFS decode that scales almost linearly with batch size. They note it is nondeterministic (logits change with batch composition), tried Thinking Machines batch-invariant ops, got better local scores but 17 percent slower on Kaggle, and dropped it for the final submission.
-7. Rescoring change: only 8 augmentations, but the same 8 augmentations for every candidate so scores are comparable across candidates.
-8. Post-deadline selection improvement: score(s) = (number of times s was found during the DFS stage across augmentations) + (1/m) sum_j log P_j(s). DFS visit count plus mean log-likelihood, a hybrid frequency-plus-likelihood selector.
-9. TRM as a second candidate generator: retrained TRM (batch 3072, lr 3e-4, 3k synthetic plus 1200 real puzzles, 256 augs, 10k epochs, 24h on 8xH100), TTT on Kaggle in about 2 hours (puzzle-embedding table reset and initialized to the mean pretrained embedding, 2000 epochs, 4 H cycles, 10 halt steps). TRM generates 10 attempts per puzzle which are added to the ARChitects candidate pool and scored by the Qwen3 model like any other candidate. Outcome: TRM alone 7.5 (10.0 post-deadline with 4k epochs), ensemble mixed (2B: 21.53 to 22.50 gain in late tests; 4B 10h: no change at 27.22; the one in-competition ensemble submission scored lower, 20.28 vs 21.53).
-10. A 2B result exists: Qwen3-VL-2B-Instruct (LLM part only) scored 22.22 public in 6h10m, versus 30/120 local and 29.72 public for the 4B at 12h.
-11. Measurement note from the winners: "we saw 1-2 points variability in the scores across different re-runs of the same notebook."
+1. **Synthetic data in four stages.** First they collected human descriptions of solutions in plain
+   language. That meant H-ARC, with attempts from more than 1,700 people, plus 160 BARC descriptions,
+   which covered 716 ARC-AGI-2 training puzzles. They reformatted these into a five-part summary
+   (how inputs are generated, the solution steps, a summary of the rule, the key insight and the
+   concepts) using claude-opus-4 and gpt-oss-120b. Second, they mixed pairs of summaries in the style
+   of INSTRUCT-SKILLMIX to make 266,593 harder summaries with gpt-oss-120b. Third, they generated
+   Python programs that produce input grids, along with unit tests, and kept programs that produced at
+   least 30 distinct grids passing their tests. That accepted 70% of easy mixes and 50% of mixes at the
+   evaluation level, for 126,901 programs. Fourth, they generated about 20 programs per puzzle to
+   produce output grids, and kept only sets that agreed with themselves, for instance 15 of 20 giving
+   identical outputs. The end result was 103,253 verified synthetic puzzles with about 30 pairs each.
+2. **Using the public evaluation set in their data on purpose.** They labelled 29 ARC-AGI-2 evaluation
+   puzzles by hand, then had an LLM (claude-sonnet-4-5) write summaries for the other 91 evaluation
+   puzzles and all 1,000 training puzzles. They say openly that they "leaked" evaluation descriptions
+   into the synthetic set and still saw the public leaderboard track their local scores. Their local
+   validation was contaminated by design, while the hidden set stayed clean because it doesn't
+   overlap.
+3. **Encoding grids through the Qwen3 chat template.** Each pair is a user turn with the input grid and
+   an assistant turn with the output, so the effective vocabulary is 16 tokens. Those are the ten
+   digits, a newline, user, assistant, the two chat markers and padding.
+4. **A full fine-tune rather than a LoRA**, of Qwen3-4B-Thinking-2507 on 3.2 million augmented samples.
+   Each real puzzle got 256 augmentations and each synthetic one 24 to 32. They used NeMo RL with a
+   Megatron backend, packed sequences to 256,000 tokens, and ran on four nodes of eight H100s for 27
+   hours. The mix in the paper is MINI-ARC, ConceptARC, RE-ARC, ARC-AGI-2 and their own synthetic data,
+   which is about 90% of the samples.
+5. **Test-time training** with a LoRA at rank 256 and alpha 32, in bf16, with gradient checkpointing
+   and 4-bit quantization both removed, and Flash Attention 2 through Unsloth.
+6. **Batched depth-first decoding** that scales almost linearly with batch size. They point out it's
+   nondeterministic, because the logits change with what else is in the batch. They tried Thinking
+   Machines' batch-invariant operations, which scored better locally but ran 17% slower on Kaggle, so
+   they dropped them for the final submission.
+7. **A change to rescoring.** Only eight augmentations, but the same eight for every candidate, so the
+   scores can be compared across candidates.
+8. **Better selection after the deadline.** A candidate's score became the number of times the search
+   found it across augmentations, plus its mean log-likelihood. That's a hybrid of frequency and
+   likelihood.
+9. **TRM as a second source of candidates.** They retrained TRM (batch 3,072, learning rate 3e-4, 3,000
+   synthetic plus 1,200 real puzzles, 256 augmentations, 10,000 epochs and 24 hours on eight H100s).
+   They then trained it on Kaggle at test time in about two hours, resetting the puzzle-embedding
+   table to the mean pretrained embedding and running 2,000 epochs with 4 H cycles and 10 halting
+   steps. TRM made 10 attempts per puzzle, which went into the same candidate pool and were scored by
+   the Qwen3 model like everything else. TRM alone scored 7.5, or 10.0 after the deadline with 4,000
+   epochs. The ensemble was mixed. The 2B went from 21.53 to 22.50 in late tests, the 4B at 10 hours
+   stayed at 27.22, and the one ensemble submitted during the competition scored lower, 20.28 against
+   21.53.
+10. **A 2B result.** Qwen3-VL-2B-Instruct, using only its language model, scored 22.22 public in 6 hours
+    10 minutes, against 30 of 120 locally and 29.72 public for the 4B in 12 hours.
+11. **A note on measurement from the winners themselves.** They "saw 1-2 points variability in the
+    scores across different re-runs of the same notebook."
 
-### 1.3 the ARChitects, 2nd place 2025 (16.53 private, 21.67 public)
+### 1.3 The ARChitects, second in 2025
 
-Source: https://lambdalabsml.github.io/ARC2025_Solution_by_the_ARChitects/
+They scored 16.53 private and 21.67 public. The source is
+<https://lambdalabsml.github.io/ARC2025_Solution_by_the_ARChitects/>.
 
-- Pivoted from autoregressive Minitron-8B to LLaDA-8B, a masked diffusion LM, with a 2D RoPE variant (grids placed on a 32x32 canvas for position assignment, padding then removed).
-- Initial finetune rank-512 LoRA, 175k steps, 39h on 8xH100; TTT rank-32 LoRA, 128 steps per task.
-- Recursive masked-diffusion sampling: soft masking (mask embeddings added to every position), iterative refinement with logits fed back, 102 steps in two rounds with a cold restart.
-- Selection: most-visited candidate during refinement (stateful) or alignment with the final prediction distribution (stateless).
-- A separate LLaDA-8B finetuned only to place delimiter tokens, that is an output-shape predictor, 85 plus or minus 2 percent shape accuracy.
-- Before the pivot they upgraded the AR pipeline: DFS cutoff lowered 17 to 7 percent, speculative decoding added inside the DFS "using a simple heuristic to guess the next 16 to 32 tokens" (4.7x speedup), prefix caching reusing the KV cache of examples plus challenge input across augmentations (5.8x speedup on scoring), augmentations for scoring raised 8 to 32.
-- They report about 30.5 percent on public eval versus 21.67 public LB, and acknowledge evidence of evaluation-set overfitting.
+- They switched from the autoregressive Minitron-8B to LLaDA-8B, a masked diffusion language model,
+  with a 2D variant of RoPE. Grids are placed on a 32 by 32 canvas to assign positions, and the
+  padding is removed afterwards.
+- The initial fine-tune was a rank-512 LoRA for 175,000 steps, taking 39 hours on eight H100s. At test
+  time they trained a rank-32 LoRA for 128 steps per task.
+- They sample by recursive masked diffusion. Mask embeddings are added to every position as a soft
+  mask, and the model refines iteratively with its logits fed back in, for 102 steps in two rounds with
+  a cold restart between them.
+- To select, they take either the candidate visited most often during refinement, or the one closest
+  to the final predicted distribution.
+- A separate LLaDA-8B was fine-tuned only to place delimiter tokens, which makes it a predictor of
+  output shape, at 85% accuracy give or take 2.
+- Before switching, they upgraded their autoregressive pipeline. They lowered the search cutoff from
+  17% to 7%. They added speculative decoding inside the search, "using a simple heuristic to guess the
+  next 16 to 32 tokens", for a 4.7 times speedup. They reused the cached keys and values for the
+  examples and the challenge input across augmentations, for a 5.8 times speedup in scoring. And they
+  raised the number of scoring augmentations from 8 to 32.
+- They report about 30.5% on public evaluation against 21.67 on the public leaderboard, and admit
+  signs of overfitting to the evaluation set.
 
-### 1.4 MindsAI + Tufa Labs, 3rd place 2025 (12.64 private)
+### 1.4 MindsAI and Tufa Labs, third in 2025
 
-Sources: https://www.kaggle.com/competitions/arc-prize-2025/writeups/mindsai-and-tufa-labs-arc-prize-2025-solution, https://github.com/jcole75/arc_2025_mindsai, https://arxiv.org/html/2601.10904v1
+They scored 12.64 private. The sources are
+<https://www.kaggle.com/competitions/arc-prize-2025/writeups/mindsai-and-tufa-labs-arc-prize-2025-solution>,
+<https://github.com/jcole75/arc_2025_mindsai> and <https://arxiv.org/html/2601.10904v1>.
 
-- Per-task test-time fine-tuning (TTFT, their coinage) plus AIRV (augment, inference, reverse augmentation, vote).
-- The 2025 report lists "tokenizer dropout" and "new pretraining techniques"; no public detailed description exists. Closest public analogue is BPE-dropout-style tokenization regularization.
-- The repo reveals the model family: Salesforce CodeT5 variants (codet5-small, 660m, large "arcmega"), pretrained on the mindware/arc-agi-mega serialized-task dataset; TPU training scripts included.
+- They fine-tune per task at test time, which they call TTFT, and use AIRV, short for augment,
+  infer, reverse the augmentation and vote.
+- The 2025 report lists "tokenizer dropout" and "new pretraining techniques", but there's no detailed
+  public description. The closest public analogue is regularizing tokenization in the style of BPE
+  dropout.
+- The repo shows the model family, which is Salesforce CodeT5 in several sizes (codet5-small, 660m and
+  a large "arcmega"), pretrained on the mindware/arc-agi-mega dataset of serialized tasks, with TPU
+  training scripts included.
 
-### 1.5 The 2026 competition state
+### 1.5 Where the 2026 competition stands
 
-- nvbanana (Puget plus a new teammate, successor of NVARC) at 67.50 public as of 2026-07-30; they were at 39 in April. Evidence: https://x.com/GregKamradt/status/2082936322508116098 and https://x.com/GregKamradt/status/2049872125851529411, leaderboard https://www.kaggle.com/competitions/arc-prize-2026-arc-agi-2/leaderboard. No public writeup of what changed; the plausible core is scaling the verified-synthetic-data flywheel, since that was the 2025 delta and NVIDIA has continued releasing ARC data.
-- rabbithole at 44.86: no public method information found.
-- The 33.06-34.44 band matches forks of the public NVARC submission notebook (sorokin/arc2-qwen3-unsloth-flash-lora-batch4-queue, referenced from https://github.com/1ytic/NVARC). Our own fork-and-run controls (28.06, 28.47 for two unmodified 33.89-displaying notebooks) already showed displayed scores are not measurements of the published code.
-- Fully public NVARC assets: solution code and paper (github.com/1ytic/NVARC), the 103k synthetic puzzles and 3.2M augmented samples (Kaggle datasets referenced in the repo), and, since March 2026, nvidia/Nemotron-SFT-ARC-AGI-v1 on Hugging Face: 67,529 wide-coverage plus 207,569 deep-coverage multi-turn agentic reasoning traces over ARC-style puzzles seeded from NVARC Augmented Puzzles, rule-based filtered to ground-truth-correct runs, CC BY 4.0 (https://huggingface.co/datasets/nvidia/Nemotron-SFT-ARC-AGI-v1).
+- nvbanana, Puget with a new teammate and NVARC's successor, was at 67.50 public on 30 July 2026, up
+  from 39 in April. The evidence is <https://x.com/GregKamradt/status/2082936322508116098>,
+  <https://x.com/GregKamradt/status/2049872125851529411> and the leaderboard at
+  <https://www.kaggle.com/competitions/arc-prize-2026-arc-agi-2/leaderboard>. There's no public writeup
+  of what changed. The likely core is a bigger version of their flywheel of verified synthetic data,
+  since that was what made the difference in 2025 and NVIDIA has kept releasing ARC data.
+- rabbithole is at 44.86. I found no public information on their method.
+- The band from 33.06 to 34.44 matches forks of the public NVARC submission notebook
+  (sorokin/arc2-qwen3-unsloth-flash-lora-batch4-queue, linked from <https://github.com/1ytic/NVARC>).
+  Our own controls, forking and running two notebooks that displayed 33.89 unchanged, scored 28.06 and
+  28.47. That already showed the displayed scores aren't measurements of the published code.
+- Several NVARC assets are fully public. These are the solution code and paper
+  (github.com/1ytic/NVARC), the 103,000 synthetic puzzles and 3.2 million augmented samples (Kaggle
+  datasets linked from the repo), and since March 2026 nvidia/Nemotron-SFT-ARC-AGI-v1 on Hugging Face.
+  That last one holds 67,529 wide-coverage and 207,569 deep-coverage multi-turn reasoning traces over
+  ARC-style puzzles, seeded from NVARC's augmented puzzles and filtered by rules to runs that reached
+  the correct answer, under CC BY 4.0 (<https://huggingface.co/datasets/nvidia/Nemotron-SFT-ARC-AGI-v1>).
 
-## 2. Recent public research on ARC-AGI-2 (2025-2026)
+## 2. Recent public research on ARC-AGI-2
 
-Scores are labeled: verified = ARC Prize semi-private verified leaderboard; private = Kaggle final; claimed = self-reported, unverified.
+I've labelled each score. Verified means ARC Prize's semi-private verified leaderboard, private means
+Kaggle's final standings, and claimed means self-reported and unverified.
 
-- Land, "Modality-Driven Search with Holistic Trace Judging for ARC-AGI-2" (https://arxiv.org/abs/2606.31543, June 2026). Generates candidates independently across three modalities (text reasoning, image, code) with frontier APIs, then a judge model reads all candidate reasoning traces jointly in one long context and picks winners; joint reading recovers correct minority hypotheses that majority vote kills (+7 tasks at 13 percent of system cost). 72.9 percent verified at $38.99 per task (public eval 76.1 claimed); API models (GPT-5.2 Pro, Gemini 3 Pro), no local hardware. Full code and 7M lines of run data released; documents negative results (prescriptive prompts and iterative refinement reduced diversity and hurt).
-- Poetiq (https://poetiq.ai/posts/arcagi_verified/, Dec 2025). Model-agnostic meta-system wrapping Gemini 3 class models in generate-feedback-refine loops. 54 percent verified at $30.57 per task; API only. Also relevant: Gemini 3 Deep Think standalone 45.1 verified at $77 per task.
-- Berman, "How I got the highest score on ARC-AGI again, swapping Python for English" (https://jeremyberman.substack.com/p/how-i-got-the-highest-score-on-arc-agi-again, Sept 2025). Evolutionary test-time compute where the genome is a natural-language instruction: 30 initial candidates, then 5 rounds of individual revision of the top 5 plus 5 rounds of pooled synthesis, fitness = per-cell accuracy on the demonstrations, sub-agents apply instructions and return ASCII diffs. 29.4 percent (verified at the time) with Grok-4; API only.
-- NVARC paper (see 1.2): 24.03 private under 4xL4, 12h, about $0.20 per task.
-- ARChitects 2025 masked-diffusion solution (see 1.3): 16.53 private on L4s.
-- Jolicoeur-Martineau, "Less is More: Recursive Reasoning with Tiny Networks" (TRM, 2025 paper-award winner, per https://arcprize.org/blog/arc-prize-2025-results-analysis). 7M-parameter recursive net with separate answer and latent states refined up to 16 cycles. 45 claimed ARC-1, 8 claimed ARC-2, trained on augmented train plus eval-style data on multi-H100 rigs.
-- "Test-time Adaptation of Tiny Recursive Models" (https://arxiv.org/abs/2511.02886). Full fine-tuning (not LoRA) of the whole 7M TRM per submission inside Kaggle limits, 12,500 gradient steps after 4xH100 48h pretraining; about 10 claimed public eval, 6.67 verified semi-private.
-- "Tiny Recursive Models on ARC-AGI-1: Inductive Biases, Identity Conditioning, and Test-Time Compute" (https://arxiv.org/abs/2512.11847). Analysis paper on what actually drives TRM.
-- SOAR, Pourcel et al., "Self-Improving Language Models for Evolutionary Program Synthesis" (https://arxiv.org/abs/2507.14172). Alternates evolutionary program search with hindsight fine-tuning on its own search traces, no DSL. 52 percent claimed ARC-1; large multi-GPU budget.
-- CompressARC, Liao and Gu, "ARC-AGI Without Pretraining" (https://arxiv.org/pdf/2512.06104). Per-task MDL compression: a randomly initialized equivariant network is gradient-trained at test time to compress the task; no pretraining, no search. 20 claimed ARC-1 eval, 4 claimed ARC-2; one GPU, minutes per task.
-- VARC, Hu et al., "ARC Is a Vision Problem!" (https://arxiv.org/abs/2511.14761). Frames ARC as image-to-image translation on a canvas with a vanilla ViT trained from scratch on ARC data plus per-task TTT; 60.4 claimed ARC-1 public eval with an 18M model, near average human. ARC-2 numbers not the headline. Honorable mention in the 2025 awards. Follow-on: LoopViT (https://arxiv.org/pdf/2602.02156) applies looped transformers to visual ARC.
-- ARCANA (https://arxiv.org/html/2607.09059v1, July 2026). Four-agent neurosymbolic loop (slot-attention scene graphs, conditional-VAE proposer over a 47-primitive DSL, symbolic executor with hierarchical verification, counterfactual-credit reflective refinement), k-DPP diversity filtering, rank-8 LoRA TTT. Claims 32.5 percent ARC-AGI-2 semi-private under 4xL4 12h with 48M parameters. Extraordinary claim, no independent verification found, not visible on the verified leaderboard; treat with the same skepticism as displayed notebook scores until reproduced.
-- "Multi-Perspective Transformers in ARC-AGI-2 Challenge" (https://arxiv.org/html/2605.01154). About 20M parameter TinyLM, PoE scoring across geometric and color views, TTT with strong dropout, and a hard filter that keeps only candidates that "reproduce the given training examples exactly". Claims 21.7 percent on "the evaluation set" (benchmark ambiguous, unverified).
-- Surveys and diagnostics: "The ARC of Progress towards AGI: A Living Survey" (https://arxiv.org/html/2603.13372v1); lewish.io research review (https://lewish.io/posts/arc-agi-2025-research-review), which flags that nobody has tried specialist learned models to guide branching in discrete program search; "Your Reasoning Benchmark May Not Test Reasoning" on perception bottlenecks (https://arxiv.org/pdf/2512.21329); ARC Prize's own HRM ablation showing HRM gains came mostly from the outer refinement loop and augmentation rather than the hierarchical architecture (https://arcprize.org/blog/hrm-analysis).
-- ARC Prize 2025 Technical Report (https://arxiv.org/html/2601.10904v1). Names the year's theme "the refinement loop", and introduces "knowledge overfitting": benchmarks resistant to direct memorization can still be overfit when public train and private test are similar and models have trained on public-domain ARC data. The report asserts this is now occurring with ARC-AGI-1 and 2 but explicitly does not quantify it. That unquantified gap is the opening for our contamination instrument.
+- **Land, "Modality-Driven Search with Holistic Trace Judging for ARC-AGI-2"**
+  (<https://arxiv.org/abs/2606.31543>, June 2026). It generates candidates independently in three
+  modes, reasoning in text, images and code, using frontier APIs. A judge model then reads all the
+  candidates' reasoning together in one long context and picks the winners. Reading them together
+  rescues correct minority answers that a majority vote would kill, which added 7 tasks for 13% of
+  the system's cost. It scored 72.9% verified at $38.99 a task (76.1 claimed on public evaluation),
+  using API models (GPT-5.2 Pro and Gemini 3 Pro) and no local hardware. They released all the code
+  and 7 million lines of run data, and documented negative results too. Prescriptive prompts and
+  iterative refinement reduced diversity and hurt.
+- **Poetiq** (<https://poetiq.ai/posts/arcagi_verified/>, December 2025). A meta-system that works
+  with any model, wrapping Gemini 3 class models in loops that generate, get feedback and refine. It
+  scored 54% verified at $30.57 a task, through APIs only. For comparison, Gemini 3 Deep Think on its
+  own scored 45.1 verified at $77 a task.
+- **Berman, "How I got the highest score on ARC-AGI again, swapping Python for English"**
+  (<https://jeremyberman.substack.com/p/how-i-got-the-highest-score-on-arc-agi-again>, September
+  2025). Evolutionary search at test time where the genome is an instruction in plain English. It
+  starts with 30 candidates, then runs five rounds revising the top five individually and five rounds
+  combining them. Fitness is per-cell accuracy on the demonstrations, and sub-agents apply the
+  instructions and return ASCII diffs. It scored 29.4% (verified at the time) with Grok-4, through APIs
+  only.
+- **The NVARC paper** (see 1.2) scored 24.03 private on four L4s in 12 hours, at about 20 cents a task.
+- **The ARChitects' 2025 masked-diffusion solution** (see 1.3) scored 16.53 private on L4s.
+- **Jolicoeur-Martineau, "Less is More. Recursive Reasoning with Tiny Networks"**, the TRM paper that
+  won the 2025 paper award (<https://arcprize.org/blog/arc-prize-2025-results-analysis>). It's a
+  7-million-parameter recursive network that keeps separate states for the answer and a latent, refined
+  for up to 16 cycles. It claims 45 on ARC-1 and 8 on ARC-2, trained on augmented training data plus
+  data in the style of the evaluation set, on machines with several H100s.
+- **"Test-time Adaptation of Tiny Recursive Models"** (<https://arxiv.org/abs/2511.02886>). It
+  fine-tunes the whole 7-million-parameter TRM per submission inside Kaggle's limits, for 12,500
+  gradient steps after 48 hours of pretraining on four H100s. It claims about 10 on public evaluation
+  and scored 6.67 verified on the semi-private set.
+- **"Tiny Recursive Models on ARC-AGI-1. Inductive Biases, Identity Conditioning, and Test-Time
+  Compute"** (<https://arxiv.org/abs/2512.11847>). An analysis of what actually drives TRM.
+- **SOAR, Pourcel et al., "Self-Improving Language Models for Evolutionary Program Synthesis"**
+  (<https://arxiv.org/abs/2507.14172>). It alternates evolutionary program search with fine-tuning on
+  its own search traces in hindsight, with no DSL. It claims 52% on ARC-1, on a large multi-GPU budget.
+- **CompressARC, Liao and Gu, "ARC-AGI Without Pretraining"** (<https://arxiv.org/pdf/2512.06104>).
+  It compresses each task by minimum description length. A randomly initialized equivariant network is
+  trained by gradient descent at test time to compress the task, with no pretraining and no search. It
+  claims 20 on the ARC-1 evaluation and 4 on ARC-2, on one GPU in minutes per task.
+- **VARC, Hu et al., "ARC Is a Vision Problem!"** (<https://arxiv.org/abs/2511.14761>). It treats ARC
+  as translating one image into another on a canvas, using a plain ViT trained from scratch on ARC
+  data plus per-task training at test time. It claims 60.4 on the ARC-1 public evaluation with an 18M
+  model, close to the average person. ARC-2 numbers aren't the headline. It got an honourable mention
+  in the 2025 awards. A follow-on, LoopViT (<https://arxiv.org/pdf/2602.02156>), applies looped
+  transformers to visual ARC.
+- **ARCANA** (<https://arxiv.org/html/2607.09059v1>, July 2026). A neurosymbolic loop of four agents.
+  One builds scene graphs with slot attention, a conditional VAE proposes programs over a DSL of 47
+  primitives, a symbolic executor checks them at several levels, and a reflective step refines them
+  with counterfactual credit. It also filters for diversity with a k-DPP and trains a rank-8 LoRA at
+  test time. It claims 32.5% on the ARC-AGI-2 semi-private set on four L4s in 12 hours with 48 million
+  parameters. That's an extraordinary claim with no independent verification I could find, and it
+  isn't on the verified leaderboard. Treat it as sceptically as a score shown beside a notebook until
+  someone reproduces it.
+- **"Multi-Perspective Transformers in ARC-AGI-2 Challenge"** (<https://arxiv.org/html/2605.01154>). A
+  TinyLM of about 20M parameters, with product-of-experts scoring across geometric and colour views,
+  test-time training with heavy dropout, and a hard filter that keeps only candidates that "reproduce
+  the given training examples exactly". It claims 21.7% on "the evaluation set", which is ambiguous
+  and unverified.
+- **Surveys and diagnostics.** These are "The ARC of Progress towards AGI. A Living Survey"
+  (<https://arxiv.org/html/2603.13372v1>), lewish.io's research review
+  (<https://lewish.io/posts/arc-agi-2025-research-review>), which notes nobody has tried specialist
+  learned models to guide branching in discrete program search, "Your Reasoning Benchmark May Not Test
+  Reasoning" on perception bottlenecks (<https://arxiv.org/pdf/2512.21329>), and ARC Prize's own
+  ablation of HRM, which found its gains came mostly from the outer refinement loop and augmentation
+  rather than the hierarchical architecture (<https://arcprize.org/blog/hrm-analysis>).
+- **The ARC Prize 2025 technical report** (<https://arxiv.org/html/2601.10904v1>). It names the year's
+  theme "the refinement loop" and introduces "knowledge overfitting". Even a benchmark that resists
+  direct memorization can be overfit when the public training data and the private test are alike and
+  models have trained on public ARC data. The report says this is now happening with ARC-AGI-1 and 2,
+  but it explicitly doesn't quantify it. That unmeasured gap is the opening for our contamination
+  instrument.
 
-## 3. Prior-art check on the six levers
+## 3. Prior art on the six levers
 
-| Lever | Verdict | Evidence URL | One-line implication |
+| lever | verdict | evidence | what it means |
 |---|---|---|---|
-| a. Global best-first / A* frontier search replacing DFS token enumeration | Absent for ARC; adjacent art in general LLM decoding | https://arxiv.org/html/2505.07859 (compares DFS only to beam/greedy/sampling); https://arxiv.org/pdf/2407.03951 (ULTS, best-first likelihood tree search, NLP tasks only) | A published-first opportunity: an anytime, budget-adaptive enumerator for grid decode with no ARC precedent to beat. |
-| b. Hard filtering of candidates by demonstration-mined invariants | Adjacent art; the specific mechanism absent | https://arxiv.org/html/2605.01154 (exact train-replay filter on candidates); https://lambdalabsml.github.io/ARC2025_Solution_by_the_ARChitects/ (separate output-shape predictor) | Train-replay filters and shape predictors exist; mined invariant maps (size, palette, component counts) as necessary-condition filters on a transductive pool are unpublished. |
-| c. Reranking one model's pool under a second independently trained model | Adjacent art, published | NVARC paper in https://github.com/1ytic/NVARC (TRM attempts scored by Qwen3); https://arxiv.org/abs/2606.31543 (frontier judge over multi-channel candidates); https://arxiv.org/html/2603.13372v1 (Land's evaluator-based adjudication) | Single-scorer cross-model injection exists (NVARC); two-model agreement or product-of-independent-experts selection on a local pair is unpublished for the Kaggle setting. |
-| d. Meta-learned or pretrained LoRA init for per-task TTT | Absent for ARC; adjacent art elsewhere; the naive variant is a published negative | https://arxiv.org/pdf/2411.07279 (per-task LoRA 71.5 vs shared LoRA 63 on ARC-1); https://arxiv.org/pdf/2503.22352 and https://arxiv.org/pdf/2510.10365 (meta-LoRA in other domains) | The published negative is a single shared adapter used as-is, not a MAML/Reptile-style init optimized so that k TTT steps land well; that exact lever is untried on ARC. |
-| e. Speculative decoding inside enumeration search | Published (heuristic form); model-draft form absent | https://lambdalabsml.github.io/ARC2025_Solution_by_the_ARChitects/ ("speculative decoding to our DFS algorithm, using a simple heuristic to guess the next 16 to 32 tokens", 4.7x) | Speculation-inside-DFS is claimed art; a 2B-drafts-4B-verifies variant is unpublished but is an efficiency delta, not a headline novelty. |
-| f. Contamination auditing of public checkpoints via capability-ordering inversion on fresh data | Absent for ARC; adjacent statistical art exists | https://arxiv.org/pdf/2405.16281 (ConStat, performance-based contamination tests); GSM1k per https://neurips.cc/media/neurips-2024/Slides/97687.pdf; https://arxiv.org/html/2601.10904v1 (knowledge overfitting flagged but unquantified); https://arxiv.org/pdf/2510.02386 (fragility of contamination detection) | No published instrument audits ARC checkpoints; our measured sft141 inversion (80 vs 10 on public eval flipping to 65 vs 78.3 on fresh RE-ARC, z=8.0) would be first, and ConStat/GSM1k give it a citable statistical frame. |
+| a. Global best-first or A* search over the frontier, replacing depth-first token enumeration | Absent for ARC, with related work in general LLM decoding | <https://arxiv.org/html/2505.07859> compares depth first only with beam, greedy and sampling. <https://arxiv.org/pdf/2407.03951> (ULTS, a best-first likelihood tree search) covers NLP tasks only | A chance to publish first. An enumerator for grid decoding that works under any budget and adapts to it, with no ARC precedent to beat |
+| b. Hard filtering of candidates by invariants mined from the demonstrations | Related work exists, but not this mechanism | <https://arxiv.org/html/2605.01154> filters candidates by exactly replaying the training pairs. <https://lambdalabsml.github.io/ARC2025_Solution_by_the_ARChitects/> has a separate output-shape predictor | Replay filters and shape predictors exist. Mined maps of size, palette and component counts used as necessary conditions on a transductive pool are unpublished |
+| c. Reranking one model's pool under a second, independently trained model | Related work, published | The NVARC paper in <https://github.com/1ytic/NVARC> scores TRM's attempts with Qwen3. <https://arxiv.org/abs/2606.31543> uses a frontier judge over candidates from several channels. <https://arxiv.org/html/2603.13372v1> describes Land's judge-based adjudication | A single cross-model scorer exists (NVARC). Selection by agreement between two models, or by a product of independent experts on a local pair, is unpublished in the Kaggle setting |
+| d. A meta-learned or pretrained LoRA starting point for per-task training | Absent for ARC, related elsewhere, and the naive version is a published negative | <https://arxiv.org/pdf/2411.07279> gets 71.5 with per-task LoRA against 63 with a shared LoRA on ARC-1. <https://arxiv.org/pdf/2503.22352> and <https://arxiv.org/pdf/2510.10365> cover meta-LoRA in other fields | The published negative is one shared adapter used as is, not a MAML or Reptile-style starting point optimized so that k training steps land well. That exact lever is untried on ARC |
+| e. Speculative decoding inside the search | Published in a heuristic form, absent with a model as the draft | <https://lambdalabsml.github.io/ARC2025_Solution_by_the_ARChitects/> added speculative decoding to the search "using a simple heuristic to guess the next 16 to 32 tokens", for 4.7 times | Speculation inside the search is claimed. A 2B drafting for a 4B is unpublished, but it's an efficiency gain, not a headline novelty |
+| f. Auditing public checkpoints for contamination by an inversion of capability order on fresh data | Absent for ARC, with related statistical work | <https://arxiv.org/pdf/2405.16281> (ConStat, contamination tests based on performance), GSM1k via <https://neurips.cc/media/neurips-2024/Slides/97687.pdf>, <https://arxiv.org/html/2601.10904v1> (knowledge overfitting flagged but unmeasured), <https://arxiv.org/pdf/2510.02386> (how fragile contamination detection is) | No published instrument audits ARC checkpoints. Our measured inversion on sft141 (80 against 10 on public eval, flipping to 65 against 78.3 on fresh RE-ARC, z = 8.0) would be the first, and ConStat and GSM1k give it a statistical frame to cite |
 
-### Lever notes
+### Notes on each lever
 
-a. Best-first frontier search. The ARChitects PoE paper evaluates DFS against beam search, stochastic sampling, and greedy only; NVARC's only decode innovation is batching the same DFS. In the general decoding literature, best-first beam search and ULTS (uncertainty-guided likelihood tree search, best-first over LLM token trees) exist but were applied to summarization, translation, and code, never ARC grids. Nothing public runs a global priority-queue enumeration across a grid-decode tree, let alone across augmentations jointly. Note the real win is not the candidate set (threshold DFS already enumerates everything above T) but anytime behavior: per-task adaptive depth under a wall-clock budget, no threshold cliff on hard tasks, and graceful degradation instead of empty pools.
+**a. Best-first search over the frontier.** The ARChitects' product-of-experts paper only compares
+depth-first search with beam search, random sampling and greedy decoding. NVARC's only decoding
+change was batching the same depth-first search. In the general decoding literature, best-first beam
+search and ULTS (a best-first tree search guided by uncertainty over LLM tokens) exist, but they were
+applied to summarization, translation and code, never to ARC grids. Nothing public runs a global
+priority queue over a grid-decoding tree, let alone jointly across augmentations. The real win isn't
+the set of candidates, since threshold search already enumerates everything above T. It's behaving
+well under any budget. Each task gets depth that adapts to its time, there's no cliff at the threshold
+on hard tasks, and it degrades gracefully instead of returning empty pools.
 
-b. Invariant filtering. Program-synthesis lines verify by executing candidate programs on demonstrations (Berman's cell-accuracy fitness, SOAR, Li et al. induction). For transductive pools the closest art is Multi-Perspective Transformers, which keeps only candidates whose model also reproduces training outputs exactly, and the ARChitects 2025 standalone shape predictor. Nobody publishes the specific mechanism of mining necessary conditions from demonstrations (size maps, palette maps, component-count relations) and applying them as hard post-hoc constraints on an LLM candidate pool. Caveat from our own audit history: selector reweighting and cell-wise voting are dead by measurement locally, so treat this as a diagnostic first (how often does the selected candidate violate a mined invariant) before betting points on it.
+**b. Filtering by invariants.** Program-synthesis work verifies by running candidate programs on the
+demonstrations, as in Berman's cell-accuracy fitness, SOAR and Li et al.'s induction. For transductive
+pools the closest work is Multi-Perspective Transformers, which keeps only candidates whose model also
+reproduces the training outputs exactly, and the ARChitects' separate shape predictor from 2025.
+Nobody publishes the specific mechanism of mining necessary conditions from the demonstrations, such
+as maps of size, palette and component counts, and applying them as hard constraints on an LLM's
+candidate pool after the fact. One caveat comes from our own history. Reweighting the selector and
+voting cell by cell are both dead by measurement here, so treat this as a diagnostic first, checking
+how often the selected candidate breaks a mined invariant, before betting points on it.
 
-c. Cross-model reranking. NVARC already scored a second generator's candidates (TRM's 10 attempts) under the Qwen3 likelihood, and found the scorer usually failed to pick TRM's unique solves (about 1 eval puzzle picked up on average). That failure mode is informative: a single scorer is biased toward its own distribution. What remains unpublished in the Kaggle setting is symmetric selection under two independently trained models (agreement, product, or rank fusion of both models' augmentation-PoE scores), which is exactly what a 4B/2B pair trained on different data enables. At the API level, Land's holistic judge shows joint comparison of candidates in one context beats per-candidate scoring; no Kaggle-constrained system does joint-candidate selection either.
+**c. Reranking across models.** NVARC already scored a second generator's candidates, TRM's ten
+attempts, under the Qwen3 likelihood. They found the scorer usually failed to pick TRM's unique solves,
+catching about one evaluation puzzle on average. That failure is informative. A single scorer leans
+toward its own distribution. What's still unpublished in the Kaggle setting is symmetric selection
+under two independently trained models, by agreement, product or rank fusion of both models'
+product-of-experts scores, which is exactly what a 4B and 2B trained on different data allow. At the
+API level, Land's judge shows that comparing candidates together in one context beats scoring each
+alone, and no system under Kaggle's limits selects jointly either.
 
-d. Meta-learned TTT init. Akyurek et al. measured per-task LoRA 71.5 versus a single shared LoRA 63 on ARC-1, and did not try meta-learned initialization. MindsAI's phrase "dataset-induced meta-learning" (Cole and Osman, Lab42 2023) refers to base-model training that makes TTFT effective, not an optimized adapter init. Meta-LoRA exists in vision personalization, point clouds, and speech deepfake detection. A Reptile-style init (average of converged per-task TTT deltas over training-set episodes, then per-task TTT from that init at test time) is untried on ARC and is cheap to test.
+**d. A meta-learned starting point for training.** Akyurek et al. measured 71.5 with a LoRA per task
+against 63 with a single shared LoRA on ARC-1, and didn't try a meta-learned starting point. When
+MindsAI talk about "dataset-induced meta-learning" (Cole and Osman, Lab42, 2023), they mean training
+the base model so that test-time fine-tuning works well, not optimizing where the adapter starts.
+Meta-LoRA exists in vision personalization, point clouds and detecting speech deepfakes. A
+Reptile-style starting point, averaging the converged per-task adapter changes over training-set
+episodes and then training each task from there at test time, is untried on ARC and cheap to test.
 
-e. Speculative decoding in the search. Claimed art (heuristic drafts inside DFS, 4.7x) plus prefix caching across augmentations (5.8x) are both published with numbers by the ARChitects 2025 report, and both port directly to our AR pipeline. A model-based draft (2B proposing, 4B verifying) inside DFS is unpublished, but it buys throughput, not novelty.
+**e. Speculative decoding inside the search.** The ARChitects' 2025 report publishes both heuristic
+drafts inside the search (4.7 times) and reusing the cache of the shared prefix across augmentations
+(5.8 times), with numbers, and both carry straight over to our autoregressive pipeline. Using a model
+as the draft inside the search, with the 2B proposing and the 4B checking, is unpublished, but it buys
+speed rather than novelty.
 
-f. Contamination auditing. General art: ConStat (statistical contamination detection by comparing performance against reference models and benchmark variants), GSM1k (regenerate a benchmark from scratch, measure the drop, up to 13 percent for overfit families), and a 2026 paper on the fragility of contamination detection in reasoning models. ARC-specific art: the 2025 technical report names knowledge overfitting but does not quantify it; the ARChitects admit eval overfitting from their public-eval-derived data; NVARC openly built eval-derived descriptions into their generator. Nobody has published an audit of public ARC checkpoints, and nobody uses two-model capability-ordering inversion on freshly generated data as the test statistic. Our measured result (sft141 versus the 4B, interaction +83.3pp, z=8.0) appears to be genuinely first-of-kind for ARC.
+**f. Auditing for contamination.** In general, there's ConStat, which detects contamination
+statistically by comparing performance against reference models and variants of the benchmark. There's
+GSM1k, which rebuilt a benchmark from scratch and measured the drop, up to 13% for families that had
+overfit. And a 2026 paper looks at how fragile contamination detection is in reasoning models. Specific
+to ARC, the 2025 technical report names knowledge overfitting but doesn't measure it, the ARChitects
+admit overfitting to the evaluation set from data derived from it, and NVARC openly built descriptions
+derived from the evaluation set into their generator. Nobody has published an audit of public ARC
+checkpoints, and nobody uses an inversion of capability order between two models on freshly generated
+data as the test. Our measured result, sft141 against the 4B with an interaction of 83.3 points at
+z = 8.0, looks like the first of its kind for ARC.
 
-## 4. Genuinely unexploited directions that fit our constraints
+## 4. Directions nobody has exploited that fit our constraints
 
-Constraints: one submission per day, 12h on 4xL4 (96GB), a 4B/2B grid-model pair, strong measurement-discipline paper angle, rubric-judged paper track.
+Our constraints are one submission a day, 12 hours on four L4s with 96 GB, a 4B and 2B grid model
+pair, a paper strong on measurement discipline, and a paper track judged by rubric.
 
-1. Anytime enumeration. Every Kaggle-track decode is threshold-DFS (2024, 2025, NVARC batched variant). A global best-first frontier over (augmentation, prefix) states with an anytime stop makes the 12h budget a first-class variable: hard tasks get depth, easy tasks release budget. No ARC precedent exists (section 3a). It also composes with claimed art we have not yet absorbed: heuristic speculation inside the search and cross-augmentation prefix caching, both with published 4-6x numbers.
-2. Two independent experts, one cheap. Nobody in the Kaggle track selects with two independently trained models. NVARC's single-scorer failure (the scorer ignores the other generator's unique solves) is a published motivation for symmetric two-model selection, and we already own the 4B/2B pair. The 2B also enables the unpublished model-draft variant of in-search speculation.
-3. Joint-candidate selection locally. Land's verified 72.9 shows the biggest selection gains come from comparing candidates against each other, not scoring them independently. A local analogue (feed the top-k decoded grids back to the TTT'd model in one context and score which completes the task) has no Kaggle-track precedent.
-4. Measurement discipline as a contribution. The winners themselves report 1-2 point run-to-run variance on identical notebooks and nondeterministic batched DFS; the 2025 report names knowledge overfitting but cannot quantify it; displayed notebook scores provably diverge from fork reproductions (our 33.89 to 28.06/28.47 controls). A paper chapter that treats the leaderboard as a noisy instrument (noise floor, fork controls, contamination audit via ordering inversion on fresh RE-ARC) is differentiated from every public writeup, and the paper track is rubric-judged.
-5. Known but unexploited by us specifically: the NVARC verified-synthetic flywheel is open source (code, 103k puzzles, 3.2M augmented samples, and the March 2026 Nemotron reasoning traces). This is the measured cause of the 2025 win and presumably of nvbanana's 39 to 67.5 climb. It is replication, not novelty, but it is the only public lever with a demonstrated 5-plus-point effect size on hidden data, and continued fine-tuning of our 4B on that corpus is compatible with our rig. Any novelty claims should be measured on top of, or explicitly instead of, this known lever.
+1. **Search that works under any budget.** Every decoder on the Kaggle track is threshold depth-first
+   search, in 2024, in 2025 and in NVARC's batched version. A global best-first frontier over
+   augmentation and prefix states, with an anytime stop, makes the 12-hour budget something you
+   actually control. Hard tasks get depth, and easy tasks give time back. There's no ARC precedent
+   (section 3a). It also combines with published work we haven't absorbed yet, heuristic speculation
+   inside the search and caching the prefix across augmentations, both with published speedups of 4 to
+   6 times.
+2. **Two independent experts, one of them cheap.** Nobody on the Kaggle track selects with two
+   independently trained models. NVARC's single scorer ignoring the other generator's unique solves is
+   a published reason to try symmetric selection with two models, and we already have the 4B and 2B.
+   The 2B also makes the unpublished version of speculation with a model draft possible.
+3. **Choosing among candidates jointly, locally.** Land's verified 72.9 shows the biggest gains in
+   selection come from comparing candidates with each other rather than scoring each alone. A local
+   version, feeding the top few decoded grids back to the adapted model in one context and scoring
+   which one completes the task, has no precedent on the Kaggle track.
+4. **Measurement discipline as a contribution.** The winners themselves report one to two points of
+   variation between re-runs of identical notebooks, and nondeterminism in batched search. The 2025
+   report names knowledge overfitting but can't measure it. Scores displayed beside notebooks provably
+   differ from what forks reproduce, as our 33.89 against 28.06 and 28.47 controls showed. A chapter
+   that treats the leaderboard as a noisy instrument, with a noise floor, fork controls and a
+   contamination audit through inverted ordering on fresh RE-ARC, stands apart from every public
+   writeup, and the paper track is judged by rubric.
+5. **Known, but not yet used by us.** NVARC's flywheel of verified synthetic data is open source,
+   including the code, 103,000 puzzles, 3.2 million augmented samples and the Nemotron reasoning traces
+   from March 2026. It's the measured cause of their 2025 win and presumably of nvbanana's climb from
+   39 to 67.5. It's replication rather than novelty, but it's the only public lever with an effect
+   shown above five points on hidden data, and continuing to fine-tune our 4B on that corpus fits our
+   rig. Any claim of novelty should be measured on top of this known lever, or explicitly in place of
+   it.
 
-## Top three recommendations
+## The top three recommendations
 
-1. Anytime best-first enumeration for grid decode. Mechanism: replace threshold-DFS with a global priority queue over partial decodes ordered by cumulative log-probability (optionally plus a cheap completion heuristic), shared across augmentations, emitting candidates in strictly decreasing probability order until a per-task time budget expires. First experiment: instrument the current DFS to log the full explored tree on the 120 public eval tasks, then replay offline to simulate best-first order under equal node budgets, and count tasks where the correct grid is reachable above the time budget but below the 0.2 threshold, or vice versa. Zero GPU cost beyond one logging run, and the result is a paper figure either way.
+1. **Best-first enumeration for grid decoding that works under any budget.** Replace threshold
+   depth-first search with a global priority queue over partial decodes, ordered by cumulative
+   log-probability, optionally plus a cheap estimate of the remainder, and shared across
+   augmentations. It emits candidates in strictly decreasing probability until the task's time budget
+   runs out. For the first experiment, instrument the current search to log the full explored tree on
+   the 120 public evaluation tasks. Then replay it offline to simulate best-first order at equal node
+   budgets, and count tasks where the correct grid is reachable within the time budget but below the
+   0.2 threshold, or the other way round. It costs no GPU time beyond one logging run, and it makes a
+   figure for the paper either way.
 
-2. Symmetric two-model selection with the 4B/2B pair. Mechanism: decode the candidate pool once with the 4B, then score the pool under both the TTT'd 4B and the independently trained TTT'd 2B with the same fixed augmentation set, and select by product (or rank fusion) of the two augmentation-PoE scores, using NVARC's published single-scorer failure as the baseline to beat. First experiment: on logged 4B pools from the public eval plus a fresh RE-ARC control set, measure oracle-gap closure (correct-in-pool but not-selected tasks recovered) from adding the 2B scores, with McNemar against the single-scorer selector before any hidden-set submission.
+2. **Symmetric selection with the 4B and 2B pair.** Decode the candidate pool once with the 4B, then
+   score it under both the adapted 4B and the independently trained, adapted 2B with the same fixed
+   augmentations. Select by the product, or a rank fusion, of the two product-of-experts scores, and
+   use NVARC's published single-scorer failure as the baseline to beat. For the first experiment, take
+   logged 4B pools from public evaluation plus a fresh RE-ARC control set, and measure how much of the
+   oracle gap closes when the 2B scores are added, meaning outputs where the truth was in the pool but
+   wasn't selected. Run McNemar's test against the single-scorer selector before any submission to the
+   hidden set.
 
-3. Publish the measurement instruments as first-class results: the capability-ordering-inversion contamination audit on freshly generated RE-ARC data (framed against ConStat and GSM1k, applied to public ARC checkpoints), the fork-and-run control for displayed notebook scores, and a variance accounting that reconciles our 0.41-credit noise floor with the winners' admitted 1-2 point rerun variance. First experiment: extend the existing sft141 audit to two or three additional popular public checkpoints, pre-registering the inversion statistic, so the paper presents an instrument validated on multiple subjects rather than a single anecdote.
+3. **Publish the measurement instruments as results in their own right.** That means the contamination
+   audit through inverted capability order on freshly generated RE-ARC data, framed against ConStat and
+   GSM1k and applied to public ARC checkpoints. It means the fork-and-run control for scores displayed
+   beside notebooks. And it means an account of the noise that reconciles our 0.41-credit noise floor
+   with the winners' admitted one to two points between re-runs. For the first experiment, extend the
+   existing sft141 audit to two or three more popular public checkpoints, with the inversion statistic
+   written down beforehand, so the paper presents an instrument tested on several subjects rather than
+   a single anecdote.
