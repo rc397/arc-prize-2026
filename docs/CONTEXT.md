@@ -169,21 +169,18 @@ linearly decodable from the base's hidden states.
 
 The paper, the writeup and both covers are current and build clean. On 5 October the paper's prose was
 brought back to the standard of the June sweep, with no colons, semicolons or dashes in the body and
-every conditional recast as a plain statement. The HTML copy of the paper is still an August snapshot with its
-headline numbers updated. Regenerating it from the source with make4ht stalled in testing, so it is
-either rebuilt properly or retired, and that is Ryan's call.
+every conditional recast as a plain statement. The old HTML copy of the paper was retired to
+`archive/` rather than rebuilt, so the PDF is the only version.
 
-Every commit's email was rewritten locally from the personal address to
-`198507061+rc397@users.noreply.github.com`, and this repository's `user.email` is now that address.
-GitHub keeps the old history until Ryan force-pushes, and nobody should run `git pull` before then,
-because the old commits would merge back in. Daily replicate resubmissions through
-`scripts/rig_daily_replicate.py` are not running. This environment's safety check refuses background
-processes on the rig and force pushes, so both need Ryan.
+Every commit's email was rewritten from the personal address to
+`198507061+rc397@users.noreply.github.com`, and the rewritten history was force-pushed to GitHub on
+12 October. This repository's `user.email` is that address. Daily replicate resubmissions through
+`scripts/rig_daily_replicate.py` never ran, and the season has closed, so they won't.
 
-Four things remain before the deadlines, with Kaggle submissions due 2 November and papers 8 November.
-The force push comes first, then making the repo public. The PDF needs a public URL. The Kaggle writeup
-has to be filed with the triptych as its cover. And the two final submissions have to be chosen,
-55261090 at 32.64 and one of the 31.39s.
+The two final Kaggle submissions are chosen and ticked. The Kaggle writeup is filled in as a draft,
+with the triptych card, six gallery images and a link to the `v7-2-replicate` notebook, and it stays
+editable until it's submitted. What's left is submitting the writeup before the paper deadline and
+making this repository public, planned for about 9 November.
 
 ## Environment notes
 
