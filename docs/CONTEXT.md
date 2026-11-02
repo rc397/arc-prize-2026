@@ -177,10 +177,10 @@ Every commit's email was rewritten from the personal address to
 12 October. This repository's `user.email` is that address. Daily replicate resubmissions through
 `scripts/rig_daily_replicate.py` never ran, and the season has closed, so they won't.
 
-The two final Kaggle submissions are chosen and ticked. The Kaggle writeup is filled in as a draft,
-with the triptych card, six gallery images and a link to the `v7-2-replicate` notebook, and it stays
-editable until it's submitted. What's left is submitting the writeup before the paper deadline and
-making this repository public, planned for about 9 November.
+The two final Kaggle submissions are chosen and ticked. The Kaggle writeup is submitted, with the
+triptych card, six gallery images, a link to the `v7-2-replicate` notebook and a link to this
+repository, and it stays editable until 10 November at 10:59 AEDT. The one step left is making this
+repository public, planned for about 9 November. Until then the writeup's GitHub link shows a 404.
 
 ## Environment notes
 
