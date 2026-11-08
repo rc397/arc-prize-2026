@@ -179,8 +179,9 @@ Every commit's email was rewritten from the personal address to
 
 The two final Kaggle submissions are chosen and ticked. The Kaggle writeup is submitted, with the
 triptych card, six gallery images, a link to the `v7-2-replicate` notebook and a link to this
-repository, and it stays editable until 10 November at 10:59 AEDT. The one step left is making this
-repository public, planned for about 9 November. Until then the writeup's GitHub link shows a 404.
+repository, and it stays editable until 10 November at 10:59 AEDT. This repository was made public on
+8 November 2026, with a single `main` branch. Before that its history was cleaned once more, removing the
+rig's network and access notes and putting every commit under one author.
 
 ## Environment notes
 
