@@ -21,10 +21,10 @@ from fractions import Fraction
 import numpy as np
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SCRATCH = r"C:\Users\rchen\AppData\Local\Temp\claude\D--ARC-AGI-2-3\8cbe1c19-90e9-462d-be4f-d7a77df62f8c\scratchpad"
+DATA = os.path.join(REPO, "data")
 POOL = sys.argv[1] if len(sys.argv) > 1 else os.path.join(REPO, "paper", "data", "pool_dump.json")
-CHAL = sys.argv[2] if len(sys.argv) > 2 else os.path.join(SCRATCH, "arc-agi_evaluation_challenges.json")
-SOLS = sys.argv[3] if len(sys.argv) > 3 else os.path.join(SCRATCH, "arc-agi_evaluation_solutions.json")
+CHAL = sys.argv[2] if len(sys.argv) > 2 else os.path.join(DATA, "arc-agi_evaluation_challenges.json")
+SOLS = sys.argv[3] if len(sys.argv) > 3 else os.path.join(DATA, "arc-agi_evaluation_solutions.json")
 
 
 def kgmon(c):

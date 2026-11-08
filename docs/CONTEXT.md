@@ -15,7 +15,7 @@ The organising constraint is a single 16 GB GPU, which is the paper's subject ra
 ## The system
 
 The base model is NVARC `qwen3_4b_grids15_sft139`, a Qwen3-4B with a 16-token vocabulary, prompted at
-ID level with ChatML. It is not a Claude model.
+ID level with ChatML.
 
 Inference runs in four stages. Augmentation builds 128 training rows from 2 transposes, 4 rotations
 and 16 colour permutations, plus 16 evaluation views. Each task then gets its own rank-256 LoRA
