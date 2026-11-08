@@ -78,7 +78,7 @@ the calendar.
 Phase 0 showing flat coverage across rule counts. That would mean the base's ARC ability isn't limited
 by how many synthetic rules it has seen, and no amount of generation will fix it.
 
-## Revised after Ryan's point about batching, and a much better target
+## Revised after rethinking batching, and a much better target
 
 Batching saves less than it looks like, and it costs the very thing we're buying. Asking for ten
 programs per call spreads the prompt across them, from 1,800 tokens each down to 180, which takes

@@ -1,4 +1,4 @@
-"""The queue for Ryan's idea batch. Waits for the card, then works the list without stopping.
+"""The queue for my idea batch. Waits for the card, then works the list without stopping.
 
 One process that subprocess-runs its phases in order, rather than a chain of detached launches.
 A chained waiter dies in the same Windows Update reboot that kills its target, and then nothing

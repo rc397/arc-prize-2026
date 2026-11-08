@@ -204,7 +204,7 @@ we assumed.
 
 ## Part 6. What happened when the plan ran
 
-Ryan asked for the whole list to be worked through rather than sampled. Anything that needed the card
+I decided to work through the whole list rather than sample it. Anything that needed the card
 went in the queue, and anything that didn't ran on the CPU anyway, including the ideas already crossed
 out. Five CPU measurements went out that evening. Two of the three survivors above didn't make it, and
 what replaced them came from neither list.

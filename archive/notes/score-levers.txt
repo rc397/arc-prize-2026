@@ -6,11 +6,10 @@ notebooks/v7_debug/arc_solver.py unless I say otherwise. Anything marked [measur
 computed that day from paper/data/pool_dump.json, a 60-output slice run under deployed
 conditions, using scripts/pool_census.py and scripts/pool_vote.py.
 
-A note on scope. No outside library came with the request, so this audits the library we
-actually deploy, meaning the v7 pipeline source plus every measurement the project has
-recorded. I can't verify the premise that we're "1.0 point behind the cutoff" from here.
-Our recorded board state is 30.97 with fifth place at 33.89, and the target Ryan set is 32
-or more, which is the same band. Nothing below depends on the exact cutoff.
+A note on scope. This audits the library we actually deploy, meaning the v7 pipeline source
+plus every measurement the project has recorded. Our recorded board state is 30.97 with fifth
+place at 33.89, and my target is 32 or more, which is the same band. Nothing below depends on
+the exact cutoff.
 
 
 1. WHAT THE PIPELINE ACTUALLY IS

@@ -1,4 +1,4 @@
-"""Rebuild Ryan's unsloth utility fork slim, push it, wait for COMPLETE, then push v7 fully wired.
+"""Rebuild my unsloth utility fork slim, push it, wait for COMPLETE, then push v7 fully wired.
 
 Runs on the rig (Kaggle token lives there). The slim utility installs unsloth pinned against the
 image's own torch 2.6.0, deletes the tree's duplicates of image-shipped heavy packages (torch, nvidia,

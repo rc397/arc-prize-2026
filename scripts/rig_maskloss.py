@@ -1,4 +1,4 @@
-"""Mask the training loss on cells the rule does not change. Ryan's idea, and the best of the batch.
+"""Mask the training loss on cells the rule does not change. My idea, and the best of the batch.
 
 Measured today: among the 67.5 percent of evaluation tasks whose transformation preserves grid
 shape, 88 percent of a median output is a verbatim copy of its input. The collator supervises every

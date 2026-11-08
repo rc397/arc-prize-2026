@@ -1,6 +1,6 @@
 # Research brief for improving ARC-AGI-2 on one consumer GPU
 
-This works as a prompt for a research agent or as a checklist for ourselves. The section that matters
+This is a checklist for deciding what to try next. The section that matters
 most is the one on telling a promising idea from a dead end, because it carries the one hard-won
 finding that should steer everything else.
 

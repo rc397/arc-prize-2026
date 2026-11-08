@@ -1,6 +1,6 @@
 """Where does the decoder's budget actually go, and what would a depth-decayed threshold buy?
 
-Ryan's proposal: decay the cumulative log-probability threshold as tree depth increases, so the
+My proposal: decay the cumulative log-probability threshold as tree depth increases, so the
 search admits deep subtrees a flat floor prunes. It is one of the few decode ideas that changes
 WHAT IS IN THE POOL rather than the order candidates are found in, which is why best-first ordering
 was null and this might not be.

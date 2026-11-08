@@ -183,8 +183,10 @@ VARIANT = sys.argv[1] if len(sys.argv) > 1 else "v7.1"
 assert VARIANT in VARIANTS, "unknown variant %r, expected one of %s" % (VARIANT, sorted(VARIANTS))
 SPEC = VARIANTS[VARIANT]
 
-SRC = r"C:\Users\rchen\Downloads\learned-from-aimo.ipynb"
-DST = os.path.join(r"D:\ARC_AGI-2,3\notebooks", SPEC["file"])
+# The public learned-from-aimo notebook, downloaded from Kaggle into data/.
+REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+SRC = os.environ.get("ARC_ARCHITECTS_NB", os.path.join(REPO, "data", "learned-from-aimo.ipynb"))
+DST = os.path.join(REPO, "notebooks", SPEC["file"])
 
 DATA_DEFAULT = "/kaggle/input/competitions/arc-prize-2026-arc-agi-2"
 MODEL_DEFAULT = "/kaggle/input/models/sorokin/qwen3_4b_grids15_sft139/transformers/bfloat16/1"

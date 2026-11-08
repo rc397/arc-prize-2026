@@ -2320,9 +2320,9 @@ The contest node's L4s carry 24~GB each, and extrapolating our peak-memory curve
 cliff near 3200 prompt tokens there rather than 1650, which is roughly the top fifth of our prompt
 distribution instead of most of it.
 
-And the inference stack is not the same one. Our probes run plain 	exttt{transformers} with
-	exttt{peft}, because the deployed path uses Unsloth and Unsloth requires Triton, which has no
-native-Windows backend. The submitted notebook calls 	exttt{FastLanguageModel.for\_inference},
+And the inference stack is not the same one. Our probes run plain \texttt{transformers} with
+\texttt{peft}, because the deployed path uses Unsloth and Unsloth requires Triton, which has no
+native-Windows backend. The submitted notebook calls \texttt{FastLanguageModel.for\_inference},
 whose fused kernels and attention implementation are precisely what decides whether activation memory
 grows linearly or quadratically in prompt length. So the cliff we measure may be a property of our
 stack rather than of the pipeline, we cannot test the alternative on this hardware, and we make no

@@ -340,8 +340,8 @@ reported success.
 2. **`model_sources` is checked but not enforced.** `mirzamilanfarabi/qwen3-4b-grids15-sft139/...` comes
    back in `invalidModelSources` and the push still succeeds, leaving a kernel with no model, whose run
    dies at the assert on the model path. The string that works, taken from `v7-2-replicate`'s own
-   metadata, is **`sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1`**, with a capital T. The
-   memory file said the opposite and has been corrected.
+   metadata, is **`sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1`**, with a capital T. An
+   earlier note said the opposite and has been corrected.
 3. **`machine_shape` has to be `NvidiaL4`.** Without it the kernel gets a generic `Gpu`, and Kaggle may
    hand out a **Tesla P100 (sm_60)**, where torch 2.8 with cu128 fails with *"no kernel image is
    available for execution on the device"*, since it supports sm_70 and up. The scoring rerun uses L4s
@@ -492,5 +492,5 @@ the repo, which hadn't been pushed since 5 August, and the decision to make it p
 |---|---|---|
 | generator corpus, checked again in full | demonstrations 128 of 128, held-out test outputs 120 of 128 (94%), 127 samplers | corpus/README, gencorpus in the tex, the writeup, README, CONTEXT |
 | covers | the triptych and the field rebuilt on the twelve runs and the 1 October board, with 18.19 and 29.90 on the title page | paper/, scripts/make_hero_final.py, scripts/make_cover_hero.py |
-| history | every commit rewritten to the GitHub noreply address, locally, with the force push waiting on Ryan | CONTEXT |
-| daily replicate series | the script is written but not running, and it needs Ryan | CONTEXT |
+| history | every commit rewritten to the GitHub noreply address, locally, with the force push still to do | CONTEXT |
+| daily replicate series | the script is written but was never started | CONTEXT |

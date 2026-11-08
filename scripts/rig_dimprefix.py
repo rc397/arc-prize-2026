@@ -5,7 +5,7 @@ nothing else, and every proposal that invents syntax has to teach it from four d
 test-time training. It is also the deepest constraint in the system and the one nothing we have
 tried has attacked, which is why this is priced rather than dismissed.
 
-Of the four vocabulary-breaking ideas in Ryan's batch this is the cheapest and the best motivated.
+Of the four vocabulary-breaking ideas in my idea batch this is the cheapest and the best motivated.
 The decoder currently has no way to know how tall the output is until it has finished emitting it,
 so every branch of the search is committing to a shape implicitly, one row at a time. A prefix makes
 that commitment explicit and checkable.

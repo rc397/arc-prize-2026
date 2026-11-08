@@ -172,16 +172,13 @@ brought back to the standard of the June sweep, with no colons, semicolons or da
 every conditional recast as a plain statement. The old HTML copy of the paper was retired to
 `archive/` rather than rebuilt, so the PDF is the only version.
 
-Every commit's email was rewritten from the personal address to
-`198507061+rc397@users.noreply.github.com`, and the rewritten history was force-pushed to GitHub on
-12 October. This repository's `user.email` is that address. Daily replicate resubmissions through
+Every commit uses the GitHub noreply address `198507061+rc397@users.noreply.github.com`. Daily replicate resubmissions through
 `scripts/rig_daily_replicate.py` never ran, and the season has closed, so they won't.
 
 The two final Kaggle submissions are chosen and ticked. The Kaggle writeup is submitted, with the
 triptych card, six gallery images, a link to the `v7-2-replicate` notebook and a link to this
 repository, and it stays editable until 10 November at 10:59 AEDT. This repository was made public on
-8 November 2026, with a single `main` branch. Before that its history was cleaned once more, removing the
-rig's network and access notes and putting every commit under one author.
+8 November 2026, with a single `main` branch.
 
 ## Environment notes
 
@@ -204,7 +201,7 @@ Each of these facts cost a day.
   that differs from `~/.kaggle/access_token`. Kaggle 2.x prefers the variable, so every submission
   script failed with "Authentication required". `scripts/rig_submit.py` now drops the variable when
   the file exists, and the variable itself was left alone.
-- The rig's GPU is usually busy with Ryan's other projects, which are outside this repo and must not
+- The rig's GPU is usually busy with my other projects, which are outside this repo and must not
   be touched. Check the process list before launching anything and wait if the card is busy.
 - Kaggle needs `machine_shape` set to `NvidiaL4`, and its absence is silent. The model source must read
   `sorokin/qwen3_4b_grids15_sft139/Transformers/bfloat16/1` with a capital T, and a wrong value lands in

@@ -1,6 +1,6 @@
 """Price every proposed candidate filter against the dumped pool, one number each.
 
-About a dozen ideas in Ryan's batch are downstream pruning rules: restrict the search to colours
+About a dozen ideas in my idea batch are downstream pruning rules: restrict the search to colours
 present in the test input, budget palette frequencies, prune by object size, prune by sequence
 length, terminate on colour ratios. All of them were closed by Gate 1 and by analogy to the
 invariant-mining result, which recovered zero candidates and killed 11 of 19 truths. Analogy is

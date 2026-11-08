@@ -4,7 +4,7 @@ The card is single and saturates, so this is a queue and not a fan-out. Every ph
 earlier one fails, since they share nothing but the GPU and each resumes from its own jsonl.
 
 The point of the queue is that the rig should never be idle. It has been idle for long stretches
-this week because a session ended on an observation rather than a launch, and idle rig time is the
+this week because a run ended without the next one queued, and idle rig time is the
 only resource here that cannot be recovered.
 
 Usage: python rig_queue_aug.py [AUX_TASKS=8] [DECODE_S=600]
@@ -48,7 +48,7 @@ def main():
     t = sys.argv[1] if len(sys.argv) > 1 else "8"
     d = sys.argv[2] if len(sys.argv) > 2 else "600"
     ok = {}
-    # Ryan's four augmentation ideas, all five arms, in one pass so the base arm is shared
+    # my four augmentation ideas, all five arms, in one pass so the base arm is shared
     ok["auxobj"] = phase("auxobj %s" % t, [os.path.join(HERE, "rig_auxobj.py"), t, d])
     say("QUEUE DONE " + " ".join("%s=%s" % kv for kv in ok.items()))
     return all(ok.values())

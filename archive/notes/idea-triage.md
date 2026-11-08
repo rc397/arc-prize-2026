@@ -314,9 +314,9 @@ fragmentation, not width. This platform has no `expandable_segments`.
 a LaTeX table with 22 broken rows. `scripts/build_paper.py` now fails on any line starting with `!`,
 alignment errors, undefined references, duplicate labels and runaway arguments.
 
-**Don't write Python patch scripts through bash heredocs.** The heredoc quietly eats one backslash
-from `\\n` inside string literals. It broke a LaTeX table and two scripts in one day. Write them with a
-file-writing tool instead.
+**Don't write Python patch scripts through shell heredocs.** The heredoc quietly eats one backslash
+from `\\n` inside string literals. It broke a LaTeX table and two scripts in one day. Save them as files
+first instead.
 
 ## Part 6. What closing an idea costs
 

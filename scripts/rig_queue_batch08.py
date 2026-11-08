@@ -9,7 +9,7 @@ The 2x2 so far, all against a base of 5 of 20 on ARC and 3 of 8 on composed:
 
 Protection prevents the damage; the large composed gain needs the large exposure. The cell nobody
 has run is both at once, and it is the only one that could show composed gains without ARC loss.
-Ryan asked for it explicitly, for completeness, knowing the cost.
+I wanted it run for completeness, knowing the cost.
 
 Being honest about what it can return: the best plausible outcome is "ARC unchanged, composed
 better", and composed is our own synthetic benchmark rather than the target. That is a completed 2x2

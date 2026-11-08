@@ -1,7 +1,7 @@
 """The short run: does mixing prevent the forgetting the full corpus caused?
 
 Deliberately the cheapest experiment that can answer it, because GPU hours here cost real money on
-Ryan's electricity bill and the last cycle was 24 hours of card.
+my electricity bill and the last cycle was 24 hours of card.
 
   1 mix      interleave 4,000 composed with 4,000 single-rule examples. CPU, seconds.
   2 train    8,000 steps. The pilot spent 8,000 steps on composed data alone and its gate showed

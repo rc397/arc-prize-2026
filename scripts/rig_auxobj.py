@@ -1,7 +1,7 @@
 """Three auxiliary objectives inside test-time training: masked-output completion, sub-grid crops,
 and rule inversion.
 
-All three come from Ryan. None is the pre-fitting objective we already killed, and the difference
+All three come from my own idea batch. None is the pre-fitting objective we already killed, and the difference
 matters. Pre-fitting was corrupted test input to clean test input, with no transformation involved,
 and it moved nothing. These are transformation-conditioned.
 
