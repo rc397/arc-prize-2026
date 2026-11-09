@@ -133,7 +133,7 @@ in.
 
 ## W2. Move every remaining claim onto offline evidence
 
-This is the quiet but important half. Several conclusions still rest on single hidden-set comparisons,
+This half matters just as much. Several conclusions still rest on single hidden-set comparisons,
 which we've now shown can't carry them. Each needs grounding in an offline comparison within tasks,
 where run-to-run noise doesn't apply.
 
@@ -156,7 +156,7 @@ rewritten, not just the numbers patched. The abstract, introduction, the noise p
 results, the phantom section and the escape-route ledger are done. The conclusion and the five-lessons
 section still argue from regressions that no longer exist.
 
-Here's how the rubric reads after the change.
+This is how the rubric reads after the change.
 
 | criterion | before | after | why |
 |---|---|---|---|
@@ -211,6 +211,6 @@ Ranked by how strong the mechanism is, not by hope.
 3. **Nothing on the selection side.** Closed by the theorem and by 0 of 18 on fresh tasks.
 4. **Nothing on the synthesis side at our budget.** Closed at 0 of 120 with no gradient.
 
-Honestly, that's one live lever with a real mechanism, a second worth profiling, and a measurement
+So that's one live lever with a real mechanism, a second worth profiling, and a measurement
 contribution that holds up however those land. That's a better position than the first draft of this
 version suggested.

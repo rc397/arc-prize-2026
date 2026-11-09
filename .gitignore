@@ -21,7 +21,6 @@ kaggle.json
 api_key
 *.secret
 
-.claude/
 
 # LaTeX build artifacts
 paper/*.aux

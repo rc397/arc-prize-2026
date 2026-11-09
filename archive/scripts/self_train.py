@@ -7,12 +7,12 @@ One round:
   train   : bf16 LoRA distil the base on that curriculum (reuses finetune_base.py).
   gate    : convert + quantize + no-TTT AIRV on the 120 public eval; keep only if > stock 12.79%.
 
-Iterate: the improved model harvests again and reaches more tasks (the STaR flywheel).
+Iterate: the improved model harvests again and reaches more tasks (the STaR loop).
 
-Honest risk: on the training set a verified-correct solution equals the ground-truth target, so this
+The risk: on the training set a verified-correct solution equals the ground-truth target, so this
 shares a failure mode with the continued FT that already failed the gate. The levers that make it a
 different experiment are the self-solve CURRICULUM, on-policy iteration, and augmentation multiplicity.
-Ship only if it clears the gate; otherwise it is an honest negative result for the paper.
+Ship only if it clears the gate; otherwise it goes in the paper as a negative result.
 """
 import argparse
 import json

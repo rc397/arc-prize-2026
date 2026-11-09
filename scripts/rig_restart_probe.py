@@ -10,20 +10,20 @@ seconds per worker, which is roughly fifteen restarts.
 
 All of that is worthless if a second run fails the same tasks. This measures exactly that.
 
-WHAT THE ANSWER LICENSES, precisely. The deployed pipeline hardcodes every seed (adapter init 42,
+What the answer licenses. The deployed pipeline hardcodes every seed (adapter init 42,
 trainer 42, train augment 1, eval augment 2), so rerunning a task reproduces the same adapter bit for
 bit and a naive restart returns the identical pool. The lever exists only if the training augmentation
 seed varies. But augment(n=16, seed=s) ALWAYS applies all eight dihedral views; the seed selects which
 sixteen of the colour-permutation space, plus example order. So a null result licenses "colour
 permutation restarts do not help", NOT "restarts do not help". Say so wherever the number appears.
 
-THE NEGATIVE CONTROL IS NOT OPTIONAL. The DFS admits a continuation on a hard threshold,
+The negative control is not optional. The DFS admits a continuation on a hard threshold,
 score < -log(0.2), evaluated on bf16 logits. Kernel nondeterminism can flip a borderline token and
 prune or admit a whole subtree, so two runs of the SAME seed need not agree. Without measuring that,
 "union above single" is guaranteed to look positive whether or not seeds decorrelate. The claim is
 cross-seed disagreement MINUS replicate disagreement, and the replicate arm measures the subtrahend.
 
-Fidelity, stated honestly. Training matches the deployed rank 256, alpha 32, rslora, 8192 context, one
+Fidelity. Training matches the deployed rank 256, alpha 32, rslora, 8192 context, one
 epoch at lr 5e-5 cosine with 0.1 warmup, completion-only loss through the notebook's own collator, and
 the decoder is the deployed turbo_dfs lifted out of arc_solver.py by AST rather than reimplemented.
 Four things differ. Unsloth is unavailable so the model loads through plain transformers and peft.
@@ -952,7 +952,7 @@ def summarize(path=None):
     print("  raw union by stratum: " + " ".join(
         "%s=%d/%d" % (s, v[0], v[1]) for s, v in sorted(by_strat.items())))
 
-    # Fidelity against the deployed run, on the tasks they share. Compare LIKE WITH LIKE: the CSV
+    # Fidelity against the deployed run, on the tasks they share. Compare like with like: the CSV
     # holds the trainer's mean loss over the run, not a final loss, so the probe's mean is the
     # comparable statistic and its final (about 25x smaller) is not. This is reported before the
     # headline because a probe training at a different operating point would make the headline mean

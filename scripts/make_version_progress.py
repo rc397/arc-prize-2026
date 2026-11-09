@@ -28,7 +28,7 @@ plt.rcParams.update({
 # One row per leaderboard submission. Append as the entry climbs (v3, v4, ...).
 #   score    : hidden 240-task main-track score (%), or None if not yet scored
 #   hours    : leaderboard-run wall-clock (h), or None where the scored rerun was not instrumented
-#              (the rerun log is not visible from outside, so v6 onward has no honest number)
+#              (the rerun log is not visible from outside, so v6 onward has no measured number)
 #   time_est : True if hours is an estimate (the run was not instrumented)
 #   accel    : the scored-run accelerator
 #   ttt      : number of tasks given per-task test-time training
@@ -192,7 +192,7 @@ def fig_version_score():
 
 
 def fig_version_time():
-    # only the instrumented era carries an honest wall-clock; the scored rerun's log is not
+    # only the instrumented era carries a measured wall-clock; the scored rerun's log is not
     # visible from outside, so v6 onward is excluded rather than estimated
     TIMED = [v for v in VERSIONS if v["hours"] is not None]
     fig, ax = plt.subplots(figsize=(8.4, 5.0))

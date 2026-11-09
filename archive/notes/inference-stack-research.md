@@ -37,7 +37,7 @@ model on this card, with no Triton and no WSL [V].
 - The winners paid for it with hardware. The ARChitects ran 128 training steps per task at rank 32
   and batch 1, plus 102 refinement steps, with speculative decoding (4.7x) and prefix caching (5.8x),
   on clusters of 8 H100s, GH200s and 16 H100s [V]. NVARC ran on Kaggle's four L4s [V].
-- Here's the knot. Training has to happen in PyTorch, because no engine trains. Fast generation needs
+- The knot is this. Training has to happen in PyTorch, because no engine trains. Fast generation needs
   an engine. And per-task training makes a new LoRA for every task, which the engine then has to
   serve. That serving step is the real difficulty on one consumer card. A single global fine-tune
   throws away most of the per-task gain [V], so there's no clean shortcut.

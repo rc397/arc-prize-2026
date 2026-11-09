@@ -3,9 +3,7 @@ from scipy.ndimage import label, find_objects, center_of_mass
 from collections import Counter
 import math
 
-# -------------------------------------------------------------------
-# 1. Fast Object Extraction (same as before, but returns more)
-# -------------------------------------------------------------------
+# 1. object extraction
 def extract_object_features(grid):
     """Returns: (num_objects, avg_size, list_of_masks, list_of_centroids, color_hists)"""
     if grid is None or grid.size == 0:
@@ -55,9 +53,7 @@ def compute_color_mapping(hists_in, hists_out):
     return 0
 
 
-# -------------------------------------------------------------------
-# 2. Rule Inference Engine (The World Model)
-# -------------------------------------------------------------------
+# 2. rule inference
 def bresenham_line(p1, p2, shape):
     """Generate a binary mask of a line between two points."""
     r1, c1 = int(round(p1[0])), int(round(p1[1]))
@@ -98,7 +94,6 @@ def match_translation(input_masks, input_centroids, output_masks, output_centroi
         dx = output_centroids[i][1] - input_centroids[i][1]
         shifts.append((dy, dx))
     
-    # Check if the shift is consistent across all objects
     if all(s == shifts[0] for s in shifts):
         dy, dx = shifts[0]
         return {"type": "TRANSLATE", "dy": dy, "dx": dx}, 1.0
@@ -113,18 +108,18 @@ def match_symmetry(input_masks, output_masks, grid_shape):
     # Build full input mask from its components
     full_in = np.zeros(grid_shape, dtype=bool)
     for m in input_masks:
-        # We need the absolute positions, but masks are cropped.
-        # For simplicity, we compare the full grids if only one object.
+        # masks are cropped, so absolute positions are lost here
+        # with one object, compare the full grids
         # For multiple objects, we check if output masks are mirrored versions of input masks.
         pass
     
-    # Simplified: check if output is a horizontal or vertical concatenation of input and its flip
+    # output as the input concatenated with its flip, horizontally or vertically
     # (Common ARC symmetry task: half shape -> full shape)
     if len(input_masks) == 1:
         # Try to reconstruct output by flipping the input mask
         in_mask_full = np.zeros(grid_shape, dtype=bool)
-        # We'll just use the full input grid (train_data[0]["input"]) outside, so this is tricky.
-        # Better to handle this at the grid level in the main function.
+        # needs the full input grid, which only the caller has
+        # the main function handles it at grid level
         return None, 0.0
     return None, 0.0
 
@@ -141,8 +136,8 @@ def match_arithmetic(input_masks, input_centroids, output_masks, output_centroid
         factor = n_out // n_in
         # Check if every input object is replicated 'factor' times in output
         # We check if output objects are identical to input objects (same shape/color)
-        # This is hard without full object matching.
-        # We'll return a generic "DUPLICATE" if counts are a clean multiple.
+        # counts only, objects are not matched
+        # generic "DUPLICATE" when counts are a clean multiple
         return {"type": "DUPLICATE", "factor": factor}, 0.8
     # Merging: n_in % n_out == 0
     elif n_in % n_out == 0 and n_in > n_out:
@@ -157,7 +152,7 @@ def match_line_drawing(input_centroids, output_masks, grid_shape):
         # Generate line between the two centroids
         line_mask = bresenham_line(input_centroids[0], input_centroids[1], grid_shape)
         # Compare to output mask (we only have mask, need full grid to compare)
-        # We'll just check area: line area should roughly match output area
+        # area check, line area should roughly match output area
         out_area = np.sum(output_masks[0])
         line_area = np.sum(line_mask)
         if abs(out_area - line_area) / max(1, line_area) < 0.2:
@@ -190,7 +185,7 @@ def match_tiling(input_masks, output_masks, grid_shape):
     """Rule 6: Tiling / Fractal."""
     if len(input_masks) == 1 and len(output_masks) > 1:
         # Check if output objects are all identical to the input object
-        # We can't easily compare shapes without full reconstruction.
+        # shapes are not compared, only counts
         # But if output has many objects and average size matches input, it's likely tiling.
         return {"type": "TILE"}, 0.7
     return None, 0.0
@@ -206,7 +201,7 @@ def apply_rule(rule, test_input, train_data):
     if rule_type == "TRANSLATE":
         dy, dx = rule["dy"], rule["dx"]
         # Shift the entire test grid (or its objects)
-        # Simpler: shift the whole grid
+        # shift the whole grid, not each object
         grid = np.array(test_input)
         shifted = np.zeros_like(grid)
         h, w = grid.shape
@@ -237,7 +232,7 @@ def apply_rule(rule, test_input, train_data):
         factor = rule["factor"]
         grid = np.array(test_input)
         # Simply tile the grid in a pattern (e.g., 2x2 or 1xN)
-        # For simplicity, just repeat the whole grid
+        # repeat the whole grid
         h, w = grid.shape
         # Try to arrange in a square-ish grid
         rows = int(np.ceil(np.sqrt(factor)))
@@ -253,13 +248,13 @@ def apply_rule(rule, test_input, train_data):
     
     if rule_type in ["XOR", "AND", "OR", "SUBTRACT", "SUBTRACT_REV"]:
         # This rule applies to the input itself (2 input grids in training)
-        # For test, we only have one input. We can't apply logical ops to single input.
+        # test has one input, so logical ops cannot apply
         return None
     
     if rule_type == "TILE":
         grid = np.array(test_input)
         # Tile the input pattern across the whole output canvas
-        # We need output size, but we don't know it. Use training output size.
+        # output size unknown at test time, take the first training output's
         # Use first training output as template size
         train_out = np.array(train_data[0]["output"])
         h_out, w_out = train_out.shape
@@ -275,9 +270,7 @@ def apply_rule(rule, test_input, train_data):
     return None
 
 
-# -------------------------------------------------------------------
-# 3. Main AIF Analysis Function (Upgraded)
-# -------------------------------------------------------------------
+# 3. main AIF analysis
 def run_aif_analysis(train_data, test_input):
     """Full Active Inference World Model.
     Tries multiple rules, picks the one that perfectly explains all training examples.
@@ -289,7 +282,7 @@ def run_aif_analysis(train_data, test_input):
         all_avg_sizes = []
         color_shifts = []
 
-        # Step 1: Extract features from all training pairs
+        # Extract features from all training pairs
         for ex in train_data:
             inp_grid = np.array(ex["input"])
             out_grid = np.array(ex["output"])
@@ -310,7 +303,7 @@ def run_aif_analysis(train_data, test_input):
                 if shift != 0:
                     color_shifts.append(shift)
 
-        # Step 2: Check consistency across all examples
+        # Check consistency across all examples
         counts_match = (np.std(input_counts) == 0 and np.std(output_counts) == 0)
         avg_size_stable = np.std(all_avg_sizes) < 0.5
         expected_count = int(np.mean(input_counts)) if input_counts else 0
@@ -325,7 +318,7 @@ def run_aif_analysis(train_data, test_input):
         first_out = train_features[0]["out"]
         grid_shape = first_in["grid"].shape
 
-        # --- CASCADE OF RULES (BFS over transformations) ---
+        # rules are tried in order, first one that fits every pair wins
         
         # Rule 1: Translation
         rule, conf = match_translation(
@@ -398,9 +391,7 @@ def run_aif_analysis(train_data, test_input):
 
         # Rule 4: Logical Operations (XOR, AND, etc.)
         if not best_rule and len(train_data[0]["input"]) == 2:  # two input grids?
-            # Actually ARC train data is a list of dicts, each with "input" and "output".
-            # Logical ops usually appear with multiple input grids in one pair? 
-            # ARC standard: each pair is one input -> one output. So this doesn't apply.
+            # never fires, an ARC pair has a single input grid
             pass
 
         # Rule 5: Tiling
@@ -420,14 +411,14 @@ def run_aif_analysis(train_data, test_input):
                     best_rule = rule
                     confidence = conf
 
-        # Step 3: Apply the best rule to the test input
+        # Apply the best rule to the test input
         if best_rule:
             predicted_grid = apply_rule(best_rule, test_input, train_data)
             # If we got a valid grid, set high confidence
             if predicted_grid is not None and np.sum(predicted_grid) > 0:
                 confidence = max(confidence, 0.95)
 
-        # Step 4: Fallback to simple object-count pruning if no rule matched
+        # Fallback to simple object-count pruning if no rule matched
         if predicted_grid is None:
             if counts_match and avg_size_stable and expected_count > 0:
                 # Simple copy of test grid (fallback)
@@ -436,7 +427,6 @@ def run_aif_analysis(train_data, test_input):
             else:
                 confidence = 0.0
 
-        # Step 5: Return result
         if predicted_grid is not None and np.sum(predicted_grid) > 0:
             return {
                 "confidence": confidence,

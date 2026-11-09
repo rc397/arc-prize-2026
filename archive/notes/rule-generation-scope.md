@@ -93,7 +93,7 @@ The better idea changes the target. A model that solves ARC-AGI-2 at around 90% 
 more useful than invent rules from nothing. It can write a generator for each of the 1,000 public
 ARC-AGI-2 training tasks. That would be a RE-ARC for ARC-2, which doesn't exist yet.
 
-Here's why it's the right target.
+Why it's the right target.
 
 - **It fills the exact gap.** RE-ARC implements ARC-1 rules, and our composition work stacks pairs of
   those. Neither looks like ARC-2. The training set does, by construction.

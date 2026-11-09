@@ -32,7 +32,7 @@ Any candidate method has to fit all of these.
 
 These don't need rediscovering.
 
-Here is what works.
+What works.
 
 - Augment-infer-reverse-vote with no test-time training, using the eight rotations and reflections,
   gets 12.79% on public and 6.53 on hidden.
@@ -42,7 +42,7 @@ Here is what works.
 - The inference engine is the biggest systems lever, at 13 times the decoding speed of the default
   path.
 
-And here is what doesn't, and why.
+What doesn't, and why.
 
 - **Continued fine-tuning on ARC-2 and RE-ARC** scored 11.63%, worse than the stock model. The base is
   already tuned on grids, and more public data doesn't transfer.

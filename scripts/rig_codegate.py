@@ -5,7 +5,7 @@ percent on an open-weights model and 34.0 to 61.4 on a stronger one, so the mult
 1.8 to 2.8 on whatever the baseline already is. If our offline-feasible coder's baseline is zero,
 evolution has nothing to multiply and the route is closed for one card regardless of loop design.
 
-Our existing negative does NOT answer this, and it is worth being precise about why, because it was
+Our existing negative does NOT answer this, and the reason matters, because it was
 almost read as a closure. That probe ran 1616 programs and found 0 of 101 solved with 100 of 101
 tasks failing to reproduce even one demonstration pair. But it differs from the question here in
 three ways:

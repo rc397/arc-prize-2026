@@ -12,7 +12,7 @@ null here saves three months.
 The labels come from the deployed measurement run (paper/data/task_timing.csv): solved and in-pool mean
 the correct grid entered the candidate pool at least once, miss and empty mean it never did. The
 features are structural only, computed from the task definition without a model, which is exactly the
-class of property a generator can be told to produce. That is also the honest limit of the test:
+class of property a generator can be told to produce. That is also the limit of the test:
 structural separability is sufficient to justify targeting, not necessary for the tasks to differ.
 
 Usage: python characterise_misses.py

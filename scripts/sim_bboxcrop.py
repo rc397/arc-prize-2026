@@ -13,7 +13,7 @@ unchanged, and the predicted grid is padded back afterwards.
 The safety condition is checkable per task and this script enforces it: the crop uses the union of
 all non-background bounding boxes, so no non-background cell is ever removed from any grid.
 
-Two honest caveats it cannot resolve. Cropping changes absolute positions, and a rule keyed to
+Two caveats it cannot resolve. Cropping changes absolute positions, and a rule keyed to
 absolute position rather than to content would break, though a rule keyed to the grid EDGE would
 survive since the edges move together. And grids of different sizes crop by different amounts, so
 the uniformity of the operation across a task is itself reported rather than assumed.

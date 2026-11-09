@@ -51,7 +51,7 @@ It's the only idea in the batch whose room we actually measured, at 88%. It does
 is the background, which is where the background ideas fall down. It moves gradient away from echoing
 the input and toward the transformation.
 
-Here's why it might still come up empty. The model has to learn where to copy as well as what to
+It might still come up empty. The model has to learn where to copy as well as what to
 change, and masking takes away the supervision that teaches copying. The obvious failure is a model
 that transforms correctly and then corrupts the regions it should have left alone. So the experiment
 has to check both, not just whether the truth reaches the pool.
@@ -303,7 +303,7 @@ supervision, or from a smaller effective learning rate. It comes specifically fr
 supervision on copying. A uniform 12% sample of every kind of cell is enough, and no supervision on
 copying at all is fatal.
 
-To be honest about how strong this is, the drop in coverage is 3 tasks of 8, which a sign test alone
+On strength, the drop in coverage is 3 tasks of 8, which a sign test alone
 wouldn't call significant. The split in cell-level error is measured over thousands of cells and isn't
 close.
 

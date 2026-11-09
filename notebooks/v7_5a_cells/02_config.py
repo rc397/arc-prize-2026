@@ -1,5 +1,5 @@
 import os, sys, glob
-# ============ unsloth tree wiring (works for utility-script AND notebook-output mounts) ============
+# unsloth tree wiring, works for utility-script and notebook-output mounts
 _hits = glob.glob('/kaggle/input/**/unsloth/__init__.py', recursive=True) \
       + glob.glob('/kaggle/usr/lib/**/unsloth/__init__.py', recursive=True)
 # prefer our own fork's tree over any stale utility mount that may still be attached
@@ -11,7 +11,7 @@ if _hits:
     print('unsloth tree wired from', _U)
 else:
     print('unsloth tree not found in inputs, the install cell will need internet')
-# ============ CONFIG (paths self-discover, override only if the print is wrong) ============
+# config, paths self-discover, override only if the print is wrong
 os.environ["ARC_MODEL_PATH"] = "/kaggle/input/models/sorokin/qwen3_4b_grids15_sft139/transformers/bfloat16/1"
 # auto-locate the attached grids15 model if the default path is not the actual mount
 if not os.path.isdir(os.environ["ARC_MODEL_PATH"]):
@@ -38,10 +38,9 @@ os.environ["ARC_AIF"] = "prune"
 os.environ["ARC_DFS_BATCH"] = "4"
 os.environ["ARC_N_EVAL"] = "0"
 os.environ["ARC_TASK_TIMEOUT"] = "1800"
-# ====================================================
 print("MODEL ", os.environ["ARC_MODEL_PATH"], "exists:", os.path.isdir(os.environ["ARC_MODEL_PATH"]))
 print("DATA  ", os.environ["ARC_DATA_DIR"], "exists:", os.path.isdir(os.environ["ARC_DATA_DIR"]))
-# echo every knob so a smoke run proves the config landed instead of silently defaulting
+# print every knob so a smoke run shows the config took effect
 print("CONFIG N_EVAL=%s RANK=%s MAXSEQ=%s TIMEOUT=%s DFS_FLOOR=%s LOSS_CUT=%s GFB=%s AIF=%s BATCH=%s" % (
     os.environ.get("ARC_N_EVAL", "40"), os.environ.get("ARC_RANK", "256"),
     os.environ.get("ARC_MAXSEQ", "8192"), os.environ.get("ARC_TASK_TIMEOUT", "1800"),

@@ -6,7 +6,7 @@ section should say. The numbers are as of that day. The board has moved a lot si
 
 ## The board has two populations
 
-Here is the top of the board as pulled that day.
+The top of the board as pulled that day.
 
 | rank | team | score |
 |---|---|---|

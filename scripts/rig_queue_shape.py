@@ -9,7 +9,7 @@ written against an ARC-AGI-2 training task and verified by reproducing that task
   arc1   7,840 examples, 100 composed ARC-1 rules
   arc2   7,840 examples, 100 verified ARC-2 rules
 
-WHY THE ARC-1 ARM IS REBUILT RATHER THAN REUSED. Phase 0's narrow arm is already trained and would
+Why the ARC-1 arm is rebuilt rather than reused. Phase 0's narrow arm is already trained and would
 have been free, but it was built at 160 pairs per pool while the ARC-2 samplers yield 12.8. Reusing
 it would confound shape with pool depth by a factor of twelve, and a loss for the ARC-2 arm could
 not then be attributed. `--compose-per-pool 13` matches the depth, so rule count, example count,

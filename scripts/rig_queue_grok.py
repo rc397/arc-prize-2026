@@ -16,12 +16,12 @@ largest single jump in its ablation table and ahead of both traversal conditioni
 training. Duration is the only training-side lever anyone credits that we have not tested, and it
 costs card time rather than money.
 
-ONE VARIABLE. Phase 0's narrow arm is the control and is not re-run: same base, same corpus, same
+One variable. Phase 0's narrow arm is the control and is not re-run: same base, same corpus, same
 --limit 8000, same rank 32 / lr 1e-4 / max-len 2048 / pad-mult 256, same 12-task gate. Only the step
 count changes, 8,000 to 96,000, and gates at 16k / 48k / 96k give a four-point curve with Phase 0's
 banked 8k point.
 
-COVERAGE IS THE CRITERION, NOT LOSS. Phase 0's narrow arm reached validation loss 0.0537 and still
+Coverage is the criterion, not loss. Phase 0's narrow arm reached validation loss 0.0537 and still
 tied 12 of 12, so lower loss on this corpus has never once moved ARC coverage. Loss is logged as
 instrumentation and to show whether a late-improvement grokking signature appears at all; it is not
 the test.

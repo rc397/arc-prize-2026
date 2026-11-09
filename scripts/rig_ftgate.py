@@ -195,7 +195,7 @@ def summarize(path=OUT):
         print("  Every arm is tied on all but at most one task, so this measures NOTHING in either")
         print("  direction. It did not learn the composed rules and it did not damage the base; a")
         print("  one-task move is not a result at these sample sizes. Read it together with the")
-        print("  training curve: if the val loss also barely moved, the honest conclusion is that")
+        print("  training curve: if the val loss also barely moved, the conclusion is that")
         print("  the intervention was too small to test the hypothesis, not that the hypothesis is")
         print("  false. Scaling it up is then still an open question and still expensive.")
     elif ad > au:

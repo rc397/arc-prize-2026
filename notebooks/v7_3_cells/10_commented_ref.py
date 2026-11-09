@@ -66,7 +66,7 @@
 #                 loss = self.label_smoother(outputs, labels)
 #         else:
 #             loss = outputs["loss"] if isinstance(outputs, dict) else outputs[0]
-#         # 🔧 KEY FIX: Clone the loss tensor before in-place operations
+#         # Clone the loss tensor before the in-place ops
 #         if hasattr(loss, "clone"):
 #             loss = loss.clone()  # Converts view tensor to independent tensor
 #         # Now safe for DDP gradient scaling

@@ -13,7 +13,7 @@ import numpy as np
 Grid = List[List[int]]
 
 
-# --- D4 geometric ops (forward) and their inverses, keyed by name ---
+# D4 geometric ops and their inverses, keyed by name
 def _id(a):        return a
 def _rot90(a):     return np.rot90(a, 1)            # counter-clockwise
 def _rot180(a):    return np.rot90(a, 2)

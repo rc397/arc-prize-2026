@@ -35,7 +35,7 @@ Augment-Infer-Reverse-Vote (AIRV) selection and per-task test-time training (TTT
 Building on the released NVARC Qwen3-4B grid model, we report a reproducible offline system: a
 12.79 percent no-TTT baseline on the 120-task public evaluation set, a regularized, scale-tuned TTT
 that reaches 17.6 percent on the 84 trainable tasks (vs 12.8 percent no-TTT), and a best blended
-16.28 percent across the full 120. The contribution is an honest accounting of what each stage
+16.28 percent across the full 120. The contribution is an accounting of what each stage
 costs on one card and the engineering needed to make per-task TTT serve at all.
 
 ### The constraint and the model

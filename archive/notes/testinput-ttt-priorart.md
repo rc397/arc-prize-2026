@@ -24,7 +24,7 @@ This is the most important entry, because the authors already wrote down the nei
 and named where it comes from.
 
 They build the training data for test time by leaving one demonstration out at a time, using only
-the demonstrations. Here's their construction exactly.
+the demonstrations. Their construction, exactly as published.
 
 > d_j^ICL = ({(x_k, y_k)}_{k≠j}, x_j, y_j)
 
@@ -117,7 +117,7 @@ which covers most of the proposal's motivation. Iteration 22 measured it at 6.44
 input-distribution objective against a 5.71% baseline at 10,000 steps, which is weaker than task
 augmentation at 7.02%.
 
-But it never reached test time. Here's the solution summary, quoted exactly.
+But it never reached test time. The solution summary, quoted exactly.
 
 > "Due to the limited submission time test-time fine-tuning was only applied to the canonical
 > ARC task of predicting the test outputs."
@@ -185,7 +185,7 @@ rather than the core idea.
 5. CompressARC replaces the whole system, with a published ARC-AGI-2 score of 4%. The proposal adds
    one component to a pipeline currently near 24%.
 
-The honest reading is that CompressARC shows fitting a model to reconstruct the test input at test
+So CompressARC shows fitting a model to reconstruct the test input at test
 time is a published idea that works, modestly. It doesn't show that anyone has tried it as an extra
 objective for training an LLM at test time.
 
@@ -374,7 +374,7 @@ In order of danger.
    has been done and is worth two points, and ask whether the per-task version on the test input adds
    anything beyond moving that same gain around.
 
-## An honest read of the name clash
+## The name clash
 
 The clash is real and documented, but it doesn't rescue the proposal as something everyone overlooked.
 The order of events matters. Akyurek et al. knew Sun's line of work, cited it, wrote down the matching
@@ -390,7 +390,7 @@ slightly positive, while the one related measurement in LLM test-time training, 
 different benchmark, was slightly negative. Those point in opposite directions, which is the only
 reason the question is still open.
 
-The fair summary is that this is a near neighbour of a negative result, not unexplored ground. The
+So this is a near neighbour of a negative result, not unexplored ground. The
 most likely outcome is a clean negative. The demonstration inputs already carry nearly all of each
 task's grid statistics that the test input would add, the same palette, the same kinds of objects and
 the same symmetries by construction, so the extra information in the test input is small. The

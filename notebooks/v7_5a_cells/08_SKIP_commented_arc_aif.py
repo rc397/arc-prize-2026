@@ -3,9 +3,7 @@
 # from scipy.ndimage import label, find_objects
 # from collections import Counter
 
-# # -------------------------------------------------------------------
-# # 1. Fast Object Extraction (Using C-optimized scipy)
-# # -------------------------------------------------------------------
+# # 1. object extraction (scipy)
 # def extract_object_features(grid):
 #     """Extracts connected components (objects) from a grid.
 #     Returns: (num_objects, avg_size, list_of_color_hists)
@@ -56,9 +54,7 @@
 #     return 0
 
 
-# # -------------------------------------------------------------------
 # # 2. Main AIF Analysis Function
-# # -------------------------------------------------------------------
 # def run_aif_analysis(train_data, test_input):
 #     """Main function. Returns dict with: confidence, grid, expected_count, color_shift, is_solved."""
 #     try:
@@ -68,7 +64,7 @@
 #         all_avg_sizes = []
 #         color_shifts = []
 
-#         # Step 1: Analyze all 4 training pairs
+#         # Analyze all 4 training pairs
 #         for ex in train_data:
 #             inp_grid = np.array(ex["input"])
 #             out_grid = np.array(ex["output"])
@@ -89,7 +85,7 @@
 #                 if shift != 0:
 #                     color_shifts.append(shift)
 
-#         # Step 2: Check structural consistency across ALL 4 examples
+#         # Check structural consistency across ALL 4 examples
 #         counts_match = (np.std(input_counts) == 0 and np.std(output_counts) == 0 and 
 #                         input_counts[0] == output_counts[0])
 #         avg_size_stable = np.std(all_avg_sizes) < 0.5
@@ -99,7 +95,7 @@
 #         predicted_grid = None
 #         confidence = 0.0
 
-#         # Step 3: If consistent, try to predict via simple translation/copy
+#         # If consistent, try to predict via simple translation/copy
 #         if counts_match and avg_size_stable and expected_count > 0:
 #             # Use first training example to compute object movement deltas
 #             in_slices = find_objects(label((np.array(train_data[0]["input"]) > 0).astype(int))[0])
@@ -146,8 +142,7 @@
 #                         confidence = 0.3
 #                         predicted_grid = None
 
-#         # Step 4: Return result
-#         if predicted_grid is not None and np.sum(predicted_grid) > 0:
+# #         if predicted_grid is not None and np.sum(predicted_grid) > 0:
 #             return {
 #                 "confidence": confidence,
 #                 "grid": predicted_grid.tolist(),

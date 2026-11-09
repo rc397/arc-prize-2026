@@ -11,7 +11,7 @@ Protection prevents the damage; the large composed gain needs the large exposure
 has run is both at once, and it is the only one that could show composed gains without ARC loss.
 I wanted it run for completeness, knowing the cost.
 
-Being honest about what it can return: the best plausible outcome is "ARC unchanged, composed
+What it can return: the best plausible outcome is "ARC unchanged, composed
 better", and composed is our own synthetic benchmark rather than the target. That is a completed 2x2
 rather than a score, and it is worth having in the paper precisely because it closes the direction
 with a full grid instead of three of its four corners.

@@ -36,12 +36,12 @@ fact that the prefit arm took k more gradient steps than the control did. That c
 positive result unattributable, and an unattributable positive is how three of this project's
 retracted explanations began. The reading is: prefit above base with prefit_ctrl at base means the
 effect is fluency in the grid we are actually being asked about. prefit and prefit_ctrl both above
-base means it is optimisation, not perception, and the honest lever is simply more steps. Neither
+base means it is optimisation, not perception, and the lever is simply more steps. Neither
 above base means the route is closed.
 
 All arms decode with the same budget and the same deployed decoder.
 
-Honest note on what this cannot show: a single-card probe with a truncated decode measures pool
+What this cannot show: a single-card probe with a truncated decode measures pool
 coverage, not the hidden score. A positive here is a reason to spend a submission, not a result.
 
 On budget, and this is a measurement decision rather than a resource one. The decode budget has to
@@ -236,7 +236,7 @@ def summarize():
         print("  Both pre-fit arms gain (%d and %d), so the effect is extra optimisation rather than"
               % (net, ctrl_net))
         print("  perception. That is still a lever, and a cheaper one, but the interesting claim is")
-        print("  dead and the honest write-up is 'more steps help', not 'grid fluency helps'.")
+        print("  dead and the write-up says 'more steps help', not 'grid fluency helps'.")
     elif net <= 0:
         print("  No coverage gain. Per-task grid fluency does not transfer into the transformation")
         print("  objective for this base model, so CompressARC's per-task signal is either already")

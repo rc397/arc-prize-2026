@@ -127,7 +127,7 @@ def draw_paired(ax):
             ha="center", fontsize=9, color=GREY)
 
 
-# ============================================================ RESULTS
+# RESULTS
 def fig_results():
     fig, ax = plt.subplots(2, 2, figsize=(12.6, 8.3))
 
@@ -175,7 +175,7 @@ def fig_results():
     save(fig, "fig_results")
 
 
-# ============================================================ SOLVE STRIP
+# SOLVE STRIP
 def fig_solve():
     fig = plt.figure(figsize=(13.6, 4.0))
     ov = fig.add_axes([0, 0, 1, 1]); ov.axis("off"); ov.set_xlim(0, 1); ov.set_ylim(0, 1)
@@ -219,7 +219,7 @@ def fig_solve():
     save(fig, "fig_solve")
 
 
-# ============================================================ LEVERS
+# LEVERS
 def fig_levers():
     fig, ax = plt.subplots(2, 2, figsize=(12.6, 8.6))
     fig.suptitle("Three levers, characterised: what worked and what didn't",
@@ -274,7 +274,7 @@ def fig_levers():
     save(fig, "fig_levers")
 
 
-# ============================================================ PIPELINE
+# PIPELINE
 def _box(ax, x, y, w, h, title, sub=None, fc="white", ec=BLUE, tc=INK,
          tfs=11.5, sfs=8.0):
     ax.add_patch(FancyBboxPatch((x, y), w, h, boxstyle="round,pad=0,rounding_size=1.4",
@@ -358,7 +358,7 @@ def fig_pipeline():
     save(fig, "fig_pipeline", dpi=180)
 
 
-# ============================================================ A1 ROOFLINE
+# A1 ROOFLINE
 def fig_roofline():
     # measured tok/s vs the 896 GB/s memory roof (896 / weight GB; weights are re-read per token).
     paths = ["HF eager\n(PyTorch fp16)", "llama.cpp\nbf16", "llama.cpp\nQ8_0", "llama.cpp\nQ4_K_M"]
@@ -402,7 +402,7 @@ def _load_csv(name):
         return list(csv.DictReader(f))
 
 
-# ============================================================ A2 VRAM WALL (histogram)
+# A2 VRAM WALL (histogram)
 def fig_vram_wall():
     rows = _load_csv("task_dims.csv")
     mp = np.array([int(r["maxpair"]) for r in rows])
@@ -446,7 +446,7 @@ def fig_vram_wall():
     save(fig, "fig_vram_wall")
 
 
-# ============================================================ A3 SCALE FLIP
+# A3 SCALE FLIP
 def fig_scale_flip():
     rows = _load_csv("scale_flip.csv")
     cols = ["no_ttt", "s050", "s070", "s085", "s100", "s125", "s140", "s150", "s175"]
@@ -509,7 +509,7 @@ def fig_scale_flip():
     save(fig, "fig_scale_flip")
 
 
-# ============================================================ B5 COST FRONTIER
+# B5 COST FRONTIER
 def fig_cost_frontier():
     rows = _load_csv("timings.csv")
     pts = {r["config"]: (float(r["gpu_minutes"]), float(r["accuracy"]), r["kind"]) for r in rows}
@@ -566,7 +566,7 @@ def fig_cost_frontier():
     save(fig, "fig_cost_frontier")
 
 
-# ============================================================ B4 AIRV VOTES
+# B4 AIRV VOTES
 def fig_airv_votes():
     rows = _load_csv("airv_votes.csv")
     mcols = [k for k in rows[0].keys() if k.startswith("m_")]
@@ -627,7 +627,7 @@ def fig_airv_votes():
     save(fig, "fig_airv_votes")
 
 
-# ============================================================ B6 PHASE TIMELINE
+# B6 PHASE TIMELINE
 def fig_phases():
     rows = _load_csv("vram_trace.csv")
     t = np.array([float(r["t_seconds"]) for r in rows])

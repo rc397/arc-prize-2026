@@ -43,7 +43,7 @@ the Kaggle writeup at <https://www.kaggle.com/competitions/arc-prize-2025/writeu
 interview at <https://trelis.substack.com/p/nvarc-2025-arc-prize-winners> and NVIDIA's blog at
 <https://developer.nvidia.com/blog/nvidia-kaggle-grandmasters-win-artificial-general-intelligence-competition/>.
 
-Here's what they did beyond the ARChitects' base recipe.
+What they did beyond the ARChitects' base recipe:
 
 1. **Synthetic data in four stages.** First they collected human descriptions of solutions in plain
    language. That meant H-ARC, with attempts from more than 1,700 people, plus 160 BARC descriptions,

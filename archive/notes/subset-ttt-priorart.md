@@ -272,7 +272,7 @@ makes what's actually being proposed clearer.
   probability rather than concentrating it. BARC's induction arm (arXiv 2411.02272) samples many Python
   programs and keeps the ones consistent with the demonstrations.
 
-Here's how all of this differs from the proposal. Every one of them enumerates or samples the space of
+All of this differs from the proposal in one way. Every one of them enumerates or samples the space of
 hypotheses and then filters by consistency with all the demonstrations. The evidence stays fixed and the
 hypotheses vary. The proposal turns that around. It keeps the learner fixed, varies the evidence, and
 infers how wide the space of hypotheses is from how much the learner's output moves. That reversal is

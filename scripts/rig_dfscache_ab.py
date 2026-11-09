@@ -28,7 +28,7 @@ If crop matches clone and both beat shared, the fix is one line and worth a subm
 If all three agree, the deployed pattern is harmless and the hypothesis dies for the cost of a
 night on an idle card.
 
-NOTE: this measures the RIG's transformers. Kaggle's image (unsloth 2025.9.7) may return a fresh
+This measures the rig's transformers. Kaggle's image (unsloth 2025.9.7) may return a fresh
 cache per forward, in which case the deployed code is already correct there and this result does not
 transfer. That has to be checked separately before any submission.
 

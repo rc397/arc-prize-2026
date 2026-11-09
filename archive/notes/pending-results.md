@@ -112,7 +112,7 @@ too little power, not from there being no effect. On the real target, coverage f
 candidates halves, and **test-time training doesn't bring it back**. A fresh rank-256 adapter per task
 still ends up at 4 of 17 against the stock base's 6.
 
-The strength of this evidence should be read honestly. Each sign test on its own is weak (p = 0.25, 0.50
+Each sign test on its own is weak (p = 0.25, 0.50
 and 0.50). What carries the result is that three independent measurements point the same way, and that
 the candidate counts, which rest on far more samples than the task counts, move by +200% and -47%.
 **The checkpoint is dead for submission**, but the direction isn't. This is textbook catastrophic
@@ -169,7 +169,7 @@ variants differing by one factor (30.00, 30.97 and so on) is still useful for th
 wrong reference for judging a new run, because its spread mixes up the change with the day.
 
 **And stop quoting 32.64 as the result.** It's the highest of seven draws from a distribution centred on
-30.44. The honest headline is 30.4 give or take 1.4.
+30.44. The headline is 30.4 give or take 1.4.
 
 ## Rules for folding results in
 
@@ -326,7 +326,7 @@ no-dead-AIF can be re-tested directly. v7.3, v7.4 and cap1200 would each have to
 affordable, but it makes the test of the greedy fallback a build job rather than just a submission.
 
 So today's slot went to **the third draw of no-dead-AIF (sub 55543143)**, which completes the arm at the
-pre-registered three instead of stopping at two. That was the honest use of a slot with nothing better
+pre-registered three instead of stopping at two. That was a sensible use of a slot with nothing better
 to do, and it takes the optional-stopping caveat off the record.
 
 ## Three ways pushing a new submission kernel fails without saying so
@@ -413,7 +413,7 @@ that gets further through the search produces more content and also solves more 
 artificially doesn't move the score, because a greedy guess on a task the full search couldn't solve is
 almost never right.
 
-So v7.6 is an honest answer to the idea about empty pools rather than a null. The mechanism worked, and
+So v7.6 answers the idea about empty pools, and the answer is not a null. The mechanism worked, and
 the outputs it filled in were for tasks that couldn't be solved, not tasks that just hadn't been tried.
 Draws 2 and 3 will say whether 30.56 was a coincidence, but there's much less reason to expect a gain
 now.

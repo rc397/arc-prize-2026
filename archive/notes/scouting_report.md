@@ -1,6 +1,6 @@
-> **A note added when this was saved, 24 June 2026.** This is the output of a research scouting pass.
-> Its outside citations and numbers are being checked independently, so treat every percentage and
-> arXiv ID as a rough guide until it's been checked. Two corrections from what we know about our own
+> **A note added when this was saved, 24 June 2026.** These are early scouting notes. I hadn't
+> checked the outside citations and numbers yet when I wrote them, so treat every percentage and
+> arXiv ID as a rough guide. Two corrections from what we know about our own
 > project override the body below.
 >
 > 1. **The stock 4B can't be the one proposing DSL programs.** The NVARC base has a 16-token vocabulary,
@@ -193,7 +193,7 @@ at the top. This isn't possible with the stock 16-token model, which needs a tra
   training examples and verified program tokens. This is the hindsight pattern from CodeIt and SOAR.
 
 **The compute budget. Can it fit 12 hours, 16 GB and four L4s for 240 tasks?** This is the key open
-question, and the honest answer is that the number of programs per task has to stay small, in the tens
+question, and the answer is that the number of programs per task has to stay small, in the tens
 to low hundreds, not Greenblatt's 8,000. Pang reached 26.0% on ARC-2 with only tens of programs per
 task. icecuber's C++ DSL tries up to about 10^7 candidate pieces per task in tens of seconds on CPU (a
 depth-2 run over 419 tasks took about 70 seconds, around 6 tasks a second at depth 2), so the executor

@@ -7,7 +7,7 @@ the palette encodes something, rather than decorating a two-value comparison.
   paper/opt_e_triptych.png   three panels, one per finding, each with its own hue
   paper/opt_f_field.png      our band against the live leaderboard, the constraint in context
 
-Palette validated light-surface, five slots, all checks pass:
+Five-colour palette for a light surface:
 #2166AC blue, #C25E11 amber, #22957A teal, #9B59B6 violet, #D6425A rose.
 """
 import os

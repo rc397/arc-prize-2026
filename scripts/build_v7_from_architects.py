@@ -219,7 +219,7 @@ def rewire(text):
     # model's beliefs, so deleting it was the expensive half of a cheap decision.
     text = text.replace(
         "        # ================================================================\n"
-        "        # LAUNCH AIF IN BACKGROUND THREAD\n"
+        "        # launch AIF in a background thread\n"
         "        # ================================================================\n"
         "        aif_future = None\n"
         "        executor = ThreadPoolExecutor(max_workers=1)\n"
@@ -256,7 +256,7 @@ def rewire(text):
         "                aif_future = None\n")
     text = text.replace(
         "        # ================================================================\n"
-        "        # GET AIF RESULT (should be ready, runs <0.1s on CPU)\n"
+        "        # collect the AIF result, it takes under 0.1s on CPU\n"
         "        # ================================================================\n"
         "        aif_result = None\n"
         "        if aif_future is not None:\n"
@@ -569,7 +569,7 @@ intro = md_cell(
 
 config = code_cell(
     "import os, sys, glob\n"
-    "# ============ unsloth tree wiring (works for utility-script AND notebook-output mounts) ============\n"
+    "# ============ unsloth tree wiring, works for utility-script and notebook-output mounts ============\n"
     "_hits = glob.glob('/kaggle/input/**/unsloth/__init__.py', recursive=True) \\\n"
     "      + glob.glob('/kaggle/usr/lib/**/unsloth/__init__.py', recursive=True)\n"
     "# prefer our own fork's tree over any stale utility mount that may still be attached\n"
@@ -581,7 +581,7 @@ config = code_cell(
     "    print('unsloth tree wired from', _U)\n"
     "else:\n"
     "    print('unsloth tree not found in inputs, the install cell will need internet')\n"
-    "# ============ CONFIG (paths self-discover, override only if the print is wrong) ============\n"
+    "# ============ config, paths self-discover, override only if the print is wrong ============\n"
     'os.environ["ARC_MODEL_PATH"] = "%s"\n' % MODEL_DEFAULT +
     "# auto-locate the attached grids15 model if the default path is not the actual mount\n"
     'if not os.path.isdir(os.environ["ARC_MODEL_PATH"]):\n'
@@ -615,7 +615,7 @@ config = code_cell(
     + "# ====================================================\n"
     'print("MODEL ", os.environ["ARC_MODEL_PATH"], "exists:", os.path.isdir(os.environ["ARC_MODEL_PATH"]))\n'
     'print("DATA  ", os.environ["ARC_DATA_DIR"], "exists:", os.path.isdir(os.environ["ARC_DATA_DIR"]))\n'
-    "# echo every knob so a smoke run proves the config landed instead of silently defaulting\n"
+    "# print every knob so a smoke run shows the config took effect\n"
     'print("CONFIG N_EVAL=%s RANK=%s MAXSEQ=%s TIMEOUT=%s DFS_FLOOR=%s LOSS_CUT=%s GFB=%s AIF=%s BATCH=%s" % (\n'
     '    os.environ.get("ARC_N_EVAL", "40"), os.environ.get("ARC_RANK", "256"),\n'
     '    os.environ.get("ARC_MAXSEQ", "8192"), os.environ.get("ARC_TASK_TIMEOUT", "1800"),\n'

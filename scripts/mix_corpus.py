@@ -8,8 +8,8 @@ the original distribution in the training stream. We never tried it.
 
 The design is EQUAL COMPUTE, not equal composed exposure. The pilot spent 8,000 steps entirely on
 composed data; this spends 8,000 steps on half composed and half single-rule. So the comparison
-answers the question a compute-poor project actually faces --- given a fixed training budget, is a
-mixture better than the pure thing --- rather than the question of whether more total data helps,
+answers the question a compute-poor project actually faces, given a fixed training budget, is a
+mixture better than the pure thing, rather than the question of whether more total data helps,
 which we already know costs 23 hours to ask.
 
 Interleaving rather than concatenating matters: the trainer walks the file in order with gradient

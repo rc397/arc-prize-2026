@@ -8,7 +8,7 @@ When You Are Compute-Poor
 Almost all strong ARC-AGI work runs on multi-GPU clusters (the 2025 winners used 8-16x H100 /
 GH200). We ask the opposite question: how far does the winning recipe (small grid LLM +
 per-task test-time training + Augment-Infer-Reverse-Vote) go on one 16 GB consumer GPU, and
-where exactly are the walls? The honest accounting of what matters, what breaks, and the
+where exactly are the walls? An accounting of what matters, what breaks, and the
 accuracy-per-GPU-hour frontier is the contribution, useful to everyone who cannot rent a
 cluster. We build on the released NVARC Qwen3-4B grid model and report a reproducible system.
 

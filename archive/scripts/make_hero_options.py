@@ -4,9 +4,8 @@
   paper/opt_b_dumbbell.png     one axis, two endpoints, the gap as the subject
   paper/opt_c_dark.png         dark surface, luminous accents
 
-All three carry identical numbers. Palettes are validated by the dataviz checker:
-light #0B4F9E/#D1495B and dark #4C93E8/#E8616F both pass lightness, chroma, CVD separation,
-normal-vision separation and contrast against their own surface.
+All three carry identical numbers. Palettes are light #0B4F9E/#D1495B and dark #4C93E8/#E8616F,
+picked to stay distinct under colour-blindness and to keep contrast against their own surface.
 """
 import os
 

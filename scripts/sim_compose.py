@@ -1,8 +1,8 @@
-"""Can we build ARC-2-style COMPOSITIONAL tasks from RE-ARC's parts? Measured, not asserted.
+"""Can we build ARC-2-style COMPOSITIONAL tasks from RE-ARC's parts?
 
 I claimed building generators for ARC-2-style composition was a larger project than our remaining
-calendar. That was an assertion where our own triage doc calls for a CPU script, so here is the
-script.
+calendar. That was never measured, and our own triage doc calls for a CPU script, so this is
+that script.
 
 The route is direct. RE-ARC ships 400 verifiers, each a pure Grid -> Grid function implementing one
 ARC-1 task's rule. Transformations compose: verify_B(verify_A(x)) is a new deterministic rule, and

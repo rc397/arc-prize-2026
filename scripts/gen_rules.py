@@ -48,7 +48,7 @@ SRC_IN = os.environ.get("ARC_GENRULES_SRC", OUT)
 EXEC_TIMEOUT = 6.0
 
 # Both providers speak the same OpenAI-compatible protocol, so the only thing that changes is the
-# base URL, the default model string and where the key lives. Each key file is created by the user
+# base URL, the default model string and where the key lives. Each key file is created by hand
 # and read at call time; no code path prints or logs a key.
 #
 # Which is for what, and why:
@@ -177,7 +177,7 @@ def has_sampler(src):
 def api_key():
     if PROVIDER == "local":
         return "no-key-needed"          # llama-server ignores it; the header must still be present
-    """Env var first, then a file the user creates. The value is never printed or logged.
+    """Env var first, then a file created by hand. The value is never printed or logged.
 
     Same shape as the Kaggle token on this rig: it lives in a file under the home directory, gets
     read into memory at call time, and no code path echoes it.
@@ -469,7 +469,7 @@ def cmd_run(n_tasks, attempts):
 def cmd_runc(n_tasks, attempts, workers, floor=2.0):
     """The full run: concurrent ACROSS tasks, serial WITHIN a task.
 
-    Concurrency buys nothing on price -- tokens cost the same however many sockets are open. It buys
+    Concurrency buys nothing on price, since tokens cost the same however many sockets are open. It buys
     the off-peak WINDOW. The long discount block is 10:00-01:00 UTC, fifteen hours; a serial run of
     roughly 1,750 calls at 40 seconds each is nineteen, so serial spills into peak and pays double
     for the overflow. Six workers bring it to about three hours and the whole run lands inside the

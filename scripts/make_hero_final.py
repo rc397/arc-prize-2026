@@ -6,12 +6,12 @@
 Fixes over the option drafts: consistent two-decimal values, the replicate band drawn wherever a
 blue bar appears, panel two rebuilt as shown-run pairs per notebook, the inversion panel carrying
 its endpoint values and z, the field's displayed-to-run drops drawn inside the leaderboard itself,
-and the 5.8 rounded honestly to its 5.4 to 5.8 range.
+and the 5.8 shown as its 5.4 to 5.8 range.
 
 Refreshed 4 October 2026. The August versions carried 30.97 as the 96 GB result, 12.78 as the price,
 0.41 as the run-to-run noise and the 4 August leaderboard. The 96 GB bar is now the mean of twelve
 runs of one immutable artifact with every run drawn, the price follows from it, the noise is the
-spread of those runs, and the field is the 1 October board. The numbers are data below, not text.
+spread of those runs, and the field is the 1 October board. The numbers live in the arrays below.
 
 Palette is the validated five-hue set: #2166AC, #C25E11, #22957A, #9B59B6, #D6425A on white.
 """

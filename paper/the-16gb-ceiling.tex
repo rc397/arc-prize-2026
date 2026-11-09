@@ -114,7 +114,7 @@ hypothesis that the reclaimed time budget could fund restarts measured a 4.4-poi
 with each other, so the apparent effect was the decoder's own arithmetic, and only a same-seed
 replicate arm separated the two. And the residual is capability rather than budget, since 62\% of tasks
 never place the correct grid in the candidate pool under any of sixteen views while consuming 69\% of
-the compute. We give an honest accounting of
+the compute. We give a full accounting of
 what the recipe costs and where the effort should go for anyone working with one consumer GPU rather
 than the winner's hardware. The contest itself provides four L4 GPUs, 96~GB together, where the
 public leaderboard was led at 83\% on 1 October 2026, so we read the 16~GB
@@ -132,7 +132,7 @@ bottleneck and its fix (\ref{sec:engine}), the AIRV selection rule (\ref{sec:air
 TTT bridge (\ref{sec:ttt}). Section~\ref{sec:results} reports the numbers. Section~\ref{sec:disc}
 draws the lessons. Readers who want to reproduce the system should go straight to
 Appendix~\ref{app:repro}. The per-scale tables and significance detail are in
-Appendix~\ref{app:results}, the honest list of dead ends in Appendix~\ref{app:log}, the exact prompt
+Appendix~\ref{app:results}, the full list of dead ends in Appendix~\ref{app:log}, the exact prompt
 and 16-token vocabulary in Appendix~\ref{app:format}, and data licensing and BibTeX in
 Appendix~\ref{app:prov}.
 
@@ -425,7 +425,7 @@ configuration into 13.0~GB under a flash-attention kernel, and two different mem
 implementations on two different cards landing within two gigabytes of each other is the agreement we would
 expect.
 
-Three limits on that result, stated because they bound what follows from it. It measures training memory
+Three limits bound what follows from that result. It measures training memory
 for a single sequence at batch size one, where the deployed pipeline may pack differently. It measures
 memory and step time rather than numerical equivalence, which would need a paired run against the math
 backend on a real task. And it shows only that the training configuration fits, not that the pipeline runs
@@ -537,7 +537,7 @@ hours. Read against v6.1, the best configuration we ran within that budget, the 
 figure in this work. The same author, the same base model, the same hidden set and the same twelve-hour
 budget yield \textbf{18.19\%} under 16~GB and \textbf{29.90\%} on average on the contest's 96~GB, so
 roughly twelve points separate what one consumer card reaches from what the provided hardware reaches on
-a method built for it. That gap is the honest size of the ceiling in the title, measured rather than
+a method built for it. That gap is the size of the ceiling in the title, measured rather than
 argued, and it is the paper's central quantitative claim.
 
 \begin{figure}[H]
@@ -632,7 +632,7 @@ time, and the third draw came in at 28.47. A pair of runs cannot measure a sprea
 lesson the three-run estimate taught earlier in this section, arriving a second time by a different
 route.
 
-The consequence is not a correction to one claim, it is the retirement of a whole class of claim.
+The consequence is wider than one correction. It retires a whole class of claim.
 Measured against this series, \emph{every} deviation this project has recorded falls inside
 \emph{two} standard deviations, and after the twelfth draw none of them reaches even 1.5.
 
@@ -663,7 +663,7 @@ v7.2, ``our best'' & 30.97 & $+1.07$ & 0.80 & the configuration everything was c
 \end{table}
 
 \paragraph{What the noise costs a research programme.}
-The standard deviation is not only a caveat on past claims, it is a budget constraint on future ones.
+The standard deviation is a caveat on past claims and also a budget constraint on future ones.
 Separating two configurations at 80\% power with a two-sample comparison at this standard deviation
 needs about \textbf{4.1 points of separation with three runs in each arm}, by an exact two-sample $t$
 computation. The normal approximation an earlier draft used gave 3.3 and understated it, because with
@@ -671,7 +671,7 @@ two degrees of freedom per arm the standard deviation is itself poorly known. Th
 submission a day, so a single properly powered comparison costs six submission days. Nothing in our
 ledger of forty measured levers is remotely four points, and the largest coverage change any of
 them produced on a held-out slice is one output in fourteen. This reframes the ledger. It reads as a
-wall of null results, and the honest reading is not that nothing helps but that \emph{the leaderboard
+wall of null results, but the right reading is not that nothing helps but that \emph{the leaderboard
 cannot see anything smaller than a third of our own score}, so a programme of single-submission
 A/B tests, which is what the field and this project both ran, was never capable of the discrimination
 it claimed.
@@ -709,7 +709,7 @@ converting empty pools into answered tasks on slow sessions. Our own offline flo
 gain from a tighter threshold at a fixed decode budget, but that measured a rig at 600~seconds per
 task and not a contest worker at 1800 with a variable machine underneath it.
 
-\paragraph{The uncomfortable direction of that argument.}
+\paragraph{The other direction of that argument.}
 It is easy to read the preceding as a defence, which says our regressions were not real and so we did not break
 anything. The symmetric reading is the one that costs us something. A single submission cannot
 resolve a two-point effect, so a lever that genuinely \emph{worked} by one or two points would have
@@ -736,7 +736,7 @@ arm, is six submission days. A season has of order ninety. So the entire remaini
 compute-poor entry, spent on nothing else, adjudicates about fifteen hypotheses, and only those
 with effects above four points, which is larger than anything this project has produced.
 
-Two of those lines are worth stating plainly rather than leaving in a table. \textbf{The LB33 control
+Two of those lines belong in the text and not only in a table. \textbf{The LB33 control
 scored 28.47, and so did our own unmodified pipeline.} The phantom-notebook section
 (Section~\ref{sec:phantom}) concluded that two public artifacts ``both land near 28 when executed,
 below our own unchanged pipeline's band''. Our own unchanged pipeline reaches exactly that number.
@@ -745,8 +745,8 @@ not bind to the published file. The comparison we drew underneath it does not su
 \textbf{v7.5a, the symbolic prune we treated as the theorem's escape route measured and refuted,
 has now been reported at 11, 3.0, 1.93, 2.14 and 2.30 standard deviations as the sample grew from
 three runs to eight, without its own score ever changing.} Its verdict crossed the two-sigma line in
-both directions on single additional draws, which is a sharper argument against single-comparison
-verdicts than anything we could write. The interval on the standard deviation itself is
+both directions on single additional draws, which says more against single-comparison
+verdicts than any argument we could make. The interval on the standard deviation itself is
 $[0.78, 2.41]$, so v7.5a's distance from the mean is somewhere between about one and three
 sigma and the threshold is not a stable object. We keep the conclusion about oracle accuracy because
 the offline invariant-mining experiment reaches it independently and does not rely on the hidden
@@ -785,7 +785,7 @@ fine-tune under tensor-parallel training across eight GPUs, over a corpus whose 
 of order $10^6$ puzzles produced by an LLM pipeline that summarizes and recombines task concepts, writes
 transformation programs and executes them. We estimate that generation alone at six to eight months of
 continuous single-card inference, before any training step. So the ceiling in our title is a training
-ceiling wearing an inference costume, and the twelve points measure the distance between a base one card
+limit, not an inference one, and the twelve points measure the distance between a base one card
 can fine-tune and a base one card cannot build.
 
 Three consequences follow, and each is a measurement rather than an inference. The published artifacts do
@@ -805,16 +805,16 @@ A third submission of the reproduction, identical to the second except that it l
 cap at the upstream default of 1800 seconds rather than the 1200 we had chosen for margin, scored
 \textbf{30.97\%} and placed 264th. Two facts about that number matter more than its size.
 
-Roughly sixty entries on the leaderboard carry it exactly. A tie that wide is not coincidence, it is the
+Roughly sixty entries on the leaderboard carry it exactly. A tie that wide comes from the
 public notebook being forked and submitted unchanged, which identifies 30.97 as that notebook's number
 rather than as anyone's result. Our restoration therefore converges on the public baseline exactly rather
 than approximately, and that is stronger evidence that the two port defects we isolated account for the
-whole difference than the near-agreement we claimed before. It is also, plainly, a reproduction rather than
+whole difference than the near-agreement we claimed before. It is also a reproduction rather than
 a differentiating result, and we report it as one.
 
 We first read the 0.41 points between our two runs of it as the per-task cap, since the two builds
-differed by nothing else we had declared. That reading was wrong, and its correction is the most useful
-thing in this section. An audit of the generated notebooks found the cap knob had never reached the solver
+differed by nothing else we had declared. That reading was wrong, and the correction is worth
+recording. An audit of the generated notebooks found the cap knob had never reached the solver
 at all. The build script rewrote a guard it expected to find as a local variable comparison, the source
 writes the same test inline, the pattern never matched, and so every submission from the first reproduction
 onward ran the same hardcoded 1800-second cap while its configuration banner printed whichever value we
@@ -846,7 +846,7 @@ the unchanged pipeline.
 \label{sec:phantom}
 The public board then handed us what looked like a controlled measurement and was not one. We report the
 episode in full, including three wrong explanations we published internally along the way, because the
-correction cost a week and the general lesson is worth more than the specific result.
+correction cost a week and the general lesson matters more than the specific result.
 
 A public notebook restoring this same pipeline displayed \textbf{33.89} against our restoration's 30.56.
 Taking that at face value, we spent the following week attributing the 3.33-point deficit. First to the
@@ -866,8 +866,8 @@ which a diff read module by module leaves as the only differences that survive i
 Then we forked the public notebook unmodified and submitted it from our own account. It scored
 \textbf{28.06}, 2.91 points
 below the restoration it was supposed to be beating. We took that as showing the deficit had never
-existed, and reported it that way. That reading was itself wrong, and the way it was wrong is the most
-useful thing in this section.
+existed, and reported it that way. That reading was itself wrong, and how it was wrong is worth
+spelling out.
 
 The notebook we forked was not the notebook the score belonged to. Enumerating the competition's public
 notebooks, which are published precisely to be read, turns up one titled for the score in question and
@@ -929,7 +929,7 @@ the controls and our own.}
 \label{fig:phantom}
 \end{figure}
 
-The durable lesson survives both errors and is sharper for them. A score displayed beside a public
+One lesson survives both errors. A score displayed beside a public
 notebook is not a measurement of the code in front of you, and it does not even identify which code it
 came from. A submission binds to a notebook version and its attachments at submit time, both mutable
 afterwards and neither auditable, and a leaderboard entry names a team rather than a file. We treated a
@@ -938,8 +938,7 @@ actually required was finding the artifact. The remedy is not scepticism, which 
 error, but enumeration. The competition publishes its notebooks, and reading them is both permitted and
 the only way to know what a number refers to. We did that a week late, and it took an afternoon.
 
-The costs are worth stating plainly, since they are the argument for the discipline rather than
-decoration on it. Believing the number bought three quantified explanations of a gap, one of them
+The costs come next, since they are the argument for the discipline. Believing the number bought three quantified explanations of a gap, one of them
 elevated to a claim that the software environment outweighed every method lever we had measured.
 Disbelieving it on one control bought a confident published assertion that the effect was illusory.
 Enumerating the notebooks bought a two-line mechanism, testable offline, that neither belief would ever
@@ -1052,7 +1051,7 @@ A lever that measures neutral on the public set has no upside and only tail risk
 
 The eight greedy D4 views at a single scale are a local optimum that neither more votes nor
 vote filtering beats. The best blend, TTT at scale $1.25$ where trainable and no-TTT elsewhere,
-reaches \textbf{16.28\%} on the full 120-task evaluation, up from 12.79\%. The honest summary is that
+reaches \textbf{16.28\%} on the full 120-task evaluation, up from 12.79\%. In short,
 naive per-task TTT \emph{ties} a strong no-TTT AIRV baseline, while a regularized, scale-tuned TTT
 \emph{beats} it by a consistent if modest margin.
 
@@ -1144,7 +1143,7 @@ the floor prunes low-probability branches, which are cheap to lose, while cuttin
 search wherever it happens to be, including on branches about to pay. Those are different
 operations and only one of them is free.
 
-The uncomfortable observation is the first one. Under a binding wall clock, correctness and score are
+The first observation is the awkward one. Under a binding wall clock, correctness and score are
 not the same objective, and a change that provably explores more of the intended search tree can lose
 on the leaderboard because it explores it more slowly. We report the crop as a defect found and fixed
 in the code, and separately as a change we did not ship.
@@ -1168,7 +1167,7 @@ on 7 of 8 composed holdouts, and better on 0, worse on 0, \textbf{tied on 12 of 
 The only thing that moved is candidate count, which fell 33\% in the narrow arm and 25\% in the wide
 one without changing a single solve. Four times the rule diversity is not visible in the output.
 
-\textbf{The honest reading is weaker than it looks.} Twelve of twelve tied means the gate failed to
+\textbf{The result is weaker than it looks.} Twelve of twelve tied means the gate failed to
 detect an effect in either direction, which is not the same as establishing there is none. At this
 sample size only a multi-task swing would register, so the result bounds the effect rather than
 excluding it, and we record it as an inconclusive null rather than a refutation. A stop condition that
@@ -1267,7 +1266,7 @@ At 4{,}000 and 32{,}000 tokens it produced no code whatsoever, spending a mean o
 on reasoning. At 64{,}000 three of five converged, at 43{,}488, 55{,}800 and 59{,}671 tokens, and
 \textbf{all three that converged verified}. The two that did not emitted \emph{zero} answer tokens and
 stopped exactly at the cap. Reasoning accounts for 97 to 98\% of output, and the program itself is only
-735 to 1{,}555 tokens. So the failure mode is not a wrong program, it is an unfinished thought, and a
+735 to 1{,}555 tokens. So the failure mode is an unfinished thought, not a wrong program, and a
 cap set anywhere below roughly 45{,}000 tokens converts a capable model into an apparently useless one
 while still charging for every token.
 
@@ -1297,7 +1296,7 @@ reached 3 of 4 demonstration pairs where max reached none. The additional reason
 accuracy. Past some point the model fails to terminate and is billed for every token of it.
 
 We take two things from this. First, \textbf{the 11\% is a floor imposed by our budget rather than a
-ceiling of the model}, and the honest statement of this contribution is that we measured what three
+ceiling of the model}, and what we actually measured is what three
 dollars buys, not what the method is worth. Second, \textbf{the cheapest marginal program is not the
 cheapest call}. Once the non-reasoning pass has swept all 1{,}000 tasks its 11\% is exhausted, and
 further programs must come from somewhere more expensive. A blind retry converts the remainder at
@@ -1339,7 +1338,7 @@ cannot separate the model from the quantisation with this evidence, and program 
 quantisation asymmetrically, since one wrong index fails verification outright with no partial
 credit.
 
-Two results from that exercise are worth more than the comparison. First, \textbf{the
+Two results from that exercise matter more than the comparison. First, \textbf{the
 non-termination failure reproduces in a second model family}. Left unconstrained, the local model
 spent its entire 20{,}000-token allowance without emitting a program, exactly as the hosted one did
 at 32{,}000 and 64{,}000. Imposing a 10{,}000-token thinking budget made it verify the same task it
@@ -1512,8 +1511,8 @@ therefore real but bounded by model scale on one GPU, the same wall the refineme
 other side. The lever exists but needs a larger model to grip, which is exactly the move the full contest
 hardware allows (Section~\ref{sec:scale}).
 
-One experiment on this lever is built and unrun, and its motivation changed underneath it in a way worth
-recording. The community port carries a symbolic arm that we deleted wholesale (Section~\ref{sec:phantom}),
+One experiment on this lever is built and unrun, and its motivation changed underneath it, and we record
+how. The community port carries a symbolic arm that we deleted wholesale (Section~\ref{sec:phantom}),
 and it returns two independent things. One is a solved flag that preempts the learned search entirely,
 and that half is measured harmful, taking 12 of 39 slice tasks with nothing correct to show. The other is
 an object count read off the demonstration pairs on the CPU while the adapter trains, which never
@@ -1807,7 +1806,7 @@ of this measurement is to eliminate the cheaper alternative. Reweighting is exha
 for any future attempt is the pool dump itself, which makes selection rules testable offline without
 further contest compute.
 
-The signal that paragraph asked for has since been built, and it fails too. It is worth reporting because
+The signal that paragraph asked for has since been built, and it fails too. We report it because
 the construction avoids the objection that sank our earlier verifier, which scored an adapter rather than a
 candidate and so could not choose between two candidates the same adapter produced. Here a candidate is
 scored as evidence. An output proposed for the test input is either a true instance of the task's rule or
@@ -1885,7 +1884,7 @@ regresses. The failure case is the informative part. On \texttt{3dc255db\_0} thi
 fuse to a grid two cells from the truth, and they are the same two cells the selected answer gets wrong.
 The candidates' errors are correlated, so no vote among them can cancel what they all agree on.
 
-We stop here, and the stopping is the finding. The leak is the largest measured gap in this system, 6.4
+We stop here. The leak is the largest measured gap in this system, 6.4
 points on this slice and roughly fifteen task credits at contest scale, and it has now turned back four
 attacks with unrelated mechanisms, sixteen reweightings of the pool's own statistics, an out-of-pool
 consistency score that ranks the answers backwards, a diversity-forced second attempt, and cell-level
@@ -1899,7 +1898,7 @@ dominance proposition over the pool's statistics and verifies its premise on all
 
 \subsection{Revisiting the big-grid wall with the host's memory}
 \label{sec:biggrid}
-The journey of one cap tells this subsection's story. Thirty-six of the 120 evaluation tasks have a train
+One cap is the clearest case. Thirty-six of the 120 evaluation tasks have a train
 pair larger than a thousand tokens, and their per-task training runs out of memory on 16~GB, so from the
 first TTT submission onward they were excluded and served without adaptation. We tested that exclusion once,
 early, by forcing TTT onto them with the training context capped at 600 tokens, the most that then fit. It
@@ -1934,7 +1933,7 @@ at a lower resident-weight budget. The full thirty-six run is complete and the c
 excluded set's 47 test outputs, the unadapted system solves 4 in this paired harness and the full-context
 adapters solve \textbf{8}, five tasks flipping to solved against one flipping away, that one a displacement
 the two-attempt format removes in deployment by carrying both arms. Four of the largest tasks remain
-honestly flagged undertrained where even the reduced-budget training exceeded its time cap, so the 8 is a
+flagged as undertrained where even the reduced-budget training exceeded its time cap, so the 8 is a
 floor with headroom. The doubled count settles the question this subsection opened. What we recorded as a
 genuine ceiling was in substantial part a truncation artifact, and the excluded third of the evaluation is
 partially winnable on this card with the host's memory carrying the frozen weights.
@@ -1973,7 +1972,7 @@ empty   & 1  & 1.5\%  & 367 & 0.0172 \\
 \end{tabular}
 \end{table}
 
-First, the search is not time-starved, it is capability-starved. Sixty-five percent of tasks never
+First, the search is capability-starved rather than time-starved. Sixty-five percent of tasks never
 produce the correct grid under any of the sixteen views, and they consume seventy-one percent of the
 budget doing it. Second, final training loss does not separate the outcomes. Solved tasks span 0.00063
 to 0.02531 and unsolved tasks span 0.00269 to 0.09104, overlapping across almost their whole range, so
@@ -2039,9 +2038,9 @@ against a 42480-second wall, roughly eighteen percent. Decide-early, heavy-taile
 progress signal is precisely the regime in which restart theory says a hard cutoff plus a fresh attempt
 dominates waiting, and Appendix~\ref{app:math} already derives the fixed-cutoff objective for exactly
 this queue. We derived the mathematics and never applied the policy, which is the same failure this
-paper records elsewhere in a different costume.
+paper records elsewhere in another form.
 
-\textbf{We then applied it, and the timing model did not survive contact with the hidden set.} The
+\textbf{We then applied it, and the timing model failed on the hidden set.} The
 cap had never once been tested cleanly, since v7.3 declared 1200 and ran 1800 because the build script's
 replacement targeted a form of the guard that exists only inside a commented-out cell, and v7.4
 really ran 1200 but also fired 24 unbudgeted greedy fills, so two factors moved and its 29.44 is
@@ -2206,7 +2205,7 @@ number of steps before the ordinary demonstration objective. Corrupted grid in t
 grid in the assistant turn, cells dropped at 0.25 to a colour drawn from the task's own palette
 complement so the model is never asked to invent a colour the task does not use.
 
-The third arm is the reason the experiment is worth running at all. A two-arm design cannot separate
+The third arm is what makes the experiment interpretable. A two-arm design cannot separate
 instance-specific grid fluency from the brute fact that the treated arm took more gradient steps than
 the control, and an unattributable positive is how three of this project's retracted explanations
 began. So the control arm denoises \emph{a different task's} test input for the same number of steps
@@ -2283,7 +2282,7 @@ prefix tokens & width & per-step ms & peak reserved & \\
 \end{tabular}
 \end{table}
 
-Two readings follow, and the second is the one that matters.
+Two readings follow.
 
 First, the mechanism is memory and not computation. At 1398 and 1642 tokens the fourth lane costs
 nothing measurable, which is the bandwidth account behaving exactly as predicted. At 1994 and 2730 the
@@ -2310,7 +2309,7 @@ length so reserved memory stays under the cliff, which for this model means widt
 1650 tokens and width two above it. It preserves the same thirty-two views and changes no score by
 construction, since lanes are independent and only the grouping differs.
 
-Three honest limits on the claim, and the third is the one that bounds it hardest.
+Three limits apply to the claim.
 
 The platform matters. This card runs Windows, where exceeding device memory pages silently to host
 rather than raising, so on Linux the same configuration would be expected to fail outright rather
@@ -2338,13 +2337,13 @@ and because the most valuable thing a compute-poor entry can hand the next one i
 to spend. Everything here is measured on this pipeline, and none of it is argued.
 
 \paragraph{The headline count.} \textbf{Forty levers were measured. None moved the hidden
-score.} That is the finding, not an apology for one. A system whose remaining knobs are all worth
+score.} That is a result, not an apology. A system whose remaining knobs are all worth
 less than its own measurement noise is at a ceiling, and the useful thing to publish is which knobs
 and why. The noise makes that statement sharper than it looks. At sd 1.34 the leaderboard cannot
 resolve anything below roughly four points without three runs per arm, and the largest coverage change
 any of these forty produced on a held-out slice is one output in fourteen. So ``none moved the
 hidden score'' is partly a claim about the levers and partly a claim about the instrument, and
-separating the two honestly is the point of this section.
+separating the two is the point of this section.
 
 Two of the forty produced a genuine positive on their own terms without moving coverage, namely
 task retrieval by demonstration embedding and warm-starting an adapter from a same-rule neighbour,
@@ -2597,8 +2596,8 @@ learning rate. It is caused specifically by removing \emph{all} supervision on c
 twelve percent sample of every kind of cell is sufficient, while zero copy-supervision is fatal. The
 premise underneath the whole family is therefore false in an interesting way. The gradient spent on
 unchanged cells is not waste but the load-bearing half, and the transformation the task is
-nominally about can be improved several-fold while the answer gets worse. We report the strength
-honestly. The coverage drop is three tasks of eight, which a sign test alone would not call, while
+nominally about can be improved several-fold while the answer gets worse. On
+strength, the coverage drop is three tasks of eight, which a sign test alone would not call, while
 the cell-level split is measured over thousands of cells and is not close.
 
 \paragraph{One constructive result, and it began as a claim we made without measuring.} Asked whether
@@ -2657,7 +2656,7 @@ better on none, and mean final training loss of 0.0019 against 0.0176. That is t
 substantially harder than one rule and still solvable on better than a third of instances. The corpus
 is not noise.
 
-What that costs is worth stating precisely, because it is the sharpest instance of this paper's own
+The cost is the clearest instance of this paper's own
 thesis. A pilot fine-tune of 8{,}000 of the 78{,}792 examples, rank 32 at a 2048-token context, runs
 at 11.7 seconds per optimizer step on the 16~GB card with 97.6\% of its memory in use, which puts the
 full corpus at roughly \textbf{eleven days} of continuous training. Every lever in the ledger above
@@ -2681,7 +2680,7 @@ it.
 \label{sec:conclusion}
 The 2025 winning recipe survives a single 16~GB consumer GPU, but only after the inference engine is
 fixed. That one change is worth more than every other knob, and it is what makes per-task TTT
-tractable through an adapter-serving bridge. The honest result is a 12.79\% no-TTT baseline and a
+tractable through an adapter-serving bridge. The result is a 12.79\% no-TTT baseline and a
 16.28\% regularized-TTT blend on the public evaluation, 13.61\% and then 18.19\% on the hidden leaderboard as the per-task training deepened, with the
 gains bounded by adapter overfitting and by a VRAM wall on large grids that later proved to be partly a
 context-truncation artifact rather than a true limit. Against that single-card ceiling we set one
@@ -2698,7 +2697,7 @@ regression, both public notebooks we ran as controls, and the configuration we c
 sit inside 1.5 standard deviations of that mean. Separating two configurations at 80\% power needs
 about four points and three runs each, so a contest allowing one submission a day permits perhaps
 eight properly powered comparisons in a season. We report a ledger of forty measured levers
-that moved nothing, and the honest reading of it is not that nothing helps but that a programme of
+that moved nothing, and the right reading of it is not that nothing helps but that a programme of
 single-submission A/B tests, which is what the field and this project both ran, was never
 capable of the discrimination it claimed. Beyond that, public-eval gains must be re-validated in the
 deployed condition, since every public-validated candidate lever we submitted regressed on the hidden
@@ -2714,7 +2713,7 @@ them is specific to this benchmark.
 
 What we could not move is the part that was never about scheduling or ranking. Across the levers we
 closed, the residual is that most tasks never produce the correct grid at all, which is a property of a
-4B model rather than of the twelve-hour budget, and the honest next step is a stronger base rather than
+4B model rather than of the twelve-hour budget, and the next step is a stronger base rather than
 another pass over the same candidates. We can now price that step rather than gesture at it. The one
 lever available to us that changes the model rather than the pipeline around it, continued training
 on the compositional corpus this paper constructs, runs at 11.7 seconds per optimizer step on the
@@ -2793,7 +2792,7 @@ regularizer removed. Table~\ref{tab:deepttt} separates them on all 84 trainable 
 2000-token context the submitted system uses. Depth alone does nothing. Sixty steps at rank 16 with
 dropout ties the twenty-step baseline at 24 of 125. Adding capacity while keeping the regularizer on is
 what moves the number. Sixty steps at rank 32 reaches 27 of 125, the best trainable-task result we have
-measured, and it prefers the same 1.25 inference scale. The honest caveat is variance. Two seeds of the
+measured, and it prefers the same 1.25 inference scale. The caveat is variance. Two seeds of the
 baseline configuration score 24 and 22, so a single output sits inside the noise, and the deep result
 rests on one seed. A second seed is the confirmation and its verdict is in the status below. The same
 sweep isolates the training context as a real knob. The baseline trained at 1600 tokens scores 16.0\%
@@ -3132,7 +3131,7 @@ measuring the mean change in per-token negative log-likelihood of each held-out 
 \;-\; \mathrm{NLL}\bigl(y_i \,\big|\, D_{-i}\bigr)\Bigr],
 \label{eq:roundtrip}
 \end{equation}
-with $D$ the demonstration pairs and $x_\star$ the test input. It failed in an instructive direction. The
+with $D$ the demonstration pairs and $x_\star$ the test input. It failed in a specific direction. The
 measured $\Delta$ tracks the description length of $c$ rather than its truth, a simple low-entropy grid
 perturbs the conditional barely at all, so $-\Delta$ behaves as a smoothness prior, which is once again a
 functional of the model's beliefs. The section's conclusion restated formally, the leak is not a ranking
@@ -3198,7 +3197,7 @@ We then ran the version the theorem actually names, rescoring the same pool unde
 trained 2B sibling of our base, and it appeared to work spectacularly. Its likelihood alone places the
 truth in the top two for \textbf{19} of 60 outputs against the deployed selector's 15, and 19 is exactly
 the number of outputs whose pool contains a correct grid at all. A perfect score against the reachable
-ceiling is not a result, it is a symptom, and the check took five minutes. That model assigns the
+ceiling is a symptom, not a result, and the check took five minutes. That model assigns the
 correct grid a median per-token loss of \textbf{0.0002}, and it prefers the true grid over every decoded
 alternative on 54 of 60 outputs including \textbf{40 of the 41 where the correct grid never entered the
 pool at all}. It is not ranking candidates. It has memorized the public evaluation set, and a model that
@@ -3396,7 +3395,7 @@ searches.}
 \label{fig:cap}
 \end{figure}
 
-The model has a closed form worth recording, because it turns the cap from a swept knob into a solved
+The model has a closed form, and it turns the cap from a swept knob into a solved
 problem given one estimable distribution. Write $F$ for the distribution of the natural time $\tau$,
 $\bar F = 1 - F$, $h = f/\bar F$ its hazard, $\mu(C) = \mathbb{E}\min(\tau, C) = \int_0^C \bar F(t)\,dt$
 the capped mean, and $\nu(C) = \mathbb{E}[s\,\mathbf{1}\{\tau \le C\}]$ the capped credit. Tasks consume

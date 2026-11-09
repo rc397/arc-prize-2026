@@ -47,8 +47,8 @@ ABSTRACT = (
     "public evaluation. Training a small regularized adapter per task and tuning its scale lifts "
     "accuracy to 17.6% on the 84 tasks that fit in memory, against 12.8% without TTT, for a best "
     "blended result of 16.28% across the full 120. Colour-permutation augmentation lifts the baseline "
-    "but does not stack with TTT, whose adapter is already colour-robust. The contribution is an "
-    "honest single-GPU operating point and a map of the walls, the decode ceiling, the VRAM limit "
+    "but does not stack with TTT, whose adapter is already colour-robust. The contribution is a "
+    "single-GPU operating point and a map of the walls, the decode ceiling, the VRAM limit "
     "that excludes large grids, and adapter overfitting, reported as accuracy per GPU-hour."
 )
 

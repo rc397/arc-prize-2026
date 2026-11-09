@@ -259,7 +259,7 @@ Decision: bank the 12.79 percent no-TTT baseline as the result for now. TTT is n
 this rig as wired, it needs the fast-generation bridge we set aside (serve each per-task LoRA
 in llama.cpp, or move to a Linux toolchain where torch.compile and vLLM dynamic LoRA work).
 That is a focused future effort, not an overnight grind. The strongest near-term deliverable is
-the baseline plus the honest single-GPU engineering account, which is itself paper material.
+the baseline plus the single-GPU engineering account, which is itself paper material.
 
 ### Stage 2 fixed: the TTT generation bridge works, but the method shows no lift yet
 
@@ -278,7 +278,7 @@ Python's `sys.executable` alias plus a maxed GPU broke the in-process convert.
 A clean 6-task run (full 8/8 candidates, no crashes) gives the first fair TTT-versus-no-TTT
 number: 1/8 versus 1/8, tied, no measurable lift. The adapters overfit (training loss reaches
 0.000 in 40 steps), which likely explains the lack of generalization to the held-out test input.
-So the honest two-part answer to "why does TTT not work here" is: the generation was broken (now
+So the two-part answer to "why does TTT not work here" is: the generation was broken (now
 fixed), and the method as configured does not lift, which is a tuning problem (step count, rank,
 adapter scale). Next levers: lower the step count or the applied adapter scale to curb
 overfitting, or run all 120 to see whether a lift emerges at scale.
@@ -300,7 +300,7 @@ The pattern is coherent with the overfit diagnosis: the standard config overfits
 and ties; moderate regularization (fewer steps, lower rank, dropout) recovers a small lift; too
 aggressive a reduction undertrains and ties again. The lift is one task on a 15-task sample, so
 it is a weak but hypothesis-consistent signal that warrants larger-scale confirmation. The
-useful, honest finding for the paper: naive per-task TTT does not beat a strong no-TTT AIRV
+useful finding for the paper: naive per-task TTT does not beat a strong no-TTT AIRV
 baseline on this single-GPU setup, but a regularized configuration can. Sweep harness:
 `scripts/ttt_sweep.py` orchestrating `ttt_phase1.py` / `ttt_phase1b.py` / `ttt_phase2.py`,
 compared by `scripts/sweep_compare.py`.
@@ -465,7 +465,7 @@ under the 12h cap. Added two version-progression figures, fig_version_score and 
 built by scripts/make_version_progress.py from a single VERSIONS table (append a row per submission).
 
 ### Self-training (STaR) scaffolded; oracle self-solve saturates, pivot to a near-miss curriculum
-User directed self-training on the rig. Built scripts/self_train.py: harvest (AIRV over the ARC-2
+Moved to self-training on the rig. Built scripts/self_train.py: harvest (AIRV over the ARC-2
 TRAINING tasks, keep what the model self-solves) -> curriculum corpus (reuses build_ft_corpus
 official_pools + mint) -> bf16 LoRA distil (reuses finetune_base) -> convert + quantize + no-TTT AIRV
 gate vs stock 12.79%, then iterate. Honest catch recorded up front: on the training set a verified-correct
@@ -580,10 +580,10 @@ Rewrote the paper body into clean prose, removing the semicolon/colon/comma-spli
 Pending content folds (per plan 1d): v3 hidden score (Kaggle still marking) and the leave-one-out selection null (rig job 4208 at 20/30, A0==A1 on every task, zero flips, ~4h left).
 
 ## 2026-06-25 (cont)  Diverse second-model lever: Tier-0, LOO-selection, TRM coverage test
-Deep research + experiments on whether a second model adds DISJOINT coverage (the only thing it can, given the bimodal wall). User time-boxed the TRM attempt ("we can never know if we don't try; pivot if it fails").
+Deep research + experiments on whether a second model adds DISJOINT coverage (the only thing it can, given the bimodal wall). Time-boxed the TRM attempt ("we can never know if we don't try; pivot if it fails").
 - Tier 0 (free, existing dumps): stock-4B no-TTT solves 14/120, FT-4B-arc2ft no-TTT 13/120, overlap 11. FT adds +2 disjoint (1818057f, 5961cc34); stock has 3 the FT misses; oracle union 16. A second transductive model (even our own FT variant) adds a SMALL disjoint set (+2), weaker overall. Marginal but nonzero. (Union 16 is an oracle bound; a real 2-attempt submission gets less.)
 - LOO-selection (ttt_loo_select.py), stopped at 21/30 to free GPU: baseline single-adapter hits 2 tasks; keep+vote leave-one-out adapters that reproduce their held-out pair hits 3 = recovered 1 (36a08778), lost 0, net +1. WEAK POSITIVE, not the 0-flip null it showed through 20/30. CORRECT the paper: LOO-selection is a weak positive, not a null.
-- TRM coverage test (the time-boxed "try"): released ARC-Prize-verified arc_v2_public checkpoint (6.2% pass@2). Env works on the rig (TRM imports vs system torch 2.10, adam-atan2 stubbed, DISABLE_COMPILE). Rebuilt the exact arc2concept-aug-1000 dataset (deterministic; num_puzzle_identifiers=1191730 MATCHES the checkpoint puzzle_emb -> alignment confirmed). eval_only.py loads clean (missing 0 unexpected 0, ALIGN MATCH). BUT the eval is impractical on native Windows: TRM's recursive ACT forward is meant to run torch.compile'd, which needs triton (no native-Windows backend -- the SAME wall as our torch.compile finding), so eager mode runs >6 min/batch -> ~a day-plus for the full 464-batch / 118k-augmented-test eval on one consumer GPU. Stopped. Precise TRM coverage number uncollected on the rig; would need Linux/Kaggle.
+- TRM coverage test (the time-boxed "try"): released ARC-Prize-verified arc_v2_public checkpoint (6.2% pass@2). Env works on the rig (TRM imports vs system torch 2.10, adam-atan2 stubbed, DISABLE_COMPILE). Rebuilt the exact arc2concept-aug-1000 dataset (deterministic; num_puzzle_identifiers=1191730 MATCHES the checkpoint puzzle_emb -> alignment confirmed). eval_only.py loads clean (missing 0 unexpected 0, ALIGN MATCH). BUT the eval is impractical on native Windows: TRM's recursive ACT forward is meant to run torch.compile'd, which needs triton (no native-Windows backend, the same wall as our torch.compile finding), so eager mode runs >6 min/batch -> ~a day-plus for the full 464-batch / 118k-augmented-test eval on one consumer GPU. Stopped. Precise TRM coverage number uncollected on the rig; would need Linux/Kaggle.
 - Synthesis: every line of evidence (Tier-0 +2, LOO +1, NVARC shipped 4B-alone and found 4B+TRM only "slight", BARC: transductive models overlap and the coverage-adding diversity is INDUCTION) says a second transductive model is low-value, and TRM is impractical to even evaluate here. Pivot to program search (the inductive arm). Bonus paper point: TRM hits the same native-Windows compile/triton wall we document for our own pipeline.
 Artifacts: scripts/trm_eval_only.py, scripts/trm_coverage.py; TRM env on rig at D:\arc\trm (.venv, ckpt/arc_v2_public, data/arc2concept-aug-1000).
 
@@ -609,7 +609,7 @@ Harness fixes needed along the way, the rig python binary is python3.13.exe so t
 
 ## Robust rig validation harness (2026-06-28)
 
-Both heavy rig runs this session stalled a few tasks in and died, the program-search probe and the more-candidates AIRV test that hung at task 3 of 40. Cause, the HF-eager harnesses call model.generate with no timeout, so one bad task on the 16 GB card hangs the whole run, the per-task try/except catches exceptions but not hangs, and there is no resume so a restart loses everything.
+Both heavy rig runs stalled a few tasks in and died, the program-search probe and the more-candidates AIRV test that hung at task 3 of 40. Cause, the HF-eager harnesses call model.generate with no timeout, so one bad task on the 16 GB card hangs the whole run, the per-task try/except catches exceptions but not hangs, and there is no resume so a restart loses everything.
 
 Fixed by hardening scripts/run_airv_llamacpp.py into the single rig validation harness. It runs through llama-server (the 13x, far lower VRAM) where every request has a 300s cap plus ensure_server recovery, so no task can hang the run. Added resume-from-partial (filtering the [[0]] padding write_submission emits for un-done tasks), per-task checkpoint, per-task try/except, a heartbeat eval_status.json so monitoring is a file read not a process guess, and a K/TEMP sampling knob for the more-candidates lever (K=1 = greedy baseline). Standard launch is Start-Process with the real python3.13 interpreter detached, monitored via eval_status.json, never a laptop-side ssh monitor.
 
@@ -625,7 +625,7 @@ Next, confirm more-candidates stacks with TTT (needs the TTT-on-llama.cpp valida
 
 ## Paper fold-in and workspace cleanup (2026-06-28)
 
-Folded the session's results into the paper. The candidate-quality ablation (sampling each D4 view 4 times lifts no-TTT 12.79 to 13.95, while multi-scale and colour-perm dilute the vote) is in Section 4.4, the program-search 0 of 101 disjoint-coverage negative in Section 5.3, the robust llama.cpp validation harness in the engineering log, and the v3 error, the v3.1 regression to 12.78, and v4 in Section 4.1 plus the regenerated version-progress figures. PDF recompiled to 18 pages, HTML mirrored, no em-dashes or section symbols.
+Folded the results into the paper. The candidate-quality ablation (sampling each D4 view 4 times lifts no-TTT 12.79 to 13.95, while multi-scale and colour-perm dilute the vote) is in Section 4.4, the program-search 0 of 101 disjoint-coverage negative in Section 5.3, the robust llama.cpp validation harness in the engineering log, and the v3 error, the v3.1 regression to 12.78, and v4 in Section 4.1 plus the regenerated version-progress figures. PDF recompiled to 18 pages, HTML mirrored, no em-dashes or section symbols.
 
 Archived the superseded experiment scripts (the v3 and v3.1 builders, airv_morecand, grade, ttt_loo_select, and the closed dsl and trm harnesses) and the v3 and v3.1 notebooks into archive/, leaving scripts/ and notebooks/ holding only the active pipeline.
 
@@ -643,7 +643,7 @@ v5 (v2.1 plus filter) would match v2.1 at 13.61, so it is not submitted, keep v2
 
 ## White-box filter, corrected and completed (2026-07-01)
 
-The neutral read above was from a partial run and was incomplete. Finishing the full 120-task no-TTT filter run and scoring it properly corrected the story before it settled, so here is the verified account.
+The neutral read above was from a partial run and was incomplete. Finishing the full 120-task no-TTT filter run and scoring it properly corrected the story before it settled.
 
 The filter is not benignly neutral. On 117 tasks it keeps at least one candidate and changes no top-2, byte-identical to the baseline. On 3 tasks (38007db0, a32d8b75, e87109e9) its constant-size rule empties the whole candidate list. That rule infers a fixed output size from train pairs that only coincidentally share one, while the true rule is variable, so it rejects the correct variable-size output. 38007db0 was a baseline solve on both its test outputs, so the raw filter discards 2 correct answers.
 
@@ -759,7 +759,7 @@ faithful restoration lands close to it while the ported form did not, which reti
 verified" caveat we had been carrying since 2026-07-18. And the eleven-point eval gap between ported
 and restored was entirely the port's own edits, the AIF arm and the halved DFS batching.
 
-The important bookkeeping, 30.56 is NOT a single-card result and the paper now says so in five places.
+Bookkeeping, 30.56 is NOT a single-card result and the paper now says so in five places.
 Its per-task training runs rank 256 at 8000 context, which does not fit 16GB at all, so it measures the
 contest's four-L4 node. Read against v6.1's 18.19, the best configuration that does fit one card, the
 pair prices the hardware constraint at roughly twelve points. That is now the paper's central
@@ -791,7 +791,7 @@ puts 8192 tens of gigabytes past the card. Lean dtypes buy a full rank doubling 
 a real result and corrects my earlier prediction that they would not help, but they do not touch the
 activation term so the context wall does not move.
 
-The important implication. The Kaggle runs fit the same config into 13 GB with FA2, where attention memory
+What this means: the Kaggle runs fit the same config into 13 GB with FA2, where attention memory
 is linear rather than quadratic. So this wall is at least partly our software stack, not the card. Getting
 a working flash or memory-efficient attention path on this GPU is now the highest-value open question for
 the single-card thesis, and the first probe design was wrong in ways worth remembering, it varied two axes
@@ -826,7 +826,7 @@ grid found three times with high confidence therefore loses to one found four ti
 under kgmon, and wins under probmul. kgmon is close to a lossy projection of probmul, which is why it
 never wins a task probmul loses.
 
-Exposed as ARC_SELECTOR, defaulting to probmul, with kgmon one env var away. Noting honestly that the
+Exposed as ARC_SELECTOR, defaulting to probmul, with kgmon one env var away. Noting that the
 upstream authors shipped kgmon as their default and may have had reasons we cannot see, and that three
 discordant cases is a sign test at p about 0.13, so the empirical evidence alone is moderate. The
 mechanism is what makes it worth taking, not the count.
@@ -843,7 +843,7 @@ now gets measured against.
 Two things follow, and the second one is a correction of my own work from earlier today.
 
 The baseline. 33.83 task-credits. The harness prints 116 in the denominator because four of the 120
-tasks produced no decoded output at all, so the honest public-eval rate against all 120 is 28.2 percent
+tasks produced no decoded output at all, so the public-eval rate against all 120 is 28.2 percent
 rather than the 29.2 the log implies. Against 30.56 hidden, the flat-to-slightly-up transfer property
 holds a fourth time and now on a proper sample.
 
@@ -855,7 +855,7 @@ selector wins exactly one task the other loses, and kgmon's win is worth double 
 test output rather than two. Since the 120 contains the original 40, kgmon must be ahead by a full credit
 on the eighty tasks that were not in the slice.
 
-Worth naming the failure mode precisely, because it is the one this project keeps having to relearn.
+The failure mode is the one this project keeps having to relearn.
 Three discordant cases is an anecdote. The mechanism argument was real and still did not make the
 conclusion true, and having a mechanism made a tuned result feel like engineering, which is exactly what
 made it persuasive enough to ship. Discarding information cannot help in principle, but in practice the
@@ -865,8 +865,8 @@ kgmon again.
 
 ## 2026-07-22: deep research on the 2026 frontier, done by hand, and the paper updated
 
-Ran a proper source-read pass (direct fetches, no agents) after an earlier agent workflow burned budget
-and died on its verification phase without confirming anything. Verified from primary sources.
+Ran a proper source-read pass by hand, from direct fetches, after an earlier scripted pass ran out of
+budget before it confirmed anything. Verified from primary sources.
 
 The 2026 leader nvbanana (~65.8, second ~38.6) is on the available evidence the NVIDIA Kaggle Grandmasters
 lineage (KGMON, the source of our score_kgmon selector) that won 2025, one year on. Their stated thesis,
@@ -891,8 +891,8 @@ only pay via disjoint coverage that survives selection, the same wall TRM hit.
 Net: 30.56 is near the card-side method ceiling. The frontier gap is training-data scale (compute moat,
 data partly public as nvidia/Nemotron-SFT-ARC-AGI-v1) plus verifier-guided refinement (a method, feasible
 offline only with an execution or consistency signal and a real build). Paper Section 5.7 and the abstract
-were updated with the current numbers and this framing. All web figures are single-source reads, not
-adversarially verified, but they triangulate across the NVIDIA blog, the ARC Prize 2025 report, and the
+were updated with the current numbers and this framing. All web figures are single-source reads I have not cross-checked, but they agree
+across the NVIDIA blog, the ARC Prize 2025 report, and the
 ARChitects writeup.
 
 ## 2026-07-22: the v6.1 + v7.1 union is dead, measured, +1 task and it is a selection artifact

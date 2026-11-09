@@ -26,7 +26,7 @@ Headline numbers on the 120-task public evaluation set:
 | regularized TTT (scale 1.25) on the 84 trainable tasks | 17.6% (vs 12.8% no-TTT) |
 | best blended full-120 (TTT where trainable) | 16.28% |
 
-The contribution is an honest accounting of what each stage costs on one card, and the engineering
+The contribution is an accounting of what each stage costs on one card, and the engineering
 needed to make per-task TTT serve at all on this hardware.
 """),
 
@@ -75,7 +75,7 @@ def build_prompt_ids(train_pairs, test_input):
 md(r"""
 ## 3. The engine is the bottleneck
 
-The single most consequential finding: on the standard Hugging Face eager path, prefill is healthy
+The main finding: on the standard Hugging Face eager path, prefill is healthy
 (~3,400 tok/s) but decoding runs at only ~13 tok/s, a tenth of what the card's bandwidth allows,
 because of per-token framework overhead with no CUDA graphs. The usual fix (compiling decode) is
 unavailable: `torch.compile` needs Triton, which has no native-Windows backend.
@@ -125,7 +125,7 @@ md(r"""
 
 TTT fits a fresh rank-16 LoRA adapter per task with a leave-one-out objective and a random
 augmentation each step. Capping the few-shot context to ~1,600 tokens keeps a step at ~2s. Training
-is the easy part; the hard part is generation. TTT must train in PyTorch (where decode is the slow
+is the easy part. The hard part is generation. TTT must train in PyTorch (where decode is the slow
 13 tok/s, intermittently quadratic after a step), while the fast engine does not train.
 
 The bridge: train in PyTorch, save each adapter, convert it to a GGUF adapter, and serve it on

@@ -2,7 +2,7 @@
 
 Run after trm_eval_only.py produces eval_out_v2/evaluator_ARC_step_*/submission.json. Computes which
 tasks TRM solves (pass@2, exact match on either attempt), which our 4B solves (no-TTT and TTT dumps),
-and the disjoint set |TRM-solved minus 4B-solved| -- the only thing a second transductive arm can add.
+and the disjoint set |TRM-solved minus 4B-solved|, the only thing a second transductive arm can add.
 """
 import json
 import os

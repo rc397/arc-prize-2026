@@ -240,7 +240,7 @@ F3. Validate 2B rescoring on fresh pools.
 
 The constraint that binds is one submission a day. It isn't the GPU quota.
 
-Here's why the quota doesn't bind. Kaggle only sets KAGGLE_IS_COMPETITION_RERUN when it
+The quota doesn't bind, and here is why. Kaggle only sets KAGGLE_IS_COMPETITION_RERUN when it
 re-runs a notebook to score it. On our own commit the variable isn't set, so the notebook
 reads the public evaluation set instead of the hidden one, and it can queue a few tasks
 instead of all of them. LB33 limits itself to four keys (0934a4d8, 36a08778, 981571dc and
@@ -369,6 +369,6 @@ THE BUILD TRACK, on the rig only, costing no slots, roughly in order of expected
       likely to move us by more than a point. Start it once S1 and S2 have told us whether
       search throughput is really where the score lives.
 
-What I'm not doing is anything in section 2, any submission that fails the rule in 4b, any
-use of agents, or trusting a number shown on the leaderboard as a measurement of the code
+What I'm not doing is anything in section 2, any submission that fails the rule in 4b, or
+trusting a number shown on the leaderboard as a measurement of the code
 published beside it.

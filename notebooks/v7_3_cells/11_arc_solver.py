@@ -18,7 +18,7 @@ from contextlib import redirect_stdout, redirect_stderr
 from peft import get_peft_model_state_dict, set_peft_model_state_dict
 import bz2
 import pickle
-from scipy.ndimage import label  # <-- NEW for pruning
+from scipy.ndimage import label
 
 logging.disable(logging.WARNING)
 
@@ -290,9 +290,7 @@ def worker(rank, queue, end_time):
         # AIF arm removed. It fast-pathed 12 of 39 tasks with zero correct on the eval slice,
         # so the arm is not launched at all and this stub stands in for its result.
 
-        # ================================================================
-        # TRAINING PHASE (GPU busy for ~3.5 minutes)
-        # ================================================================
+        # training, GPU busy for about 3.5 minutes
         with io.StringIO() as buf, redirect_stdout(buf), redirect_stderr(buf):
             trainer = UnslothFixedTrainer(
                 model=model,
@@ -316,13 +314,11 @@ def worker(rank, queue, end_time):
 
         aif_result = {'confidence': 0.0, 'grid': None, 'expected_count': -1, 'is_solved': False}
 
-        # ================================================================
-        # EARLY EXIT: IF AIF SOLVED PERFECTLY AND ONLY ONE TEST CASE
-        # ================================================================
+        # early exit if AIF solved it and there is one test case
         test_cases = puzzle_ds.queries[key]['test']
         if len(test_cases) == 1 and aif_result and aif_result.get('is_solved', False) and aif_result.get('grid') is not None:
             solution_grid = np.array(aif_result['grid'])
-            print(f"[Rank {rank}] ⭐ AIF PERFECTLY SOLVED {key}! Skipping 15-min inference.")
+            print(f"[Rank {rank}] AIF solved {key} outright, skipping inference.")
             dummy_result = [{
                 "beam_score": 0.0,
                 "score_aug": [0.0, 0.0],
@@ -334,9 +330,7 @@ def worker(rank, queue, end_time):
             print(f"[Rank {rank}] finished {key} in {time.time() - start_time:.1f}s (AIF fast-path)")
             continue
 
-        # ================================================================
-        # FALLBACK: LLM INFERENCE WITH AIF STRUCTURAL PRUNING
-        # ================================================================
+        # otherwise LLM inference, with AIF structural pruning
         print(f"[Rank {rank}] AIF confidence {aif_result.get('confidence',0):.2f}. Running LLM inference...")
 
         puzzle_ds_multi = puzzle_ds.split_multi_replies()
@@ -398,18 +392,14 @@ def worker(rank, queue, end_time):
 
                         solution = puzzle_ds_multi.invert_mod(array, subkey, inv_perm=True)
 
-                        # ============================================================
-                        # AIF PRUNING: Penalize if generated object count mismatches
-                        # ============================================================
+                        # AIF pruning, penalise a beam whose object count is off
                         if expected_count > 0:
                             bin_sol = (solution > 0).astype(np.int32)
                             _, gen_count = label(bin_sol)
                             if abs(gen_count - expected_count) > 0:
                                 beam_score += abs(gen_count - expected_count) * 0.5
 
-                        # ============================================================
-                        # ORIGINAL SCORING LOGIC (unchanged)
-                        # ============================================================
+                        # scoring
                         grid_id = (bk, tuple(map(tuple, solution)))
                         if grid_id in known_scores:
                             augmented_scores = known_scores[grid_id]

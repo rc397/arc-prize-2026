@@ -1,4 +1,4 @@
-"""Robust rig AIRV validation harness on llama.cpp. This is the ONE harness for rig validation.
+"""Rig AIRV validation harness on llama.cpp. This is the ONE harness for rig validation.
 
 Why llama.cpp and not HF eager: generation goes through llama-server, every request has a 300s cap plus
 retries plus ensure_server() recovery, so a single task can never hang the whole run (the failure mode

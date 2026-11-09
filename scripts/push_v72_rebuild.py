@@ -50,7 +50,7 @@ def main():
         "enable_gpu": True,
         # REQUIRED, and its absence is silent. Without it the kernel gets machine_shape "Gpu" and
         # Kaggle may allocate a Tesla P100 (sm_60), on which this stack dies with "no kernel image is
-        # available for execution on the device" -- torch 2.8+cu128 supports sm_70 and up. The
+        # available for execution on the device", but torch 2.8+cu128 supports sm_70 and up. The
         # SCORING rerun uses L4s and would have been fine; it is the commit run that fails, and a
         # kernel whose commit fails has no output and therefore cannot be submitted at all.
         # v7-2-replicate carries NvidiaL4, which is where this string came from.
@@ -79,7 +79,7 @@ def main():
             bad = json.loads(str(r)).get("invalidModelSources")
         except Exception:
             bad = None
-    assert not bad, "model source rejected: %s -- the kernel would run without a model" % bad
+    assert not bad, "model source rejected: %s, the kernel would run without a model" % bad
 
     # The kernel is not submittable until this commit run finishes and leaves an output behind,
     # which is exactly the precondition v7.3 now fails.
